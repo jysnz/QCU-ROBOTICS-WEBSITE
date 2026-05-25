@@ -245,7 +245,7 @@ const Hero = () => {
           <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold text-white tracking-tight mb-6">
             QCU Robotics <br className="hidden sm:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-yellow-500 to-red-500">
-               Championship Team
+               Alpha & Beta
             </span>
           </h1>
           
