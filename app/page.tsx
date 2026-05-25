@@ -125,6 +125,7 @@ const AmbientBackground = () => (
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const [activeLink, setActiveLink] = useState('');
 
   // Handle scroll effect for glass navbar
   useEffect(() => {
@@ -135,32 +136,63 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  const navItems = ['Competitions', 'About Us', 'Teams', 'Technology'];
+
   return (
-    <nav className={`fixed w-full z-50 transition-all duration-300 ${scrolled ? 'py-3' : 'py-5'}`}>
+    <nav className={`fixed w-full z-50 transition-all duration-300 ${scrolled ? 'py-2' : 'py-4'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className={`
-          flex items-center justify-between px-6 py-3 rounded-2xl transition-all duration-300
+          flex items-center justify-between px-6 py-3 rounded-xl transition-all duration-300
           ${scrolled 
-            ? 'bg-slate-900/60 backdrop-blur-md border border-slate-700/50 shadow-lg shadow-slate-900/20' 
-            : 'bg-transparent'}
+            ? 'bg-slate-950/70 backdrop-blur-xl border border-slate-700/40 shadow-2xl shadow-slate-900/30' 
+            : 'bg-slate-950/40 backdrop-blur-lg border border-slate-700/30'}
         `}>
           {/* Logo */}
-          <div className="flex items-center gap-2">
-            <img src="/Images/logo1.jpg" alt="QCU Robotics Logo" className="w-10 h-10 rounded-xl object-cover shadow-lg" />
-            <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-500 to-yellow-500">
-              QCU ROBOTICS
-            </span>
+          <div className="flex items-center gap-3 group cursor-pointer">
+            <div className="relative">
+              <img 
+                src="/Images/logo1.jpg" 
+                alt="QCU Robotics Logo" 
+                className="w-11 h-11 rounded-lg object-cover shadow-lg group-hover:shadow-red-500/50 transition-shadow duration-300" 
+              />
+              <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-red-500/20 to-yellow-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-sm font-bold text-white">QCU</span>
+              <span className="text-xs font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-400 to-yellow-400 leading-tight">
+                ROBOTICS
+              </span>
+            </div>
           </div>
 
           {/* Desktop Menu */}
-          <div className="hidden md:flex items-center gap-8">
-            {['Competitions', 'About Us', 'Teams', 'Technology'].map((item) => (
-              <a key={item} href={`#${item.toLowerCase()}`} className="text-sm font-medium text-slate-300 hover:text-red-400 transition-colors">
+          <div className="hidden md:flex items-center gap-1">
+            {navItems.map((item) => (
+              <a 
+                key={item} 
+                href={`#${item.toLowerCase()}`}
+                onMouseEnter={() => setActiveLink(item)}
+                onMouseLeave={() => setActiveLink('')}
+                className="relative px-3 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors group"
+              >
                 {item}
+                <span className={`absolute bottom-0 left-3 right-3 h-0.5 bg-gradient-to-r from-red-500 to-yellow-500 rounded-full transition-all duration-300 ${
+                  activeLink === item ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0'
+                }`} />
               </a>
             ))}
-            <button className="px-5 py-2 rounded-lg bg-red-600/80 backdrop-blur-sm border border-red-500/50 text-white text-sm font-medium hover:bg-red-700/80 hover:border-red-400/50 transition-all shadow-[0_0_15px_rgba(220,20,60,0.2)] hover:shadow-[0_0_20px_rgba(220,20,60,0.4)] flex items-center gap-2">
-              Join Team
+          </div>
+
+          {/* CTA Button */}
+          <div className="hidden md:flex items-center gap-4">
+            <button className="group relative px-6 py-2.5 rounded-lg font-medium text-white text-sm overflow-hidden">
+              {/* Animated background */}
+              <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-red-700 rounded-lg transition-all duration-300 group-hover:shadow-lg group-hover:shadow-red-500/50" />
+              <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-yellow-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <span className="relative flex items-center gap-2 justify-center">
+                Join Team
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
+              </span>
             </button>
           </div>
 
@@ -168,7 +200,7 @@ const Navbar = () => {
           <div className="md:hidden">
             <button 
               onClick={() => setIsOpen(!isOpen)}
-              className="text-slate-300 hover:text-white p-2"
+              className="text-slate-300 hover:text-red-400 p-2 rounded-lg hover:bg-slate-800/50 transition-all duration-300"
             >
               {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
             </button>
@@ -177,20 +209,21 @@ const Navbar = () => {
 
         {/* Mobile Menu Dropdown */}
         {isOpen && (
-          <div className="md:hidden mt-2 p-4 rounded-2xl bg-slate-900/90 backdrop-blur-lg border border-slate-700/50 shadow-xl">
-            <div className="flex flex-col space-y-4">
-              {['Competitions', 'About Us', 'Teams', 'Technology'].map((item) => (
+          <div className="md:hidden mt-3 p-5 rounded-xl bg-slate-950/80 backdrop-blur-xl border border-slate-700/50 shadow-2xl shadow-slate-900/30 animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="flex flex-col space-y-3">
+              {navItems.map((item) => (
                 <a 
                   key={item} 
                   href={`#${item.toLowerCase()}`} 
-                  className="text-slate-300 hover:text-red-400 font-medium px-2 py-1"
+                  className="text-slate-300 hover:text-red-400 font-medium px-3 py-2 rounded-lg hover:bg-slate-800/50 transition-all duration-300"
                   onClick={() => setIsOpen(false)}
                 >
                   {item}
                 </a>
               ))}
-              <button className="w-full mt-2 px-5 py-3 rounded-lg bg-gradient-to-r from-red-500 to-red-700 text-white font-medium">
+              <button className="w-full mt-2 px-5 py-3 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/50 transition-all duration-300 flex items-center justify-center gap-2 group">
                 Join Team
+                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
               </button>
             </div>
           </div>
@@ -220,19 +253,44 @@ const Hero = () => {
 
   return (
     <div className="relative overflow-hidden">
-      {/* Background section - only extends to buttons */}
-      <div 
-        className="relative pt-32 pb-12 sm:pt-40 sm:pb-8 overflow-hidden"
-        style={{
-          backgroundImage: `
-            url("https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=1600&q=80"),
-            linear-gradient(135deg, rgba(15,23,42,0.85) 0%, rgba(30,58,138,0.8) 50%, rgba(15,23,42,0.85) 100%)
-          `,
-          backgroundSize: 'cover, cover',
-          backgroundPosition: 'center, center',
-          backgroundBlendMode: 'overlay'
-        }}
-      >
+      {/* Hero with Carousel Background */}
+      <div className="relative pt-32 pb-12 sm:pt-40 sm:pb-16 overflow-hidden">
+        {/* Auto-scrolling Image Carousel Background */}
+        <div className="absolute inset-0 h-full w-full">
+          <div 
+            className="flex transition-transform duration-1000 ease-[cubic-bezier(0.4,0,0.2,1)] h-full"
+            style={{ transform: `translateX(-${currentImage * 100}%)` }}
+          >
+            {carouselImages.map((src, idx) => (
+              <div key={idx} className="w-full h-full shrink-0 relative">
+                <img
+                  src={src}
+                  className="w-full h-full object-cover"
+                  alt={`Robotics showcase ${idx + 1}`}
+                />
+                {/* Glassy overlay for better text readability */}
+                <div className="absolute inset-0 bg-slate-900/60 mix-blend-multiply" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent" />
+              </div>
+            ))}
+          </div>
+          
+          {/* Navigation Indicators */}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3 z-20">
+            {carouselImages.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setCurrentImage(idx)}
+                className={`h-1.5 rounded-full transition-all duration-500 ${
+                  idx === currentImage ? "w-10 bg-red-500 shadow-[0_0_10px_rgba(220,20,60,0.8)]" : "w-3 bg-slate-500/50 hover:bg-slate-400/80"
+                }`}
+                aria-label={`Go to slide ${idx + 1}`}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Hero Content - Centered Text */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full text-center">
           
           {/* Badge */}
@@ -267,46 +325,10 @@ const Hero = () => {
         </div>
       </div>
 
-      {/* Carousel and Stats - no background */}
-      <div className="relative pt-12 pb-12 sm:pb-16">
+      {/* Stats Glass Panel */}
+      <div className="relative pt-0 pb-16 sm:pb-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
-          {/* Auto-scrolling Image Carousel */}
-          <div className="relative w-full max-w-5xl mx-auto h-64 sm:h-80 md:h-[450px] rounded-3xl overflow-hidden border border-slate-700/50 shadow-[0_0_40px_rgba(220,20,60,0.15)] group">
-            <div 
-              className="flex transition-transform duration-1000 ease-[cubic-bezier(0.4,0,0.2,1)] h-full"
-              style={{ transform: `translateX(-${currentImage * 100}%)` }}
-            >
-              {carouselImages.map((src, idx) => (
-                <div key={idx} className="w-full h-full shrink-0 relative">
-                  <img
-                    src={src}
-                    className="w-full h-full object-cover"
-                    alt={`Robotics showcase ${idx + 1}`}
-                  />
-                  {/* Glassy overlay for thematic blending and stats legibility underneath */}
-                  <div className="absolute inset-0 bg-slate-900/20 mix-blend-multiply" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
-                </div>
-              ))}
-            </div>
-            
-            {/* Navigation Indicators */}
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3 z-20">
-              {carouselImages.map((_, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setCurrentImage(idx)}
-                  className={`h-1.5 rounded-full transition-all duration-500 ${
-                    idx === currentImage ? "w-10 bg-red-500 shadow-[0_0_10px_rgba(220,20,60,0.8)]" : "w-3 bg-slate-500/50 hover:bg-slate-400/80"
-                  }`}
-                  aria-label={`Go to slide ${idx + 1}`}
-                />
-              ))}
-            </div>
-          </div>
-
-          {/* Stats Glass Panel */}
-          <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
+          <div className="mt-0 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
             {[
               { label: 'Competitions', value: '12+' },
               { label: 'International Awards', value: '8' },
