@@ -157,12 +157,9 @@ const Navbar = () => {
               />
               <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-red-500/20 to-yellow-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
             </div>
-            <div className="flex flex-col">
-              <span className="text-sm font-bold text-white">QCU</span>
-              <span className="text-xs font-bold bg-clip-text text-transparent bg-gradient-to-r from-red-400 to-yellow-400 leading-tight">
-                ROBOTICS
-              </span>
-            </div>
+            <span className="text-lg font-bold text-white whitespace-nowrap">
+              QCU ROBOTICS
+            </span>
           </div>
 
           {/* Desktop Menu */}
