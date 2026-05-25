@@ -139,53 +139,123 @@ const Navbar = () => {
 };
 
 const Hero = () => {
+  const [currentImage, setCurrentImage] = useState(0);
+
+  const carouselImages = [
+    "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=1600&q=80",
+    "https://images.unsplash.com/photo-1535378273068-9bb67d5beacd?auto=format&fit=crop&w=1600&q=80",
+    "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?auto=format&fit=crop&w=1600&q=80",
+    "https://images.unsplash.com/photo-1589254065878-42c9da997008?auto=format&fit=crop&w=1600&q=80"
+  ];
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentImage((prev) => (prev + 1) % carouselImages.length);
+    }, 4000); // Auto-advance every 4 seconds
+    return () => clearInterval(timer);
+  }, []);
+
   return (
-    <div className="relative min-h-screen flex items-center pt-20 pb-12 sm:pt-24 sm:pb-16 overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full text-center">
-        
-        {/* Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/50 backdrop-blur-md border border-slate-700/50 mb-8">
-          <span className="flex h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-pulse" />
-          <span className="text-xs font-medium text-slate-300 tracking-wider uppercase">Next-Gen Autonomous Systems</span>
-        </div>
+    <div className="relative overflow-hidden">
+      {/* Background section - only extends to buttons */}
+      <div 
+        className="relative pt-32 pb-12 sm:pt-40 sm:pb-8 overflow-hidden"
+        style={{
+          backgroundImage: `
+            url("https://images.unsplash.com/photo-1517694712202-14dd9538aa97?auto=format&fit=crop&w=1600&q=80"),
+            linear-gradient(135deg, rgba(15,23,42,0.85) 0%, rgba(30,58,138,0.8) 50%, rgba(15,23,42,0.85) 100%)
+          `,
+          backgroundSize: 'cover, cover',
+          backgroundPosition: 'center, center',
+          backgroundBlendMode: 'overlay'
+        }}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full text-center">
+          
+          {/* Badge */}
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/50 backdrop-blur-md border border-slate-700/50 mb-8">
+            <span className="flex h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_8px_rgba(34,211,238,0.8)] animate-pulse" />
+            <span className="text-xs font-medium text-slate-300 tracking-wider uppercase">Next-Gen Autonomous Systems</span>
+          </div>
 
-        {/* Main Headline */}
-        <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold text-white tracking-tight mb-6">
-          Engineering the <br className="hidden sm:block" />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500">
-             Future of Automation
-          </span>
-        </h1>
-        
-        {/* Subtitle */}
-        <p className="mt-4 text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto mb-10 font-light leading-relaxed">
-          Nexus Robotics develops advanced AI-driven mechanized solutions to tackle humanity's most complex physical challenges across defense, industry, and exploration.
-        </p>
-        
-        {/* CTA Buttons */}
-        <div className="flex flex-col sm:flex-row justify-center gap-4">
-          <button className="px-8 py-4 rounded-xl bg-white text-slate-950 font-semibold hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(255,255,255,0.2)]">
-            Explore Technologies
-            <ChevronRight className="w-5 h-5" />
-          </button>
-          <button className="px-8 py-4 rounded-xl bg-slate-800/40 backdrop-blur-md border border-slate-600/50 text-white font-medium hover:bg-slate-800/60 transition-all flex items-center justify-center gap-2">
-            View Case Studies
-          </button>
+          {/* Main Headline */}
+          <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold text-white tracking-tight mb-6">
+            Engineering the <br className="hidden sm:block" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-500">
+               Future of Automation
+            </span>
+          </h1>
+          
+          {/* Subtitle */}
+          <p className="mt-4 text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto mb-10 font-light leading-relaxed">
+            Nexus Robotics develops advanced AI-driven mechanized solutions to tackle humanity's most complex physical challenges across defense, industry, and exploration.
+          </p>
+          
+          {/* CTA Buttons */}
+          <div className="flex flex-col sm:flex-row justify-center gap-4">
+            <button className="px-8 py-4 rounded-xl bg-white text-slate-950 font-semibold hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(255,255,255,0.2)]">
+              Explore Technologies
+              <ChevronRight className="w-5 h-5" />
+            </button>
+            <button className="px-8 py-4 rounded-xl bg-slate-800/40 backdrop-blur-md border border-slate-600/50 text-white font-medium hover:bg-slate-800/60 transition-all flex items-center justify-center gap-2">
+              View Case Studies
+            </button>
+          </div>
         </div>
+      </div>
 
-        {/* Stats Glass Panel */}
-        <div className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
-          {[
-            { label: 'Active Patents', value: '142+' },
-            { label: 'Deployed Units', value: '10k+' },
-            { label: 'Global Partners', value: '85' },
-            { label: 'Uptime Reliability', value: '99.9%' }
-          ].map((stat, idx) => (
-            <div key={idx} className="p-6 rounded-2xl bg-slate-900/40 backdrop-blur-sm border border-slate-700/30 flex flex-col items-center justify-center">
-              <span className="text-3xl font-bold text-white mb-1">{stat.value}</span>
-              <span className="text-xs text-slate-400 uppercase tracking-wider">{stat.label}</span>
+      {/* Carousel and Stats - no background */}
+      <div className="relative pt-12 pb-12 sm:pb-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full">
+          {/* Auto-scrolling Image Carousel */}
+          <div className="relative w-full max-w-5xl mx-auto h-64 sm:h-80 md:h-[450px] rounded-3xl overflow-hidden border border-slate-700/50 shadow-[0_0_40px_rgba(34,211,238,0.15)] group">
+            <div 
+              className="flex transition-transform duration-1000 ease-[cubic-bezier(0.4,0,0.2,1)] h-full"
+              style={{ transform: `translateX(-${currentImage * 100}%)` }}
+            >
+              {carouselImages.map((src, idx) => (
+                <div key={idx} className="w-full h-full shrink-0 relative">
+                  <img
+                    src={src}
+                    className="w-full h-full object-cover"
+                    alt={`Robotics showcase ${idx + 1}`}
+                  />
+                  {/* Glassy overlay for thematic blending and stats legibility underneath */}
+                  <div className="absolute inset-0 bg-slate-900/20 mix-blend-multiply" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent" />
+                </div>
+              ))}
             </div>
-          ))}
+            
+            {/* Navigation Indicators */}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3 z-20">
+              {carouselImages.map((_, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => setCurrentImage(idx)}
+                  className={`h-1.5 rounded-full transition-all duration-500 ${
+                    idx === currentImage ? "w-10 bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.8)]" : "w-3 bg-slate-500/50 hover:bg-slate-400/80"
+                  }`}
+                  aria-label={`Go to slide ${idx + 1}`}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Stats Glass Panel */}
+          <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
+            {[
+              { label: 'Active Patents', value: '142+' },
+              { label: 'Deployed Units', value: '10k+' },
+              { label: 'Global Partners', value: '85' },
+              { label: 'Uptime Reliability', value: '99.9%' }
+            ].map((stat, idx) => (
+              <div key={idx} className="p-6 rounded-2xl bg-slate-900/40 backdrop-blur-sm border border-slate-700/30 flex flex-col items-center justify-center">
+                <span className="text-3xl font-bold text-white mb-1">{stat.value}</span>
+                <span className="text-xs text-slate-400 uppercase tracking-wider">{stat.label}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>
