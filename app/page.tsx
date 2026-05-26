@@ -25,7 +25,7 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-ke
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // ─── Storage Helpers ──────────────────────────────────────────────────────────
-async function uploadMemberAvatar(file: File, memberId: string) {
+async function uploadMemberAvatar(file, memberId) {
   const fileExt = file.name.split('.').pop();
   const filePath = `member-${memberId}-${Date.now()}.${fileExt}`;
   const { error: uploadError } = await supabase.storage
@@ -36,7 +36,7 @@ async function uploadMemberAvatar(file: File, memberId: string) {
   return data.publicUrl;
 }
 
-async function uploadMatchVideo(file: File, matchName: string) {
+async function uploadMatchVideo(file, matchName) {
   const fileExt = file.name.split('.').pop();
   const filePath = `match-${matchName.replace(/\s+/g, '-')}-${Date.now()}.${fileExt}`;
   const { error: uploadError } = await supabase.storage
@@ -94,10 +94,18 @@ const Navbar = () => {
           {/* Logo */}
           <div className="flex items-center gap-3 group cursor-pointer">
             <div className="relative">
-              <div className="w-11 h-11 rounded-lg bg-red-600 flex items-center justify-center text-white font-bold shadow-lg group-hover:shadow-red-500/50 transition-shadow duration-300">
-                Q
+              <div className="w-11 h-11 rounded-lg flex items-center justify-center text-white font-bold shadow-lg group-hover:shadow-red-500/50 transition-shadow duration-300 overflow-hidden bg-slate-800">
+                <img 
+                  src="/Images/logo1.jpg" 
+                  alt="QCU Robotics Logo" 
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    console.error('[Navbar Debug] Failed to load logo from /Images/logo1.jpg');
+                    e.currentTarget.src = "https://ui-avatars.com/api/?name=QCU&background=dc143c&color=fff";
+                  }}
+                />
               </div>
-              <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-red-500/20 to-yellow-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-red-500/20 to-yellow-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
             </div>
             <span className="text-lg font-bold text-white whitespace-nowrap">QCU ROBOTICS</span>
           </div>
@@ -168,50 +176,91 @@ const Navbar = () => {
   );
 };
 
+// ─── Carousel Images ──────────────────────────────────────────────────────────
+const CAROUSEL_IMAGES = [
+  "/Images/678235897_1485046506604187_4125957943912417164_n.jpg",
+  "/Images/678299297_1459872215195693_2358093542589606207_n%20(1).jpg",
+  "/Images/678314792_1746064756186419_4411744446890772271_n.jpg",
+  "/Images/682477686_1365069988975435_6372022281528030398_n.jpg",
+  "/Images/685920531_944634058361196_8201555872037207606_n.jpg",
+];
+
+// Fallback high-quality robotics/tech images from Unsplash in case local paths 404 on network
+const FALLBACK_IMAGES = [
+  "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?q=80&w=2000&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=2000&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1563207153-f403bf289096?q=80&w=2000&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1581092160562-40aa08e78837?q=80&w=2000&auto=format&fit=crop",
+  "https://images.unsplash.com/photo-1535378917042-10a22c95931a?q=80&w=2000&auto=format&fit=crop",
+];
+
 // ─── Hero ─────────────────────────────────────────────────────────────────────
 const Hero = () => {
   const [currentImage, setCurrentImage] = useState(0);
 
-  // Carousel images from Images folder
-  const carouselImages = [
-    "/Images/678235897_1485046506604187_4125957943912417164_n.jpg",
-    "/Images/678299297_1459872215195693_2358093542589606207_n (1).jpg",
-    "/Images/678314792_1746064756186419_4411744446890772271_n.jpg",
-    "/Images/682477686_1365069988975435_6372022281528030398_n.jpg",
-    "/Images/685920531_944634058361196_8555872037207606_n.jpg",
-  ];
-
   useEffect(() => {
+    console.log('[Carousel Debug] Carousel Component Mounted.');
+    console.log(`[Carousel Debug] Starting interval for ${CAROUSEL_IMAGES.length} images.`);
+    
     const timer = setInterval(() => {
-      setCurrentImage((prev) => (prev + 1) % carouselImages.length);
+      setCurrentImage((prev) => {
+        const nextIndex = (prev + 1) % CAROUSEL_IMAGES.length;
+        console.log(`[Carousel Debug] Transitioning to image index: ${nextIndex}`);
+        return nextIndex;
+      });
     }, 4000);
-    return () => clearInterval(timer);
-  }, [carouselImages.length]);
+    
+    return () => {
+      console.log('[Carousel Debug] Cleaning up interval.');
+      clearInterval(timer);
+    };
+  }, []);
 
   return (
     <div className="relative overflow-hidden">
-      <div className="relative pt-32 pb-12 sm:pt-40 sm:pb-16 overflow-hidden">
+      <div className="relative min-h-screen pt-32 pb-12 sm:pt-40 sm:pb-16 overflow-hidden">
         {/* Carousel */}
-        <div className="absolute inset-0 h-full w-full">
+        <div className="absolute inset-0 h-full w-full bg-slate-900">
           <div
-            className="flex transition-transform duration-1000 ease-[cubic-bezier(0.4,0,0.2,1)] h-full"
-            style={{ transform: `translateX(-${currentImage * 100}%)` }}
+            className="flex h-full w-full transition-transform duration-1000 ease-in-out"
+            style={{
+              width: `${CAROUSEL_IMAGES.length * 100}%`,
+              transform: `translateX(-${currentImage * (100 / CAROUSEL_IMAGES.length)}%)`,
+            }}
           >
-            {carouselImages.map((src, idx) => (
-              <div key={idx} className="w-full h-full shrink-0 relative">
-                <img src={src} className="w-full h-full object-cover" alt={`Robotics showcase ${idx + 1}`} />
-                <div className="absolute inset-0 bg-slate-900/60 mix-blend-multiply" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent" />
+            {CAROUSEL_IMAGES.map((src, idx) => (
+              <div
+                key={idx}
+                className="relative h-full shrink-0"
+                style={{ width: `${100 / CAROUSEL_IMAGES.length}%` }}
+              >
+                {/* Replaced next/image with standard img to prevent network optimization failures */}
+                <img
+                  src={src}
+                  alt={`Robotics showcase ${idx + 1}`}
+                  className="w-full h-full object-cover"
+                  onLoad={() => console.log(`[Carousel Debug] Image ${idx} loaded successfully:`, src)}
+                  onError={(e) => {
+                    console.error(`[Carousel Debug] ERROR: Failed to load image ${idx}:`, src);
+                    console.warn(`[Carousel Debug] RECOVERY: Applying fallback remote image for index ${idx}.`);
+                    e.currentTarget.src = FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length];
+                  }}
+                />
+                <div className="absolute inset-0 bg-slate-900/60 mix-blend-multiply pointer-events-none" />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent pointer-events-none" />
               </div>
             ))}
           </div>
 
           {/* Dot indicators */}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3 z-20">
-            {carouselImages.map((_, idx) => (
+            {CAROUSEL_IMAGES.map((_, idx) => (
               <button
                 key={idx}
-                onClick={() => setCurrentImage(idx)}
+                onClick={() => {
+                  console.log(`[Carousel Debug] User clicked dot indicator for index: ${idx}`);
+                  setCurrentImage(idx);
+                }}
                 className={`h-1.5 rounded-full transition-all duration-500 ${
                   idx === currentImage
                     ? 'w-10 bg-red-500 shadow-[0_0_10px_rgba(220,20,60,0.8)]'
@@ -224,8 +273,8 @@ const Hero = () => {
         </div>
 
         {/* Content */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/50 backdrop-blur-md border border-slate-700/50 mb-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full text-center pointer-events-none">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/50 backdrop-blur-md border border-slate-700/50 mb-8 pointer-events-auto">
             <span className="flex h-2 w-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(220,20,60,0.8)] animate-pulse" />
             <span className="text-xs font-medium text-slate-300 tracking-wider uppercase">Competing at the Highest Level</span>
           </div>
@@ -241,7 +290,7 @@ const Hero = () => {
             Building excellence through innovation and teamwork. QCU Robotics brings cutting-edge engineering to international robotics competitions with two competitive teams.
           </p>
 
-          <div className="flex flex-col sm:flex-row justify-center gap-4">
+          <div className="flex flex-col sm:flex-row justify-center gap-4 pointer-events-auto">
             <button className="px-8 py-4 rounded-xl bg-white text-slate-950 font-semibold hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(255,255,255,0.2)]">
               View Competitions <ChevronRight className="w-5 h-5" />
             </button>
@@ -253,16 +302,16 @@ const Hero = () => {
       </div>
 
       {/* Stats */}
-      <div className="relative pt-0 pb-16 sm:pb-20">
+      <div className="relative pt-0 pb-16 sm:pb-20 bg-slate-950">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto -mt-8">
             {[
               { label: 'Competitions', value: '12+' },
               { label: 'International Awards', value: '8' },
               { label: 'Team Members', value: '45+' },
               { label: 'Championships', value: '3' },
             ].map((stat, idx) => (
-              <div key={idx} className="p-6 rounded-2xl bg-slate-900/40 backdrop-blur-sm border border-slate-700/30 flex flex-col items-center justify-center">
+              <div key={idx} className="p-6 rounded-2xl bg-slate-900/80 backdrop-blur-md border border-slate-700/50 flex flex-col items-center justify-center shadow-xl">
                 <span className="text-3xl font-bold text-white mb-1">{stat.value}</span>
                 <span className="text-xs text-slate-400 uppercase tracking-wider">{stat.label}</span>
               </div>
@@ -276,7 +325,7 @@ const Hero = () => {
 
 // ─── Competitions Section ─────────────────────────────────────────────────────
 const CompetitionsSection = () => {
-  const [competitions, setCompetitions] = useState<any[]>([]);
+  const [competitions, setCompetitions] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -326,7 +375,7 @@ const CompetitionsSection = () => {
               <div className="absolute inset-0 bg-gradient-to-br from-red-500/0 via-transparent to-yellow-600/0 group-hover:from-red-500/5 group-hover:to-yellow-600/5 transition-all duration-500" />
               <div className="relative z-10">
                 <div className="w-16 h-16 rounded-2xl bg-slate-800/80 border border-slate-600/50 flex items-center justify-center mb-6 shadow-lg">
-                  {iconMap[comp.icon_type as keyof typeof iconMap] ?? <Trophy className="w-8 h-8 text-red-400" />}
+                  {iconMap[comp.icon_type] ?? <Trophy className="w-8 h-8 text-red-400" />}
                 </div>
                 <div className="flex items-center gap-2 mb-3">
                   <span className={`text-xs font-semibold px-3 py-1 rounded-full ${
@@ -357,13 +406,13 @@ const CompetitionsSection = () => {
 
 // ─── Matches Section ──────────────────────────────────────────────────────────
 const MatchesSection = () => {
-  const [competitions, setCompetitions] = useState<any[]>([]);
-  const [selectedComp, setSelectedComp] = useState<string | null>(null);
-  const [matches, setMatches] = useState<any[]>([]);
+  const [competitions, setCompetitions] = useState([]);
+  const [selectedComp, setSelectedComp] = useState(null);
+  const [matches, setMatches] = useState([]);
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', our_score: '', opponent_score: '', opponent_name: '' });
-  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [videoFile, setVideoFile] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -411,7 +460,7 @@ const MatchesSection = () => {
       setVideoFile(null);
       setShowForm(false);
     } catch (err) {
-      console.error('Failed to add match:', (err as any)?.message || err);
+      console.error('Failed to add match:', err?.message || err);
     } finally {
       setSubmitting(false);
     }
@@ -508,7 +557,7 @@ const MatchesSection = () => {
                   id="video-upload"
                   onChange={(e) => setVideoFile(e.target.files?.[0] ?? null)}
                 />
-                <label htmlFor="video-upload" className="cursor-pointer">
+                <label htmlFor="video-upload" className="cursor-pointer flex flex-col items-center">
                   {videoFile
                     ? <p className="text-green-400 text-sm">{videoFile.name}</p>
                     : <p className="text-slate-400 text-sm">Click to upload match video <span className="text-slate-600">(mp4, mov, etc.)</span></p>
@@ -633,11 +682,11 @@ const AboutSection = () => (
 );
 
 // ─── Member Card ──────────────────────────────────────────────────────────────
-const MemberCard = ({ member, teamColor }: { member: any; teamColor: string }) => {
+const MemberCard = ({ member, teamColor }) => {
   const [uploading, setUploading] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(member.profile_image_url ?? null);
+  const [avatarUrl, setAvatarUrl] = useState(member.profile_image_url ?? null);
 
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
@@ -650,7 +699,7 @@ const MemberCard = ({ member, teamColor }: { member: any; teamColor: string }) =
       if (error) throw error;
       setAvatarUrl(publicUrl);
     } catch (err) {
-      console.error('Avatar upload failed:', (err as any)?.message || err);
+      console.error('Avatar upload failed:', err?.message || err);
     } finally {
       setUploading(false);
     }
@@ -699,8 +748,8 @@ const MemberCard = ({ member, teamColor }: { member: any; teamColor: string }) =
 
 // ─── Team Members Section ─────────────────────────────────────────────────────
 const TeamMembersSection = () => {
-  const [team1Members, setTeam1Members] = useState<any[]>([]);
-  const [team2Members, setTeam2Members] = useState<any[]>([]);
+  const [team1Members, setTeam1Members] = useState([]);
+  const [team2Members, setTeam2Members] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const refetch = async () => {
@@ -901,7 +950,7 @@ const Footer = () => {
                 {status === 'loading' ? '...' : <Mail className="w-4 h-4" />}
               </button>
             </div>
-            {status === 'success' && <p className="text-green-400 text-xs mt-2">You&apos;re on the list!</p>}
+            {status === 'success' && <p className="text-green-400 text-xs mt-2">You're on the list!</p>}
             {status === 'error'   && <p className="text-red-400   text-xs mt-2">Already signed up or invalid email.</p>}
           </div>
         </div>
