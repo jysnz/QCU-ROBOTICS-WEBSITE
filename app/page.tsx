@@ -809,7 +809,7 @@ const formatRoleData = (role: any): string => {
   return 'Team Member';
 };
 
-const MemberCard = ({ member, teamColor }: { member: any; teamColor: string }) => {
+const MemberCard = ({ member }: { member: any }) => {
   const [uploading, setUploading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(member.profile_image_url ?? null);
 
@@ -832,44 +832,67 @@ const MemberCard = ({ member, teamColor }: { member: any; teamColor: string }) =
     }
   };
 
-  const accentText = teamColor === 'red' ? 'text-red-400' : 'text-yellow-400';
-  const borderColor = teamColor === 'red' ? 'border-red-500/30' : 'border-yellow-500/30';
-  const gradientBg = teamColor === 'red'
-    ? 'bg-gradient-to-br from-red-500/20 to-yellow-500/20'
-    : 'bg-gradient-to-br from-yellow-500/20 to-red-500/20';
+  // Unified blue color scheme for all teams
+  const accentText = 'text-blue-300';
+  const accentBg = 'bg-blue-900/50';
+  const accentBorder = 'border-blue-500/40';
+  const gradientBg = 'bg-gradient-to-br from-blue-500/20 to-cyan-500/20';
+  const hoverGlowColor = 'hover:shadow-[0_0_20px_rgba(59,130,246,0.3)]';
 
   return (
-    <div className="p-6 rounded-2xl bg-slate-900/30 backdrop-blur-md border border-slate-700/40 hover:bg-slate-800/40 hover:border-slate-600/50 transition-all duration-300">
-      {/* Avatar */}
-      <div className="relative w-16 h-16 mx-auto mb-4 group">
-        {avatarUrl ? (
-          <img
-            src={avatarUrl}
-            alt={member.name}
-            className="w-16 h-16 rounded-full object-cover border-2 border-slate-600"
-          />
-        ) : (
-          <div className={`w-16 h-16 rounded-full flex items-center justify-center border-2 ${gradientBg} ${borderColor}`}>
-            <span className={`text-2xl font-bold ${accentText}`}>{member.name?.charAt(0) || 'M'}</span>
-          </div>
-        )}
-        {/* Hover upload overlay */}
-        <label className="absolute inset-0 rounded-full bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex items-center justify-center">
-          <input
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleAvatarUpload}
-            disabled={uploading}
-          />
-          <span className="text-white text-xs font-medium">{uploading ? '...' : 'Upload'}</span>
-        </label>
+    <div className={`group p-8 rounded-3xl bg-gradient-to-b from-slate-800/40 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 relative overflow-hidden transition-all duration-300 hover:border-slate-600/80 ${hoverGlowColor}`}>
+      {/* Background accent decoration */}
+      <div className="absolute top-0 right-0 w-24 h-24 opacity-5 group-hover:opacity-10 transition-opacity">
+        <div className={`w-full h-full rounded-full ${gradientBg}`} />
       </div>
 
-      <h4 className="text-lg font-bold text-white text-center mb-1">{member.name}</h4>
-      <p className={`text-sm text-center mb-2 font-medium ${accentText}`}>
-        {formatRoleData(member.role)}
-      </p>
+      {/* Content */}
+      <div className="relative z-10 flex flex-col items-center">
+        {/* Avatar */}
+        <div className="relative w-24 h-24 mx-auto mb-6 group/avatar">
+          {avatarUrl ? (
+            <img
+              src={avatarUrl}
+              alt={member.name}
+              className="w-24 h-24 rounded-full object-cover border-2 border-slate-600 group-hover/avatar:border-slate-500 transition-all duration-300 shadow-lg"
+            />
+          ) : (
+            <div className={`w-24 h-24 rounded-full flex items-center justify-center border-2 ${accentBg} ${accentBorder} transition-all duration-300`}>
+              <span className={`text-4xl font-bold ${accentText}`}>{member.name?.charAt(0) || 'M'}</span>
+            </div>
+          )}
+          {/* Hover upload overlay */}
+          <label className="absolute inset-0 rounded-full bg-black/60 opacity-0 group-hover/avatar:opacity-100 transition-opacity cursor-pointer flex items-center justify-center">
+            <input
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleAvatarUpload}
+              disabled={uploading}
+            />
+            <span className="text-white text-xs font-medium">{uploading ? '...' : 'Upload'}</span>
+          </label>
+        </div>
+
+        {/* Name */}
+        <h4 className="text-lg font-bold text-white text-center mb-2 group-hover:text-slate-100 transition-colors">{member.name}</h4>
+        
+        {/* Role */}
+        <div className={`inline-flex items-center px-3 py-1.5 rounded-full ${accentBg} ${accentBorder} border text-center mb-4 transition-all duration-300`}>
+          <p className={`text-xs font-semibold ${accentText} uppercase tracking-wider`}>
+            {formatRoleData(member.role)}
+          </p>
+        </div>
+
+        {/* Status indicator */}
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-emerald-400/80 animate-pulse" />
+          <span className="text-xs text-slate-400">Active Member</span>
+        </div>
+      </div>
+
+      {/* Border glow effect on hover */}
+      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-3xl bg-gradient-to-br from-slate-700/20 via-transparent to-slate-700/20" />
     </div>
   );
 };
@@ -879,21 +902,35 @@ const TeamMembersSection = () => {
   console.log('[TeamMembersSection] Component rendering');
   const [team1Members, setTeam1Members] = useState<any[]>([]);
   const [team2Members, setTeam2Members] = useState<any[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refetch = async () => {
     try {
-      console.log('[TeamMembers] Fetching...');
-      const { data, error } = await supabase.from('team_members').select('*').order('id');
+      console.log('[TeamMembers] Fetching teams and members...');
       
-      if (error) {
-        console.error('[TeamMembers] ❌ Error:', error.message);
+      // Fetch teams
+      const { data: teamsData, error: teamsError } = await supabase.from('teams').select('*').order('team_number');
+      if (teamsError) {
+        console.error('[TeamMembers] ❌ Teams Error:', teamsError.message);
+        return;
+      }
+      if (teamsData) {
+        console.log('[TeamMembers] ✅ Fetched teams:', teamsData);
+        setTeams(teamsData);
+      }
+
+      // Fetch members
+      const { data: membersData, error: membersError } = await supabase.from('team_members').select('*').order('id');
+      
+      if (membersError) {
+        console.error('[TeamMembers] ❌ Members Error:', membersError.message);
         return;
       }
       
-      if (data) {
-        const team1 = data.filter((m) => m.team_number === 1);
-        const team2 = data.filter((m) => m.team_number === 2);
+      if (membersData) {
+        const team1 = membersData.filter((m) => m.team_number === 1);
+        const team2 = membersData.filter((m) => m.team_number === 2);
         console.log('[TeamMembers] ✅ Fetched: Team 1:', team1.length, '| Team 2:', team2.length);
         setTeam1Members(team1);
         setTeam2Members(team2);
@@ -916,37 +953,48 @@ const TeamMembersSection = () => {
     );
   }
 
+  const team1Data = teams.find((t) => t.team_number === 1);
+  const team2Data = teams.find((t) => t.team_number === 2);
+
   return (
     <section id="teams" className="py-24 relative z-10 bg-slate-950/50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      {/* Background accent */}
+      <div className="absolute inset-0 bg-gradient-to-b from-blue-500/5 via-transparent to-transparent pointer-events-none" />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+        {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
+          <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30">
+            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+            <span className="text-xs font-semibold text-blue-300 uppercase tracking-wider">Our Team</span>
+          </div>
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Meet Our Teams</h2>
-          <p className="text-slate-400">Dedicated engineers and innovators working together to achieve excellence in competitive robotics.</p>
+          <p className="text-slate-400 text-lg">Dedicated engineers and innovators working together to achieve excellence in competitive robotics.</p>
         </div>
 
         {/* Team 1 */}
-        <div className="mb-16">
+        <div className="mb-20">
           <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
-            <span className="inline-block w-3 h-3 rounded-full bg-red-500" />
-            Team 1 – FIRST Robotics Division
+            <span className="inline-block w-3 h-3 rounded-full bg-blue-500" />
+            {team1Data?.team_name || 'Team 1'}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {team1Members.length > 0 ? team1Members.map((member) => (
-              <MemberCard key={member.id} member={member} teamColor="red" />
-            )) : <p className="text-slate-500 text-sm">No members added yet.</p>}
+              <MemberCard key={member.id} member={member} />
+            )) : <p className="text-slate-500 text-sm col-span-full text-center py-12">No members added yet.</p>}
           </div>
         </div>
 
         {/* Team 2 */}
         <div>
           <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
-            <span className="inline-block w-3 h-3 rounded-full bg-yellow-500" />
-            Team 2 – VEX Robotics Division
+            <span className="inline-block w-3 h-3 rounded-full bg-blue-500" />
+            {team2Data?.team_name || 'Team 2'}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {team2Members.length > 0 ? team2Members.map((member) => (
-              <MemberCard key={member.id} member={member} teamColor="yellow" />
-            )) : <p className="text-slate-500 text-sm">No members added yet.</p>}
+              <MemberCard key={member.id} member={member} />
+            )) : <p className="text-slate-500 text-sm col-span-full text-center py-12">No members added yet.</p>}
           </div>
         </div>
       </div>
