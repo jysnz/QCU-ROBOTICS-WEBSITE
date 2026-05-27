@@ -38,6 +38,7 @@ export default function AchievementsPage() {
 
   const [competitions, setCompetitions] = useState<any[]>([]);
   const [selectedComp, setSelectedComp] = useState<string | number | null>(null);
+  const [selectedTeam, setSelectedTeam] = useState<string | number | null>(null);
   const [achievements, setAchievements] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,7 +83,11 @@ export default function AchievementsPage() {
           setSelectedComp(selectedId);
         }
 
-        if (teamData && teamData.length > 0) setTeams(teamData);
+        if (teamData && teamData.length > 0) {
+          setTeams(teamData);
+          // Default to the first team in the array rather than null
+          setSelectedTeam(teamData[0].id);
+        }
       } catch (err: any) {
         console.error('[Achievements] ❌ Exception:', err?.message || err);
       }
@@ -127,6 +132,11 @@ export default function AchievementsPage() {
   // Helper to get currently selected competition title
   const currentCompTitle = competitions.find(c => c.id === selectedComp)?.title || 'Select Competition...';
 
+  // Filter achievements locally based on selected team
+  const displayedAchievements = selectedTeam 
+    ? achievements.filter(a => a.team_id === selectedTeam)
+    : achievements;
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
       {/* Header */}
@@ -158,48 +168,71 @@ export default function AchievementsPage() {
             </p>
           </div>
 
-          {/* Custom Competition Filter Dropdown */}
-          <div className="mb-12 relative w-full max-w-sm" ref={dropdownRef}>
-            <label className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-2 block">
-              Competition
-            </label>
-            
-            <button
-              type="button"
-              onClick={() => setIsCompDropdownOpen(!isCompDropdownOpen)}
-              className={`w-full flex items-center justify-between bg-slate-900/60 border ${
-                isCompDropdownOpen ? 'border-amber-500/50 ring-1 ring-amber-500/30' : 'border-slate-700/50 hover:border-slate-600'
-              } text-white text-sm font-medium px-4 py-3 rounded-xl backdrop-blur-sm transition-all duration-300`}
-            >
-              <span className="truncate">{currentCompTitle}</span>
-              <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isCompDropdownOpen ? 'rotate-180 text-amber-400' : ''}`} />
-            </button>
+          {/* Filters Section */}
+          <div className="mb-12">
+            {/* Custom Competition Filter Dropdown */}
+            <div className="mb-6 relative w-full max-w-sm" ref={dropdownRef}>
+              <label className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-2 block">
+                Competition
+              </label>
+              
+              <button
+                type="button"
+                onClick={() => setIsCompDropdownOpen(!isCompDropdownOpen)}
+                className={`w-full flex items-center justify-between bg-slate-900/60 border ${
+                  isCompDropdownOpen ? 'border-amber-500/50 ring-1 ring-amber-500/30' : 'border-slate-700/50 hover:border-slate-600'
+                } text-white text-sm font-medium px-4 py-3 rounded-xl backdrop-blur-sm transition-all duration-300`}
+              >
+                <span className="truncate">{currentCompTitle}</span>
+                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isCompDropdownOpen ? 'rotate-180 text-amber-400' : ''}`} />
+              </button>
 
-            {/* Dropdown Menu */}
-            {isCompDropdownOpen && (
-              <div className="absolute z-50 w-full mt-2 bg-slate-900/95 backdrop-blur-xl border border-slate-700 rounded-xl shadow-2xl shadow-black/50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                <ul className="max-h-60 overflow-y-auto custom-scrollbar py-1">
-                  {competitions.map((comp) => (
-                    <li key={comp.id}>
-                      <button
-                        onClick={() => {
-                          setSelectedComp(comp.id);
-                          setIsCompDropdownOpen(false); // Close menu on selection
-                        }}
-                        className={`w-full text-left flex items-center justify-between px-4 py-3 text-sm transition-colors ${
-                          selectedComp === comp.id
-                            ? 'bg-amber-500/10 text-amber-400 font-semibold'
-                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                        }`}
-                      >
-                        <span className="truncate">{comp.title}</span>
-                        {selectedComp === comp.id && <Check className="w-4 h-4" />}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
+              {/* Dropdown Menu */}
+              {isCompDropdownOpen && (
+                <div className="absolute z-50 w-full mt-2 bg-slate-900/95 backdrop-blur-xl border border-slate-700 rounded-xl shadow-2xl shadow-black/50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                  <ul className="max-h-60 overflow-y-auto custom-scrollbar py-1">
+                    {competitions.map((comp) => (
+                      <li key={comp.id}>
+                        <button
+                          onClick={() => {
+                            setSelectedComp(comp.id);
+                            setIsCompDropdownOpen(false); // Close menu on selection
+                          }}
+                          className={`w-full text-left flex items-center justify-between px-4 py-3 text-sm transition-colors ${
+                            selectedComp === comp.id
+                              ? 'bg-amber-500/10 text-amber-400 font-semibold'
+                              : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                          }`}
+                        >
+                          <span className="truncate">{comp.title}</span>
+                          {selectedComp === comp.id && <Check className="w-4 h-4" />}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            {/* Team Filter */}
+            <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900/40 to-slate-900/20 backdrop-blur-md border border-slate-700/40 text-center">
+              <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold mb-4">Select Team</p>
+              <div className="flex gap-4 flex-wrap justify-center">
+                {teams.map((team) => (
+                  <button
+                    key={team.id}
+                    onClick={() => setSelectedTeam(team.id)}
+                    className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 border-2 ${
+                      selectedTeam === team.id
+                        ? 'bg-amber-600 border-amber-400 text-white shadow-lg shadow-amber-500/20'
+                        : 'bg-slate-800/50 border-slate-700/50 text-slate-300 hover:border-amber-500/50 hover:text-white'
+                    }`}
+                  >
+                    {team.team_code || `Team ${team.team_number || team.id}`}
+                  </button>
+                ))}
               </div>
-            )}
+            </div>
           </div>
 
           {/* Achievements Grid */}
@@ -207,13 +240,13 @@ export default function AchievementsPage() {
             <div className="flex justify-center py-20">
               <LoadingSpinner />
             </div>
-          ) : achievements.length === 0 ? (
+          ) : displayedAchievements.length === 0 ? (
             <div className="text-center py-20">
-              <p className="text-slate-400 text-lg">No achievements recorded for this competition yet.</p>
+              <p className="text-slate-400 text-lg">No achievements recorded for this team/competition yet.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-stagger">
-              {achievements.map((achievement, idx) => {
+              {displayedAchievements.map((achievement, idx) => {
                 const team = teams.find(t => t.id === achievement.team_id);
                 const teamName = team ? (team.team_code || `Team ${team.id}`) : 'Unknown Team';
 
