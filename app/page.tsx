@@ -632,9 +632,9 @@ const MatchesSection = () => {
           </div>
 
           {/* Team filter tabs */}
-          <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900/40 to-slate-900/20 backdrop-blur-md border border-slate-700/40">
+          <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900/40 to-slate-900/20 backdrop-blur-md border border-slate-700/40 text-center">
             <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold mb-4">Select Team</p>
-            <div className="flex gap-4 flex-wrap">
+            <div className="flex gap-4 flex-wrap justify-center">
               {teams.map((team) => (
                 <button
                   key={team.id}
