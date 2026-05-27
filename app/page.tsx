@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
+import { LoadingSpinner, SkeletonCompetitionCard, SkeletonTeamMemberCard, SkeletonCoachCard } from './components/LoadingSpinner';
 import {
   Trophy,
   Rocket,
@@ -66,25 +67,7 @@ const clearCache = (key?: string) => {
   }
 };
 
-async function uploadMemberAvatar(
-  file: File,
-  memberId: string
-) {
-  const fileExt = file.name.split('.').pop();
-
-  const filePath = `member-${memberId}-${Date.now()}.${fileExt}`;
-
-  const { error: uploadError } = await supabase.storage
-    .from('avatars')
-    .upload(filePath, file);
-
-  if (uploadError) {
-    throw uploadError;
-  }
-
-  return filePath;
-}
-
+// ─── Upload Functions ────────────────────────────────────────────────────────
 async function uploadMatchVideo(file: File, matchName: string): Promise<string> {
   const fileExt = file.name.split('.').pop();
   const filePath = `match-${matchName.replace(/\s+/g, '-')}-${Date.now()}.${fileExt}`;
@@ -421,7 +404,13 @@ const CompetitionsSection = () => {
   if (loading) {
     return (
       <section className="py-24 relative z-10">
-        <div className="max-w-7xl mx-auto px-4 text-center text-slate-400">Loading competitions...</div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(3)].map((_, i) => (
+              <SkeletonCompetitionCard key={i} />
+            ))}
+          </div>
+        </div>
       </section>
     );
   }
@@ -448,11 +437,11 @@ const CompetitionsSection = () => {
           </a>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-stagger">
           {competitions.length > 0 ? competitions.map((comp, idx) => (
             <div
               key={comp.id}
-              className="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:scale-105"
+              className="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:scale-105 animate-fadeIn"
               style={{ animationDelay: `${idx * 100}ms` }}
             >
               {/* Card background with gradient */}
@@ -503,15 +492,23 @@ const CompetitionsSection = () => {
                   {comp.location}
                 </p>
 
-                {/* Button - fixed at bottom */}
-                <Link 
-                  href={`/matches?id=${comp.id}`}
-                  className="mt-auto inline-flex items-center gap-2 text-sm font-semibold text-red-400 group-hover:text-red-300 transition-colors relative overflow-hidden"
-                >
-                  <span>See Matches</span>
-                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  <div className="absolute inset-0 bg-gradient-to-r from-red-500/0 via-red-500/20 to-red-500/0 opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
-                </Link>
+                {/* Buttons - fixed at bottom */}
+                <div className="mt-auto flex gap-3">
+                  <Link 
+                    href={`/matches?id=${comp.id}`}
+                    className="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-red-400 group-hover:text-red-300 transition-colors relative overflow-hidden py-2 px-3 rounded-lg bg-red-600/10 border border-red-500/30 hover:bg-red-600/20"
+                  >
+                    <span>Matches</span>
+                    <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                  <Link 
+                    href={`/achievements?id=${comp.id}`}
+                    className="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-amber-400 group-hover:text-amber-300 transition-colors relative overflow-hidden py-2 px-3 rounded-lg bg-amber-600/10 border border-amber-500/30 hover:bg-amber-600/20"
+                  >
+                    <span>Achievements</span>
+                    <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  </Link>
+                </div>
               </div>
 
               {/* Border glow effect */}
@@ -594,27 +591,7 @@ const formatRoleData = (role: any): string => {
 };
 
 const MemberCard = ({ member }: { member: any }) => {
-  const [uploading, setUploading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(member.profile_image_url ?? null);
-
-  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    try {
-      const publicUrl = await uploadMemberAvatar(file, member.id);
-      const { error } = await supabase
-        .from('team_members')
-        .update({ profile_image_url: publicUrl })
-        .eq('id', member.id);
-      if (error) throw error;
-      setAvatarUrl(publicUrl);
-    } catch (err: any) {
-      console.error('Avatar upload failed:', err?.message || err);
-    } finally {
-      setUploading(false);
-    }
-  };
 
   // Unified blue color scheme for all teams
   const accentText = 'text-blue-300';
@@ -633,29 +610,18 @@ const MemberCard = ({ member }: { member: any }) => {
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center">
         {/* Avatar */}
-        <div className="relative w-24 h-24 mx-auto mb-6 group/avatar">
+        <div className="relative w-24 h-24 mx-auto mb-6">
           {avatarUrl ? (
             <img
               src={avatarUrl}
               alt={member.name}
-              className="w-24 h-24 rounded-full object-cover border-2 border-slate-600 group-hover/avatar:border-slate-500 transition-all duration-300 shadow-lg"
+              className="w-24 h-24 rounded-full object-cover border-2 border-slate-600 transition-all duration-300 shadow-lg"
             />
           ) : (
             <div className={`w-24 h-24 rounded-full flex items-center justify-center border-2 ${accentBg} ${accentBorder} transition-all duration-300`}>
               <span className={`text-4xl font-bold ${accentText}`}>{member.name?.charAt(0) || 'M'}</span>
             </div>
           )}
-          {/* Hover upload overlay */}
-          <label className="absolute inset-0 rounded-full bg-black/60 opacity-0 group-hover/avatar:opacity-100 transition-opacity cursor-pointer flex items-center justify-center">
-            <input
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleAvatarUpload}
-              disabled={uploading}
-            />
-            <span className="text-white text-xs font-medium">{uploading ? '...' : 'Upload'}</span>
-          </label>
         </div>
 
         {/* Name */}
@@ -747,7 +713,20 @@ const TeamMembersSection = () => {
   if (loading) {
     return (
       <section className="py-24 relative z-10 bg-slate-950/50">
-        <div className="max-w-7xl mx-auto px-4 text-center text-slate-400">Loading team...</div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
+            {[...Array(2)].map((_, t) => (
+              <div key={t}>
+                <div className="h-8 w-1/2 bg-slate-700/50 rounded mb-8 animate-pulse" />
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {[...Array(6)].map((_, i) => (
+                    <SkeletonTeamMemberCard key={i} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </section>
     );
   }
@@ -860,15 +839,19 @@ const CoachesSection = () => {
 
         {/* Coaches Grid */}
         {loading ? (
-          <p className="text-slate-400 text-center py-12">Loading coaches...</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {[...Array(4)].map((_, i) => (
+              <SkeletonCoachCard key={i} />
+            ))}
+          </div>
         ) : coaches.length === 0 ? (
           <p className="text-slate-500 text-center py-12">No coaches added yet.</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 animate-stagger">
             {coaches.map((coach) => (
               <div
                 key={coach.id}
-                className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-md border border-slate-700/50 transition-all duration-300 hover:border-purple-500/50 hover:shadow-[0_0_20px_rgba(168,85,247,0.2)]"
+                className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-md border border-slate-700/50 transition-all duration-300 hover:border-purple-500/50 hover:shadow-[0_0_20px_rgba(168,85,247,0.2)] animate-fadeIn"
               >
                 {/* Coach Image */}
                 <div className="relative h-64 overflow-hidden bg-slate-950">

@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
+import { LoadingSpinner, SkeletonMatchCard } from '../components/LoadingSpinner';
 import { ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
 
@@ -59,10 +60,6 @@ const MatchesSection = () => {
   const [matches, setMatches] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
   const [loadingMatches, setLoadingMatches] = useState(false);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ name: '', our_score: '', opponent_score: '', opponent_name: '' });
-  const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     console.log('[MatchesSection] useEffect for competitions hook running');
@@ -158,35 +155,6 @@ const MatchesSection = () => {
     fetchMatches();
   }, [selectedComp, selectedTeam]);
 
-  const handleSubmit = async () => {
-    if (!form.name || !form.opponent_name) return;
-    setSubmitting(true);
-    try {
-      let video_url = null;
-      if (videoFile) {
-        video_url = await uploadMatchVideo(videoFile, form.name);
-      }
-      const { error } = await supabase.from('matches').insert([{
-        competition_id: selectedComp,
-        name: form.name,
-        our_score: parseInt(form.our_score) || 0,
-        opponent_score: parseInt(form.opponent_score) || 0,
-        opponent_name: form.opponent_name,
-        video_url,
-      }]);
-      if (error) throw error;
-      setForm({ name: '', our_score: '', opponent_score: '', opponent_name: '' });
-      setVideoFile(null);
-      setShowForm(false);
-    } catch (err: any) {
-      console.error('Failed to add match:', err?.message || err);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const inputClass = "w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-red-500";
-
   return (
     <section id="matches" className="py-24 relative z-10 bg-slate-950/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -200,12 +168,6 @@ const MatchesSection = () => {
               <p className="text-slate-400">Track scores and watch match footage for each competition.</p>
             </div>
           </div>
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="mt-4 md:mt-0 px-5 py-2.5 rounded-lg bg-red-600/80 border border-red-500/50 text-white text-sm font-medium hover:bg-red-700/80 transition-all"
-          >
-            {showForm ? 'Cancel' : '+ Add Match'}
-          </button>
         </div>
 
         {/* Team and Competition filter tabs */}
@@ -248,92 +210,21 @@ const MatchesSection = () => {
           </div>
         </div>
 
-        {/* Add Match Form */}
-        {showForm && (
-          <div className="mb-8 p-6 rounded-2xl bg-slate-900/40 backdrop-blur-md border border-slate-700/40">
-            <h3 className="text-lg font-bold text-white mb-5">New Match</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Match Name</label>
-                <input
-                  className={inputClass}
-                  placeholder="e.g. Qualifier Round 1"
-                  value={form.name}
-                  onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Opponent Name</label>
-                <input
-                  className={inputClass}
-                  placeholder="e.g. Team Nexus"
-                  value={form.opponent_name}
-                  onChange={(e) => setForm((p) => ({ ...p, opponent_name: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Our Score</label>
-                <input
-                  className={inputClass}
-                  type="number"
-                  placeholder="0"
-                  value={form.our_score}
-                  onChange={(e) => setForm((p) => ({ ...p, our_score: e.target.value }))}
-                />
-              </div>
-              <div>
-                <label className="block text-xs text-slate-400 mb-1">Opponent Score</label>
-                <input
-                  className={inputClass}
-                  type="number"
-                  placeholder="0"
-                  value={form.opponent_score}
-                  onChange={(e) => setForm((p) => ({ ...p, opponent_score: e.target.value }))}
-                />
-              </div>
-            </div>
-
-            {/* Video Upload */}
-            <div className="mb-5">
-              <label className="block text-xs text-slate-400 mb-1">Match Video</label>
-              <div className="border-2 border-dashed border-slate-700 rounded-lg p-4 text-center hover:border-red-500/50 transition-colors">
-                <input
-                  type="file"
-                  accept="video/*"
-                  className="hidden"
-                  id="video-upload"
-                  onChange={(e) => setVideoFile(e.target.files?.[0] ?? null)}
-                />
-                <label htmlFor="video-upload" className="cursor-pointer flex flex-col items-center">
-                  {videoFile
-                    ? <p className="text-green-400 text-sm">{videoFile.name}</p>
-                    : <p className="text-slate-400 text-sm">Click to upload match video <span className="text-slate-600">(mp4, mov, etc.)</span></p>
-                  }
-                </label>
-              </div>
-            </div>
-
-            <button
-              onClick={handleSubmit}
-              disabled={submitting}
-              className="px-6 py-2.5 rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 transition-all disabled:opacity-50"
-            >
-              {submitting ? 'Saving...' : 'Save Match'}
-            </button>
-          </div>
-        )}
-
         {/* Match Cards */}
         {loadingMatches ? (
-          <p className="text-slate-400 text-center py-12">Loading matches...</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {[...Array(4)].map((_, i) => (
+              <SkeletonMatchCard key={i} />
+            ))}
+          </div>
         ) : matches.length === 0 ? (
           <p className="text-slate-500 text-center py-12">No matches recorded for this competition yet.</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-stagger">
             {matches.map((match) => (
               <div
                 key={match.id}
-                className="p-6 rounded-2xl bg-slate-900/30 backdrop-blur-md border border-slate-700/40 hover:bg-slate-800/40 transition-all duration-300"
+                className="p-6 rounded-2xl bg-slate-900/30 backdrop-blur-md border border-slate-700/40 hover:bg-slate-800/40 transition-all duration-300 animate-fadeIn"
               >
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-bold text-white">{match.name}</h3>
