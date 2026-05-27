@@ -24,8 +24,16 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-ke
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+// ─── Initial Debug Logging ────────────────────────────────────────────────────
+console.log('[Init] Supabase URL:', supabaseUrl);
+console.log('[Init] Supabase Key valid:', supabaseKey !== 'placeholder-key');
+
+if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseKey === 'placeholder-key') {
+  console.warn('[Init] ⚠️ SUPABASE CREDENTIALS MISSING - using placeholders');
+}
+
 // ─── Storage Helpers ──────────────────────────────────────────────────────────
-async function uploadMemberAvatar(file, memberId) {
+async function uploadMemberAvatar(file: File, memberId: string | number): Promise<string> {
   const fileExt = file.name.split('.').pop();
   const filePath = `member-${memberId}-${Date.now()}.${fileExt}`;
   const { error: uploadError } = await supabase.storage
@@ -36,7 +44,7 @@ async function uploadMemberAvatar(file, memberId) {
   return data.publicUrl;
 }
 
-async function uploadMatchVideo(file, matchName) {
+async function uploadMatchVideo(file: File, matchName: string): Promise<string> {
   const fileExt = file.name.split('.').pop();
   const filePath = `match-${matchName.replace(/\s+/g, '-')}-${Date.now()}.${fileExt}`;
   const { error: uploadError } = await supabase.storage
@@ -218,8 +226,9 @@ const Hero = () => {
 
   return (
     <div className="relative overflow-hidden">
+      {/* Carousel Section */}
       <div className="relative min-h-screen pt-32 pb-12 sm:pt-40 sm:pb-16 overflow-hidden">
-        {/* Carousel */}
+        {/* Carousel Background */}
         <div className="absolute inset-0 h-full w-full bg-slate-900">
           <div
             className="flex h-full w-full transition-transform duration-1000 ease-in-out"
@@ -234,7 +243,6 @@ const Hero = () => {
                 className="relative h-full shrink-0"
                 style={{ width: `${100 / CAROUSEL_IMAGES.length}%` }}
               >
-                {/* Replaced next/image with standard img to prevent network optimization failures */}
                 <img
                   src={src}
                   alt={`Robotics showcase ${idx + 1}`}
@@ -251,32 +259,15 @@ const Hero = () => {
               </div>
             ))}
           </div>
-
-          {/* Dot indicators */}
-          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-3 z-20">
-            {CAROUSEL_IMAGES.map((_, idx) => (
-              <button
-                key={idx}
-                onClick={() => {
-                  console.log(`[Carousel Debug] User clicked dot indicator for index: ${idx}`);
-                  setCurrentImage(idx);
-                }}
-                className={`h-1.5 rounded-full transition-all duration-500 ${
-                  idx === currentImage
-                    ? 'w-10 bg-red-500 shadow-[0_0_10px_rgba(220,20,60,0.8)]'
-                    : 'w-3 bg-slate-500/50 hover:bg-slate-400/80'
-                }`}
-                aria-label={`Go to slide ${idx + 1}`}
-              />
-            ))}
-          </div>
         </div>
 
-        {/* Content */}
+        {/* Hero Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full text-center pointer-events-none">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/50 backdrop-blur-md border border-slate-700/50 mb-8 pointer-events-auto">
-            <span className="flex h-2 w-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(220,20,60,0.8)] animate-pulse" />
-            <span className="text-xs font-medium text-slate-300 tracking-wider uppercase">Competing at the Highest Level</span>
+          <div className="flex justify-center mb-8 pointer-events-auto">
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/50 backdrop-blur-md border border-slate-700/50">
+              <span className="flex h-2 w-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(220,20,60,0.8)] animate-pulse" />
+              <span className="text-xs font-medium text-slate-300 tracking-wider uppercase">Competing at the Highest Level</span>
+            </div>
           </div>
 
           <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold text-white tracking-tight mb-6">
@@ -290,13 +281,33 @@ const Hero = () => {
             Building excellence through innovation and teamwork. QCU Robotics brings cutting-edge engineering to international robotics competitions with two competitive teams.
           </p>
 
-          <div className="flex flex-col sm:flex-row justify-center gap-4 pointer-events-auto">
+          <div className="flex flex-col sm:flex-row justify-center gap-4 pointer-events-auto mb-8">
             <button className="px-8 py-4 rounded-xl bg-white text-slate-950 font-semibold hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(255,255,255,0.2)]">
               View Competitions <ChevronRight className="w-5 h-5" />
             </button>
             <button className="px-8 py-4 rounded-xl bg-slate-800/40 backdrop-blur-md border border-slate-600/50 text-white font-medium hover:bg-slate-800/60 transition-all flex items-center justify-center gap-2">
               Meet Our Teams
             </button>
+          </div>
+
+          {/* Carousel Indicators - Below Buttons */}
+          <div className="flex justify-center items-center gap-3 pointer-events-auto">
+            {CAROUSEL_IMAGES.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => {
+                  console.log(`[Carousel Debug] User clicked dot indicator for index: ${idx}`);
+                  setCurrentImage(idx);
+                }}
+                className={`transition-all duration-500 rounded-full ${
+                  idx === currentImage
+                    ? 'w-10 h-2 bg-gradient-to-r from-red-500 to-red-600 shadow-[0_0_12px_rgba(220,20,60,0.8)]'
+                    : 'w-2 h-2 bg-slate-500/70 hover:bg-slate-300'
+                }`}
+                aria-label={`Go to slide ${idx + 1}`}
+                title={`Slide ${idx + 1}`}
+              />
+            ))}
           </div>
         </div>
       </div>
@@ -325,23 +336,34 @@ const Hero = () => {
 
 // ─── Competitions Section ─────────────────────────────────────────────────────
 const CompetitionsSection = () => {
-  const [competitions, setCompetitions] = useState([]);
+  console.log('[CompetitionsSection] Component rendering');
+  const [competitions, setCompetitions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('[CompetitionsSection] useEffect hook running');
     const fetchCompetitions = async () => {
       try {
+        console.log('[Competitions] Fetching...');
+        
         const { data, error } = await supabase
           .from('competitions')
           .select('*')
           .order('created_at', { ascending: false });
-        if (!error) setCompetitions(data ?? []);
-      } catch (err) {
-        console.log("Supabase fetch failed, likely missing credentials.", err);
+        
+        if (error) {
+          console.error('[Competitions] ❌ Error:', error.message);
+        } else {
+          console.log('[Competitions] ✅ Fetched:', data?.length || 0, 'items');
+          setCompetitions(data ?? []);
+        }
+      } catch (err: any) {
+        console.error('[Competitions] ❌ Exception:', err?.message || err);
       } finally {
         setLoading(false);
       }
     };
+    
     fetchCompetitions();
   }, []);
 
@@ -375,7 +397,7 @@ const CompetitionsSection = () => {
               <div className="absolute inset-0 bg-gradient-to-br from-red-500/0 via-transparent to-yellow-600/0 group-hover:from-red-500/5 group-hover:to-yellow-600/5 transition-all duration-500" />
               <div className="relative z-10">
                 <div className="w-16 h-16 rounded-2xl bg-slate-800/80 border border-slate-600/50 flex items-center justify-center mb-6 shadow-lg">
-                  {iconMap[comp.icon_type] ?? <Trophy className="w-8 h-8 text-red-400" />}
+                  {iconMap[comp.icon_type as keyof typeof iconMap] ?? <Trophy className="w-8 h-8 text-red-400" />}
                 </div>
                 <div className="flex items-center gap-2 mb-3">
                   <span className={`text-xs font-semibold px-3 py-1 rounded-full ${
@@ -406,37 +428,69 @@ const CompetitionsSection = () => {
 
 // ─── Matches Section ──────────────────────────────────────────────────────────
 const MatchesSection = () => {
-  const [competitions, setCompetitions] = useState([]);
-  const [selectedComp, setSelectedComp] = useState(null);
-  const [matches, setMatches] = useState([]);
+  console.log('[MatchesSection] Component rendering');
+  const [competitions, setCompetitions] = useState<any[]>([]);
+  const [selectedComp, setSelectedComp] = useState<string | number | null>(null);
+  const [matches, setMatches] = useState<any[]>([]);
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', our_score: '', opponent_score: '', opponent_name: '' });
-  const [videoFile, setVideoFile] = useState(null);
+  const [videoFile, setVideoFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    supabase.from('competitions').select('id, title').then(({ data }) => {
-      if (data && data.length > 0) {
-        setCompetitions(data);
-        setSelectedComp(data[0].id);
+    console.log('[MatchesSection] useEffect for competitions hook running');
+    const fetchCompetitionsForMatches = async () => {
+      try {
+        console.log('[Matches] Fetching competitions...');
+        const { data, error } = await supabase.from('competitions').select('id, title');
+        
+        if (error) {
+          console.error('[Matches] ❌ Error:', error.message);
+          return;
+        }
+        
+        if (data && data.length > 0) {
+          console.log('[Matches] ✅ Fetched:', data.length, 'competitions');
+          setCompetitions(data);
+          setSelectedComp(data[0].id);
+        }
+      } catch (err: any) {
+        console.error('[Matches] ❌ Exception:', err?.message || err);
       }
-    });
+    };
+    
+    fetchCompetitionsForMatches();
   }, []);
 
   useEffect(() => {
-    if (!selectedComp) return;
-    setLoadingMatches(true);
-
-    supabase
-      .from('matches')
-      .select('*')
-      .eq('competition_id', selectedComp)
-      .order('played_at', { ascending: false })
-      .then(({ data }) => {
-        setMatches(data ?? []);
+    const fetchMatches = async () => {
+      if (!selectedComp) return;
+      
+      setLoadingMatches(true);
+      try {
+        console.log('[MatchResults] Fetching for competition:', selectedComp);
+        
+        const { data, error } = await supabase
+          .from('matches')
+          .select('*')
+          .eq('competition_id', selectedComp)
+          .order('played_at', { ascending: false });
+        
+        if (error) {
+          console.error('[MatchResults] ❌ Error:', error.message);
+        } else {
+          console.log('[MatchResults] ✅ Fetched:', data?.length || 0, 'matches');
+          setMatches(data ?? []);
+        }
+      } catch (err: any) {
+        console.error('[MatchResults] ❌ Exception:', err?.message || err);
+      } finally {
         setLoadingMatches(false);
-      });
+      }
+    };
+    
+    fetchMatches();
   }, [selectedComp]);
 
   const handleSubmit = async () => {
@@ -459,7 +513,7 @@ const MatchesSection = () => {
       setForm({ name: '', our_score: '', opponent_score: '', opponent_name: '' });
       setVideoFile(null);
       setShowForm(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to add match:', err?.message || err);
     } finally {
       setSubmitting(false);
@@ -682,11 +736,11 @@ const AboutSection = () => (
 );
 
 // ─── Member Card ──────────────────────────────────────────────────────────────
-const MemberCard = ({ member, teamColor }) => {
+const MemberCard = ({ member, teamColor }: { member: any; teamColor: string }) => {
   const [uploading, setUploading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(member.profile_image_url ?? null);
 
-  const handleAvatarUpload = async (e) => {
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
@@ -698,7 +752,7 @@ const MemberCard = ({ member, teamColor }) => {
         .eq('id', member.id);
       if (error) throw error;
       setAvatarUrl(publicUrl);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Avatar upload failed:', err?.message || err);
     } finally {
       setUploading(false);
@@ -748,23 +802,35 @@ const MemberCard = ({ member, teamColor }) => {
 
 // ─── Team Members Section ─────────────────────────────────────────────────────
 const TeamMembersSection = () => {
-  const [team1Members, setTeam1Members] = useState([]);
-  const [team2Members, setTeam2Members] = useState([]);
+  console.log('[TeamMembersSection] Component rendering');
+  const [team1Members, setTeam1Members] = useState<any[]>([]);
+  const [team2Members, setTeam2Members] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refetch = async () => {
     try {
-      const { data } = await supabase.from('team_members').select('*').order('id');
-      if (data) {
-        setTeam1Members(data.filter((m) => m.team_number === 1));
-        setTeam2Members(data.filter((m) => m.team_number === 2));
+      console.log('[TeamMembers] Fetching...');
+      const { data, error } = await supabase.from('team_members').select('*').order('id');
+      
+      if (error) {
+        console.error('[TeamMembers] ❌ Error:', error.message);
+        return;
       }
-    } catch (err) {
-      console.log("Supabase fetch failed", err);
+      
+      if (data) {
+        const team1 = data.filter((m) => m.team_number === 1);
+        const team2 = data.filter((m) => m.team_number === 2);
+        console.log('[TeamMembers] ✅ Fetched: Team 1:', team1.length, '| Team 2:', team2.length);
+        setTeam1Members(team1);
+        setTeam2Members(team2);
+      }
+    } catch (err: any) {
+      console.error('[TeamMembers] ❌ Exception:', err?.message || err);
     }
   };
 
   useEffect(() => {
+    console.log('[TeamMembersSection] useEffect hook running');
     refetch().then(() => setLoading(false));
   }, []);
 
@@ -968,7 +1034,6 @@ const Footer = () => {
 };
 
 // ─── Page Root ────────────────────────────────────────────────────────────────
-// Exported as default function App to adhere to standard React component expectations
 export default function App() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-red-500/30">
