@@ -484,6 +484,7 @@ const MatchesSection = () => {
   console.log('[MatchesSection] Component rendering');
   const [competitions, setCompetitions] = useState<any[]>([]);
   const [selectedComp, setSelectedComp] = useState<string | number | null>(null);
+  const [selectedTeam, setSelectedTeam] = useState<string | number | null>(null);
   const [matches, setMatches] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
   const [loadingMatches, setLoadingMatches] = useState(false);
@@ -538,11 +539,16 @@ const MatchesSection = () => {
       try {
         console.log('[MatchResults] Fetching for competition:', selectedComp);
         
-        const { data, error } = await supabase
+        let query = supabase
           .from('matches')
           .select('*')
-          .eq('competition_id', selectedComp)
-          .order('created_at', { ascending: false });
+          .eq('competition_id', selectedComp);
+        
+        if (selectedTeam) {
+          query = query.eq('team_id', selectedTeam);
+        }
+        
+        const { data, error } = await query.order('sequence', { ascending: true });
         
         if (error) {
           console.error('[MatchResults] ❌ Error:', error.message);
@@ -558,7 +564,7 @@ const MatchesSection = () => {
     };
     
     fetchMatches();
-  }, [selectedComp]);
+  }, [selectedComp, selectedTeam]);
 
   const handleSubmit = async () => {
     if (!form.name || !form.opponent_name) return;
@@ -605,21 +611,51 @@ const MatchesSection = () => {
           </button>
         </div>
 
-        {/* Competition filter tabs */}
-        <div className="flex gap-3 mb-8 flex-wrap">
-          {competitions.map((comp) => (
+        {/* Team and Competition filter tabs */}
+        <div className="mb-8">
+          {/* Competition filter tabs */}
+          <div className="flex gap-3 mb-6 flex-wrap">
+            {competitions.map((comp) => (
+              <button
+                key={comp.id}
+                onClick={() => setSelectedComp(comp.id)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all border ${
+                  selectedComp === comp.id
+                    ? 'bg-red-600/80 border-red-500/50 text-white'
+                    : 'bg-slate-900/40 border-slate-700/40 text-slate-400 hover:text-white'
+                }`}
+              >
+                {comp.title}
+              </button>
+            ))}
+          </div>
+
+          {/* Team filter tabs */}
+          <div className="flex gap-3 flex-wrap">
             <button
-              key={comp.id}
-              onClick={() => setSelectedComp(comp.id)}
+              onClick={() => setSelectedTeam(null)}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-all border ${
-                selectedComp === comp.id
-                  ? 'bg-red-600/80 border-red-500/50 text-white'
+                selectedTeam === null
+                  ? 'bg-blue-600/80 border-blue-500/50 text-white'
                   : 'bg-slate-900/40 border-slate-700/40 text-slate-400 hover:text-white'
               }`}
             >
-              {comp.title}
+              All Teams
             </button>
-          ))}
+            {teams.map((team) => (
+              <button
+                key={team.id}
+                onClick={() => setSelectedTeam(team.id)}
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all border ${
+                  selectedTeam === team.id
+                    ? 'bg-blue-600/80 border-blue-500/50 text-white'
+                    : 'bg-slate-900/40 border-slate-700/40 text-slate-400 hover:text-white'
+                }`}
+              >
+                {team.team_code || `Team ${team.team_number}`}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Add Match Form */}
@@ -990,7 +1026,7 @@ const TeamMembersSection = () => {
         <div className="mb-20">
           <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
             <span className="inline-block w-3 h-3 rounded-full bg-blue-500" />
-            {team1Data?.team_code ? `${team1Data.team_code}` : `Team ${team1Data?.team_number}`}{team1Data?.team_name ? ` ${team1Data.team_name}` : ''}
+            {team1Data?.team_code ? `${team1Data.team_code}` : `Team ${team1Data?.team_number}`}{team1Data?.team_name ? ` - ${team1Data.team_name}` : ''}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {team1Members.length > 0 ? team1Members.map((member) => (
@@ -1003,7 +1039,7 @@ const TeamMembersSection = () => {
         <div>
           <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
             <span className="inline-block w-3 h-3 rounded-full bg-blue-500" />
-            {team2Data?.team_code ? `${team2Data.team_code}` : `Team ${team2Data?.team_number}`}{team2Data?.team_name ? ` ${team2Data.team_name}` : ''}
+            {team2Data?.team_code ? `${team2Data.team_code}` : `Team ${team2Data?.team_number}`}{team2Data?.team_name ? ` - ${team2Data.team_name}` : ''}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {team2Members.length > 0 ? team2Members.map((member) => (

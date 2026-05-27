@@ -16,6 +16,7 @@ create table public.matches (
   video_url text null,
   created_at timestamp with time zone null default now(),
   team_id bigint null,
+  sequence bigint null,
   constraint matches_pkey primary key (id),
   constraint matches_competition_id_fkey foreign KEY (competition_id) references competitions (id) on delete CASCADE,
   constraint matches_team_id_fkey foreign KEY (team_id) references teams (id) on update CASCADE on delete CASCADE
