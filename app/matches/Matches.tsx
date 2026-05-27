@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { LoadingSpinner, SkeletonMatchCard } from '../components/LoadingSpinner';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, ChevronDown, Check } from 'lucide-react'; // Added ChevronDown and Check
 import Link from 'next/link';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
@@ -31,11 +31,26 @@ const MatchesSection = () => {
   const competitionIdParam = searchParams?.get('id');
 
   const [competitions, setCompetitions] = useState<any[]>([]);
-  const [selectedComp, setSelectedComp] = useState<string | number | null>(null);
+  const [selectedComp, setSelectedComp] = useState<number | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<string | number | null>(null);
   const [matches, setMatches] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
   const [loadingMatches, setLoadingMatches] = useState(false);
+  
+  // Custom Dropdown State & Ref
+  const [isCompDropdownOpen, setIsCompDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsCompDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const fetchCompetitionsAndTeams = async () => {
@@ -72,7 +87,7 @@ const MatchesSection = () => {
     };
 
     fetchCompetitionsAndTeams();
-  }, []);
+  }, [competitionIdParam]);
 
   useEffect(() => {
     const fetchMatches = async () => {
@@ -93,6 +108,9 @@ const MatchesSection = () => {
     fetchMatches();
   }, [selectedComp, selectedTeam]);
 
+  // Helper to get currently selected competition title
+  const currentCompTitle = competitions.find(c => c.id === selectedComp)?.title || 'Select Competition...';
+
   return (
     <section id="matches" className="py-24 relative z-10 bg-slate-950/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -110,27 +128,49 @@ const MatchesSection = () => {
 
         {/* Filters */}
         <div className="mb-8">
-          {/* Competition Dropdown */}
-          <div className="mb-6">
-            <label className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-2 block">Competition</label>
-            <div className="relative w-full max-w-sm">
-              <select
-                value={selectedComp ?? ''}
-                onChange={(e) => setSelectedComp(Number(e.target.value))}
-                className="w-full appearance-none bg-slate-900/60 border border-slate-700/50 text-white text-sm font-medium px-4 py-3 rounded-xl backdrop-blur-sm focus:outline-none focus:border-red-500/50 focus:ring-1 focus:ring-red-500/30 transition-all duration-300 cursor-pointer hover:border-slate-600"
-              >
-                {competitions.map((comp) => (
-                  <option key={comp.id} value={comp.id} className="bg-slate-900">
-                    {comp.title}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
-                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
+          
+          {/* Custom Competition Dropdown */}
+          <div className="mb-6 relative w-full max-w-sm" ref={dropdownRef}>
+            <label className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-2 block">
+              Competition
+            </label>
+            
+            <button
+              type="button"
+              onClick={() => setIsCompDropdownOpen(!isCompDropdownOpen)}
+              className={`w-full flex items-center justify-between bg-slate-900/60 border ${
+                isCompDropdownOpen ? 'border-blue-500/50 ring-1 ring-blue-500/30' : 'border-slate-700/50 hover:border-slate-600'
+              } text-white text-sm font-medium px-4 py-3 rounded-xl backdrop-blur-sm transition-all duration-300`}
+            >
+              <span className="truncate">{currentCompTitle}</span>
+              <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isCompDropdownOpen ? 'rotate-180 text-blue-400' : ''}`} />
+            </button>
+
+            {/* Dropdown Menu */}
+            {isCompDropdownOpen && (
+              <div className="absolute z-50 w-full mt-2 bg-slate-900/95 backdrop-blur-xl border border-slate-700 rounded-xl shadow-2xl shadow-black/50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                <ul className="max-h-60 overflow-y-auto custom-scrollbar py-1">
+                  {competitions.map((comp) => (
+                    <li key={comp.id}>
+                      <button
+                        onClick={() => {
+                          setSelectedComp(comp.id);
+                          setIsCompDropdownOpen(false);
+                        }}
+                        className={`w-full text-left flex items-center justify-between px-4 py-3 text-sm transition-colors ${
+                          selectedComp === comp.id
+                            ? 'bg-blue-600/10 text-blue-400 font-semibold'
+                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
+                        }`}
+                      >
+                        <span className="truncate">{comp.title}</span>
+                        {selectedComp === comp.id && <Check className="w-4 h-4" />}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               </div>
-            </div>
+            )}
           </div>
 
           {/* Team filter */}
