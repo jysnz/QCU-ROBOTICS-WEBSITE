@@ -451,7 +451,7 @@ const CompetitionsSection = () => {
                 </div>
 
                 {/* Title */}
-                <h3 className="text-xl font-bold text-white mb-2 group-hover:text-red-100 transition-colors line-clamp-2">{comp.title}</h3>
+                <h3 className="text-xl font-bold text-white mb-2 group-hover:text-red-100 transition-colors">{comp.title}</h3>
 
                 {/* Location */}
                 <p className="text-slate-400 text-sm font-medium mb-4 flex items-center gap-2">
@@ -459,11 +459,8 @@ const CompetitionsSection = () => {
                   {comp.location}
                 </p>
 
-                {/* Description */}
-                <p className="text-slate-400 text-sm leading-relaxed flex-grow mb-6 line-clamp-3">{comp.description}</p>
-
-                {/* Button */}
-                <button className="inline-flex items-center gap-2 text-sm font-semibold text-red-400 group-hover:text-red-300 transition-colors relative overflow-hidden">
+                {/* Button - fixed at bottom */}
+                <button className="mt-auto inline-flex items-center gap-2 text-sm font-semibold text-red-400 group-hover:text-red-300 transition-colors relative overflow-hidden">
                   <span>Learn More</span>
                   <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   <div className="absolute inset-0 bg-gradient-to-r from-red-500/0 via-red-500/20 to-red-500/0 opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
@@ -792,6 +789,26 @@ const AboutSection = () => (
 );
 
 // ─── Member Card ──────────────────────────────────────────────────────────────
+const formatRoleData = (role: any): string => {
+  if (!role) return 'Team Member';
+  
+  // If it's a string, return as-is
+  if (typeof role === 'string') return role;
+  
+  // If it's a jsonb object
+  if (typeof role === 'object') {
+    // Handle roles array format: { roles: ["Programmer", "Builder"] }
+    if (Array.isArray(role.roles) && role.roles.length > 0) {
+      return role.roles.join(' • ');
+    }
+    // Handle other potential formats
+    if (role.title) return role.title;
+    if (role.department) return role.department;
+  }
+  
+  return 'Team Member';
+};
+
 const MemberCard = ({ member, teamColor }: { member: any; teamColor: string }) => {
   const [uploading, setUploading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState(member.profile_image_url ?? null);
@@ -850,8 +867,9 @@ const MemberCard = ({ member, teamColor }: { member: any; teamColor: string }) =
       </div>
 
       <h4 className="text-lg font-bold text-white text-center mb-1">{member.name}</h4>
-      <p className={`text-sm text-center mb-2 font-medium ${accentText}`}>{member.role}</p>
-      <p className="text-xs text-slate-400 text-center">{member.specialty}</p>
+      <p className={`text-sm text-center mb-2 font-medium ${accentText}`}>
+        {formatRoleData(member.role)}
+      </p>
     </div>
   );
 };
