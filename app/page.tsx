@@ -32,16 +32,23 @@ if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseKey === 'placeh
   console.warn('[Init] ⚠️ SUPABASE CREDENTIALS MISSING - using placeholders');
 }
 
-// ─── Storage Helpers ──────────────────────────────────────────────────────────
-async function uploadMemberAvatar(file: File, memberId: string | number): Promise<string> {
+async function uploadMemberAvatar(
+  file: File,
+  memberId: string
+) {
   const fileExt = file.name.split('.').pop();
+
   const filePath = `member-${memberId}-${Date.now()}.${fileExt}`;
+
   const { error: uploadError } = await supabase.storage
-    .from('member-avatars')
-    .upload(filePath, file, { upsert: true });
-  if (uploadError) throw uploadError;
-  const { data } = supabase.storage.from('member-avatars').getPublicUrl(filePath);
-  return data.publicUrl;
+    .from('avatars')
+    .upload(filePath, file);
+
+  if (uploadError) {
+    throw uploadError;
+  }
+
+  return filePath;
 }
 
 async function uploadMatchVideo(file: File, matchName: string): Promise<string> {
