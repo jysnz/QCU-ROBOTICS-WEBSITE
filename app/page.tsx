@@ -976,7 +976,7 @@ const TeamMembersSection = () => {
         <div className="mb-20">
           <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
             <span className="inline-block w-3 h-3 rounded-full bg-blue-500" />
-            {team1Data?.team_name || 'Team 1'}
+            Team {team1Data?.team_number}{team1Data?.team_name ? ` - ${team1Data.team_name}` : ''}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {team1Members.length > 0 ? team1Members.map((member) => (
@@ -989,7 +989,7 @@ const TeamMembersSection = () => {
         <div>
           <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
             <span className="inline-block w-3 h-3 rounded-full bg-blue-500" />
-            {team2Data?.team_name || 'Team 2'}
+            Team {team2Data?.team_number}{team2Data?.team_name ? ` - ${team2Data.team_name}` : ''}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {team2Members.length > 0 ? team2Members.map((member) => (
