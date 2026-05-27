@@ -1002,54 +1002,6 @@ const TeamMembersSection = () => {
   );
 };
 
-// ─── Technology Section ───────────────────────────────────────────────────────
-const TechnologySection = () => (
-  <section id="technology" className="py-24 relative z-10 bg-slate-950/50">
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="text-center max-w-3xl mx-auto mb-16">
-        <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Our Technical Capabilities</h2>
-        <p className="text-slate-400">Cutting-edge engineering combining mechanical design, advanced programming, and innovative systems to create competitive advantage.</p>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {[
-          {
-            bg: 'bg-red-900/50', border: 'border-red-500/30',
-            Icon: Zap, iconColor: 'text-red-400', BgIcon: Cpu,
-            title: 'Advanced Programming',
-            desc: 'Custom algorithms and autonomous systems enabling intelligent decision-making and real-time adaptation during competitions.',
-          },
-          {
-            bg: 'bg-yellow-900/50', border: 'border-yellow-500/30',
-            Icon: Bot, iconColor: 'text-yellow-400', BgIcon: Activity,
-            title: 'Mechanical Design',
-            desc: 'Precision engineering and innovative mechanical systems designed to withstand intense competition while maximizing performance.',
-          },
-          {
-            bg: 'bg-purple-900/50', border: 'border-purple-500/30',
-            Icon: Shield, iconColor: 'text-purple-400', BgIcon: Shield,
-            title: 'Systems Integration',
-            desc: 'Seamless integration of electrical, mechanical, and software components ensuring reliable performance under competition conditions.',
-          },
-        ].map(({ bg, border, Icon, iconColor, BgIcon, title, desc }) => (
-          <div key={title} className="p-8 rounded-3xl bg-gradient-to-b from-slate-800/40 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 relative overflow-hidden">
-            <div className="absolute top-0 right-0 p-6 opacity-10">
-              <BgIcon className="w-32 h-32 text-white" />
-            </div>
-            <div className="relative z-10">
-              <div className={`w-12 h-12 rounded-full ${bg} flex items-center justify-center mb-6 border ${border}`}>
-                <Icon className={`w-6 h-6 ${iconColor}`} />
-              </div>
-              <h3 className="text-xl font-bold text-white mb-3">{title}</h3>
-              <p className="text-slate-400 text-sm leading-relaxed">{desc}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  </section>
-);
-
 // ─── Footer ───────────────────────────────────────────────────────────────────
 const Footer = () => {
   const [email, setEmail] = useState('');
@@ -1167,7 +1119,6 @@ export default function App() {
         <MatchesSection />
         <AboutSection />
         <TeamMembersSection />
-        <TechnologySection />
       </main>
       <Footer />
     </div>
