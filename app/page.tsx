@@ -485,6 +485,7 @@ const MatchesSection = () => {
   const [competitions, setCompetitions] = useState<any[]>([]);
   const [selectedComp, setSelectedComp] = useState<string | number | null>(null);
   const [matches, setMatches] = useState<any[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
   const [loadingMatches, setLoadingMatches] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ name: '', our_score: '', opponent_score: '', opponent_name: '' });
@@ -493,27 +494,40 @@ const MatchesSection = () => {
 
   useEffect(() => {
     console.log('[MatchesSection] useEffect for competitions hook running');
-    const fetchCompetitionsForMatches = async () => {
+    const fetchCompetitionsAndTeams = async () => {
       try {
         console.log('[Matches] Fetching competitions...');
-        const { data, error } = await supabase.from('competitions').select('id, title');
+        const { data: compData, error: compError } = await supabase.from('competitions').select('id, title');
         
-        if (error) {
-          console.error('[Matches] ❌ Error:', error.message);
+        if (compError) {
+          console.error('[Matches] ❌ Error:', compError.message);
           return;
         }
         
-        if (data && data.length > 0) {
-          console.log('[Matches] ✅ Fetched:', data.length, 'competitions');
-          setCompetitions(data);
-          setSelectedComp(data[0].id);
+        console.log('[Matches] Fetching teams...');
+        const { data: teamData, error: teamError } = await supabase.from('teams').select('id, team_code, team_name');
+        
+        if (teamError) {
+          console.error('[Matches] ❌ Team Error:', teamError.message);
+          return;
+        }
+        
+        if (compData && compData.length > 0) {
+          console.log('[Matches] ✅ Fetched:', compData.length, 'competitions');
+          setCompetitions(compData);
+          setSelectedComp(compData[0].id);
+        }
+        
+        if (teamData) {
+          console.log('[Matches] ✅ Fetched teams:', teamData);
+          setTeams(teamData);
         }
       } catch (err: any) {
         console.error('[Matches] ❌ Exception:', err?.message || err);
       }
     };
     
-    fetchCompetitionsForMatches();
+    fetchCompetitionsAndTeams();
   }, []);
 
   useEffect(() => {
@@ -711,7 +725,7 @@ const MatchesSection = () => {
                 {/* Scoreboard */}
                 <div className="flex items-center justify-center gap-6 py-4 mb-4 rounded-xl bg-slate-950/40 border border-slate-800/50">
                   <div className="text-center">
-                    <p className="text-xs text-slate-400 mb-1">QCU Robotics</p>
+                    <p className="text-xs text-slate-400 mb-1">{teams.find(t => t.id === match.team_id)?.team_code || 'Our Team'}</p>
                     <p className="text-4xl font-extrabold text-white">{match.our_score}</p>
                   </div>
                   <span className="text-slate-600 text-xl font-bold">vs</span>
@@ -976,7 +990,7 @@ const TeamMembersSection = () => {
         <div className="mb-20">
           <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
             <span className="inline-block w-3 h-3 rounded-full bg-blue-500" />
-            Team {team1Data?.team_number}{team1Data?.team_name ? ` - ${team1Data.team_name}` : ''}
+            {team1Data?.team_code ? `${team1Data.team_code}` : `Team ${team1Data?.team_number}`}{team1Data?.team_name ? ` ${team1Data.team_name}` : ''}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {team1Members.length > 0 ? team1Members.map((member) => (
@@ -989,7 +1003,7 @@ const TeamMembersSection = () => {
         <div>
           <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
             <span className="inline-block w-3 h-3 rounded-full bg-blue-500" />
-            Team {team2Data?.team_number}{team2Data?.team_name ? ` - ${team2Data.team_name}` : ''}
+            {team2Data?.team_code ? `${team2Data.team_code}` : `Team ${team2Data?.team_number}`}{team2Data?.team_name ? ` ${team2Data.team_name}` : ''}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {team2Members.length > 0 ? team2Members.map((member) => (
