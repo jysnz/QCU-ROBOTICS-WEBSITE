@@ -528,7 +528,7 @@ const MatchesSection = () => {
           .from('matches')
           .select('*')
           .eq('competition_id', selectedComp)
-          .order('played_at', { ascending: false });
+          .order('created_at', { ascending: false });
         
         if (error) {
           console.error('[MatchResults] ❌ Error:', error.message);
@@ -731,7 +731,7 @@ const MatchesSection = () => {
                 )}
 
                 <p className="text-xs text-slate-500 mt-3">
-                  {new Date(match.played_at).toLocaleDateString('en-US', {
+                  {new Date(match.created_at).toLocaleDateString('en-US', {
                     year: 'numeric', month: 'long', day: 'numeric',
                   })}
                 </p>
