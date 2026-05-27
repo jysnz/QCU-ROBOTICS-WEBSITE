@@ -1046,6 +1046,97 @@ const TeamMembersSection = () => {
   );
 };
 
+// ─── Coaches Section ──────────────────────────────────────────────────────────
+const CoachesSection = () => {
+  console.log('[CoachesSection] Component rendering');
+  const [coaches, setCoaches] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    console.log('[CoachesSection] useEffect hook running');
+    const fetchCoaches = async () => {
+      try {
+        console.log('[Coaches] Fetching coaches...');
+        const { data, error } = await supabase.from('Coaches').select('*').order('id');
+        
+        if (error) {
+          console.error('[Coaches] ❌ Error:', error.message);
+          return;
+        }
+        
+        if (data) {
+          console.log('[Coaches] ✅ Fetched:', data.length, 'coaches');
+          setCoaches(data);
+        }
+      } catch (err: any) {
+        console.error('[Coaches] ❌ Exception:', err?.message || err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchCoaches();
+  }, []);
+
+  return (
+    <section id="coaches" className="py-24 relative z-10 bg-slate-950/50">
+      {/* Background accent */}
+      <div className="absolute inset-0 bg-gradient-to-b from-purple-500/5 via-transparent to-transparent pointer-events-none" />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+        {/* Section Header */}
+        <div className="text-center max-w-3xl mx-auto mb-16">
+          <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/30">
+            <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
+            <span className="text-xs font-semibold text-purple-300 uppercase tracking-wider">Leadership</span>
+          </div>
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Meet Our Coaches</h2>
+          <p className="text-slate-400 text-lg">Expert mentors guiding our teams to victory and fostering the next generation of robotic enthusiasts.</p>
+        </div>
+
+        {/* Coaches Grid */}
+        {loading ? (
+          <p className="text-slate-400 text-center py-12">Loading coaches...</p>
+        ) : coaches.length === 0 ? (
+          <p className="text-slate-500 text-center py-12">No coaches added yet.</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            {coaches.map((coach) => (
+              <div
+                key={coach.id}
+                className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-md border border-slate-700/50 transition-all duration-300 hover:border-purple-500/50 hover:shadow-[0_0_20px_rgba(168,85,247,0.2)]"
+              >
+                {/* Coach Image */}
+                <div className="relative h-64 overflow-hidden bg-slate-950">
+                  {coach.image_url ? (
+                    <img
+                      src={coach.image_url}
+                      alt={coach.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
+                      <Cpu className="w-16 h-16 text-slate-700" />
+                    </div>
+                  )}
+                  {/* Overlay gradient */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                </div>
+
+                {/* Coach Info */}
+                <div className="p-6">
+                  <h3 className="text-lg font-bold text-white mb-1">{coach.name}</h3>
+                  <p className="text-sm text-purple-300 font-medium">Team Coach</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+};
+
 // ─── Footer ───────────────────────────────────────────────────────────────────
 const Footer = () => {
   const [email, setEmail] = useState('');
@@ -1163,6 +1254,7 @@ export default function App() {
         <MatchesSection />
         <AboutSection />
         <TeamMembersSection />
+        <CoachesSection />
       </main>
       <Footer />
     </div>
