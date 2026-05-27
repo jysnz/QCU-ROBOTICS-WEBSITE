@@ -173,21 +173,24 @@ const MatchesSection = () => {
         {/* Team and Competition filter tabs */}
         <div className="mb-8">
           {/* Competition filter tabs */}
-          <div className="flex gap-3 mb-6 flex-wrap">
+            <div className="flex gap-3 mb-6 flex-wrap">
             {competitions.map((comp) => (
-              <button
+                <button
                 key={comp.id}
                 onClick={() => setSelectedComp(comp.id)}
-                className={`px-4 py-2 rounded-full text-sm font-medium transition-all border ${
-                  selectedComp === comp.id
-                    ? 'bg-red-600/80 border-red-500/50 text-white'
-                    : 'bg-slate-900/40 border-slate-700/40 text-slate-400 hover:text-white'
+                className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 border backdrop-blur-sm ${
+                    selectedComp === comp.id
+                    ? 'bg-red-600/80 border-red-500/50 text-white shadow-lg shadow-red-500/20'
+                    : 'bg-slate-900/40 border-slate-700/40 text-slate-400 hover:text-white hover:border-slate-500/60 hover:bg-slate-800/50'
                 }`}
-              >
+                >
+                {selectedComp === comp.id && (
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-300 mr-2 animate-pulse" />
+                )}
                 {comp.title}
-              </button>
+                </button>
             ))}
-          </div>
+            </div>
 
           {/* Team filter tabs */}
           <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900/40 to-slate-900/20 backdrop-blur-md border border-slate-700/40 text-center">

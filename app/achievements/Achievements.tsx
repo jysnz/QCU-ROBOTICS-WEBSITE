@@ -183,23 +183,27 @@ export default function AchievementsPage() {
           </div>
 
           {/* Competition Filter */}
-          <div className="mb-12">
+            <div className="mb-12">
+            <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-3">Select Competition</p>
             <div className="flex gap-3 flex-wrap">
-              {competitions.map((comp) => (
+                {competitions.map((comp) => (
                 <button
-                  key={comp.id}
-                  onClick={() => setSelectedComp(comp.id)}
-                  className={`px-6 py-3 rounded-full text-sm font-semibold transition-all border ${
+                    key={comp.id}
+                    onClick={() => setSelectedComp(comp.id)}
+                    className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 border backdrop-blur-sm ${
                     selectedComp === comp.id
-                      ? 'bg-amber-600/80 border-amber-500/50 text-white'
-                      : 'bg-slate-900/40 border-slate-700/40 text-slate-400 hover:text-white'
-                  }`}
+                        ? 'bg-amber-600/80 border-amber-500/50 text-white shadow-lg shadow-amber-500/20'
+                        : 'bg-slate-900/40 border-slate-700/40 text-slate-400 hover:text-white hover:border-slate-500/60 hover:bg-slate-800/50'
+                    }`}
                 >
-                  {comp.title}
+                    {selectedComp === comp.id && (
+                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-300 mr-2 animate-pulse" />
+                    )}
+                    {comp.title}
                 </button>
-              ))}
+                ))}
             </div>
-          </div>
+            </div>
 
           {/* Achievements Grid */}
           {loading ? (
