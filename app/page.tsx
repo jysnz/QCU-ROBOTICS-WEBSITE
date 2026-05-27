@@ -384,48 +384,97 @@ const CompetitionsSection = () => {
 
   return (
     <section id="competitions" className="py-24 relative z-10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12">
+      {/* Background accent */}
+      <div className="absolute inset-0 bg-gradient-to-b from-red-500/5 via-transparent to-transparent pointer-events-none" />
+      
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-16">
           <div className="max-w-2xl">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Competitions & Achievements</h2>
-            <p className="text-slate-400">QCU Robotics competes at the highest level, showcasing innovation and engineering excellence across multiple prestigious competitions worldwide.</p>
+            <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/30">
+              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-xs font-semibold text-red-400 uppercase tracking-wider">Featured Competitions</span>
+            </div>
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4 leading-tight">
+              Competitions & <span className="bg-gradient-to-r from-red-400 via-red-500 to-orange-500 bg-clip-text text-transparent">Achievements</span>
+            </h2>
+            <p className="text-slate-400 text-lg leading-relaxed">QCU Robotics competes at the highest level, showcasing innovation and engineering excellence across multiple prestigious competitions worldwide.</p>
           </div>
-          <a href="#" className="hidden md:inline-flex items-center gap-2 text-red-400 hover:text-red-300 font-medium transition-colors">
+          <a href="#" className="hidden md:inline-flex items-center gap-2 text-red-400 hover:text-red-300 font-medium transition-colors mt-6 md:mt-0">
             View All Events <ArrowUpRight className="w-4 h-4" />
           </a>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {competitions.length > 0 ? competitions.map((comp) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {competitions.length > 0 ? competitions.map((comp, idx) => (
             <div
               key={comp.id}
-              className="group p-8 rounded-3xl bg-slate-900/30 backdrop-blur-md border border-slate-700/40 hover:bg-slate-800/40 hover:border-slate-600/50 transition-all duration-500 relative overflow-hidden"
+              className="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:scale-105"
+              style={{ animationDelay: `${idx * 100}ms` }}
             >
-              <div className="absolute inset-0 bg-gradient-to-br from-red-500/0 via-transparent to-yellow-600/0 group-hover:from-red-500/5 group-hover:to-yellow-600/5 transition-all duration-500" />
-              <div className="relative z-10">
-                <div className="w-16 h-16 rounded-2xl bg-slate-800/80 border border-slate-600/50 flex items-center justify-center mb-6 shadow-lg">
-                  {iconMap[comp.icon_type as keyof typeof iconMap] ?? <Trophy className="w-8 h-8 text-red-400" />}
-                </div>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className={`text-xs font-semibold px-3 py-1 rounded-full ${
+              {/* Card background with gradient */}
+              <div className="absolute inset-0 bg-gradient-to-br from-slate-800/50 via-slate-900/30 to-slate-950/50 backdrop-blur-xl border border-slate-700/40 group-hover:border-red-500/30 transition-colors duration-500" />
+              
+              {/* Animated gradient overlay on hover */}
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br from-red-500/10 via-transparent to-orange-600/5" />
+              
+              {/* Content */}
+              <div className="relative z-10 p-8 flex flex-col h-full">
+                {/* Image container - only show if image_url exists */}
+                {comp.image_url && (
+                  <div className="mb-6 -mx-8 -mt-8 h-40 bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-t-2xl overflow-hidden flex items-center justify-center group-hover:opacity-90 transition-opacity">
+                    <img 
+                      src={comp.image_url} 
+                      alt={comp.title}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* Icon container */}
+                {/* Removed */}
+
+                {/* Status and date */}
+                <div className="flex items-center gap-3 mb-4 flex-wrap">
+                  <span className={`text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider transition-all duration-300 ${
                     comp.status === 'Active'
-                      ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                      : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                      : comp.status === 'Recent'
+                      ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
+                      : 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
                   }`}>
                     {comp.status}
                   </span>
-                  <span className="text-xs text-slate-400">{comp.date}</span>
+                  <span className="text-xs text-slate-500 font-medium">{comp.date}</span>
                 </div>
-                <h3 className="text-2xl font-bold text-white mb-2 group-hover:text-red-100 transition-colors">{comp.title}</h3>
-                <p className="text-slate-400 text-sm mb-3">{comp.location}</p>
-                <p className="text-slate-400 leading-relaxed mb-6">{comp.description}</p>
-                <button className="flex items-center gap-2 text-sm font-medium text-white group-hover:text-red-400 transition-colors">
-                  Learn More <ChevronRight className="w-4 h-4" />
+
+                {/* Title */}
+                <h3 className="text-xl font-bold text-white mb-2 group-hover:text-red-100 transition-colors line-clamp-2">{comp.title}</h3>
+
+                {/* Location */}
+                <p className="text-slate-400 text-sm font-medium mb-4 flex items-center gap-2">
+                  <span className="w-1 h-1 rounded-full bg-red-500" />
+                  {comp.location}
+                </p>
+
+                {/* Description */}
+                <p className="text-slate-400 text-sm leading-relaxed flex-grow mb-6 line-clamp-3">{comp.description}</p>
+
+                {/* Button */}
+                <button className="inline-flex items-center gap-2 text-sm font-semibold text-red-400 group-hover:text-red-300 transition-colors relative overflow-hidden">
+                  <span>Learn More</span>
+                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  <div className="absolute inset-0 bg-gradient-to-r from-red-500/0 via-red-500/20 to-red-500/0 opacity-0 group-hover:opacity-100 transition-opacity -z-10" />
                 </button>
               </div>
+
+              {/* Border glow effect */}
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-2xl bg-gradient-to-br from-red-500/20 via-transparent to-orange-500/20" />
             </div>
           )) : (
-            <p className="text-slate-500 md:col-span-2">No active competitions found or waiting for database connection.</p>
+            <p className="text-slate-500 md:col-span-2 lg:col-span-3 text-center py-12">No active competitions found or waiting for database connection.</p>
           )}
         </div>
       </div>
