@@ -1,4 +1,5 @@
 "use client";
+
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
@@ -6,32 +7,23 @@ import Link from 'next/link';
 import { ChevronLeft, Trophy, Star, Zap, Award } from 'lucide-react';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 
-// ─── Supabase Client ──────────────────────────────────────────────────────────
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// ─── Data Cache System ────────────────────────────────────────────────────────
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 5 * 60 * 1000;
 const dataCache = new Map<string, { data: any; timestamp: number }>();
 
 const getCachedData = (key: string) => {
   const cached = dataCache.get(key);
   if (!cached) return null;
-  
   const isExpired = Date.now() - cached.timestamp > CACHE_DURATION;
-  if (isExpired) {
-    dataCache.delete(key);
-    return null;
-  }
-  
-  console.log(`[Cache] ✅ Using cached data for: ${key}`);
+  if (isExpired) { dataCache.delete(key); return null; }
   return cached.data;
 };
 
 const setCachedData = (key: string, data: any) => {
   dataCache.set(key, { data, timestamp: Date.now() });
-  console.log(`[Cache] 📝 Cached data for: ${key}`);
 };
 
 const getIconComponent = (index: number) => {
@@ -43,96 +35,62 @@ const getIconComponent = (index: number) => {
 export default function AchievementsPage() {
   const searchParams = useSearchParams();
   const competitionIdParam = searchParams?.get('id') ?? null;
-  
+
   const [competitions, setCompetitions] = useState<any[]>([]);
   const [selectedComp, setSelectedComp] = useState<string | number | null>(null);
   const [achievements, setAchievements] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch competitions and teams
   useEffect(() => {
     const fetchCompetitionsAndTeams = async () => {
       try {
-        // Check cache for competitions
         let compData = getCachedData('achievements-competitions');
         if (!compData) {
-          console.log('[Achievements] Fetching competitions...');
           const { data, error: compError } = await supabase.from('competitions').select('id, title');
-          
-          if (compError) {
-            console.error('[Achievements] ❌ Error:', compError.message);
-            return;
-          }
-          
+          if (compError) { console.error('[Achievements] ❌ Error:', compError.message); return; }
           compData = data;
-          if (compData) {
-            setCachedData('achievements-competitions', compData);
-          }
+          if (compData) setCachedData('achievements-competitions', compData);
         }
 
-        // Check cache for teams
         let teamData = getCachedData('achievements-teams');
         if (!teamData) {
-          console.log('[Achievements] Fetching teams...');
           const { data, error: teamError } = await supabase.from('teams').select('id, team_code, team_name');
-          
-          if (teamError) {
-            console.error('[Achievements] ❌ Team Error:', teamError.message);
-            return;
-          }
-          
+          if (teamError) { console.error('[Achievements] ❌ Team Error:', teamError.message); return; }
           teamData = data;
-          if (teamData) {
-            setCachedData('achievements-teams', teamData);
-          }
+          if (teamData) setCachedData('achievements-teams', teamData);
         }
-        
+
         if (compData && compData.length > 0) {
-          console.log('[Achievements] ✅ Loaded:', compData.length, 'competitions');
           setCompetitions(compData);
-          // Use the competition ID from URL params if available, otherwise use first
           const selectedId = competitionIdParam ? parseInt(competitionIdParam, 10) : compData[0].id;
           setSelectedComp(selectedId);
         }
-        
-        if (teamData && teamData.length > 0) {
-          console.log('[Achievements] ✅ Loaded teams:', teamData);
-          setTeams(teamData);
-        }
+
+        if (teamData && teamData.length > 0) setTeams(teamData);
       } catch (err: any) {
         console.error('[Achievements] ❌ Exception:', err?.message || err);
       }
     };
-    
+
     fetchCompetitionsAndTeams();
   }, []);
 
-  // Fetch achievements when selected competition changes
   useEffect(() => {
     const fetchAchievements = async () => {
       if (!selectedComp) return;
-      
       setLoading(true);
       try {
-        console.log('[Achievements] Fetching for competition:', selectedComp);
-        
-        // Check cache first
         const cacheKey = `achievements-comp-${selectedComp}`;
         let achievementsData = getCachedData(cacheKey);
-        
         if (!achievementsData) {
           const { data, error } = await supabase
             .from('Achievements')
             .select('achievement_id, achievement_name, team_id, competition_id')
             .eq('competition_id', selectedComp)
             .order('achievement_id', { ascending: true });
-          
-          if (error) {
-            console.error('[Achievements] ❌ Error:', error.message);
-            setAchievements([]);
-          } else {
-            console.log('[Achievements] ✅ Fetched:', data?.length || 0, 'achievements');
+          if (error) { console.error('[Achievements] ❌ Error:', error.message); setAchievements([]); }
+          else {
             achievementsData = data ?? [];
             setCachedData(cacheKey, achievementsData);
             setAchievements(achievementsData);
@@ -159,9 +117,9 @@ export default function AchievementsPage() {
           <Link
             href="/"
             className="p-2 rounded-lg bg-slate-900/40 border border-slate-700/40 hover:bg-slate-800/40 transition-all inline-flex items-center justify-center"
-            >
+          >
             <ChevronLeft className="w-5 h-5 text-slate-300" />
-        </Link>
+          </Link>
         </div>
       </div>
 
@@ -182,28 +140,28 @@ export default function AchievementsPage() {
             </p>
           </div>
 
-          {/* Competition Filter */}
-            <div className="mb-12">
-            <p className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-3">Select Competition</p>
-            <div className="flex gap-3 flex-wrap">
+          {/* Competition Filter Dropdown */}
+          <div className="mb-12">
+            <label className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-2 block">Competition</label>
+            <div className="relative w-full max-w-sm">
+              <select
+                value={selectedComp ?? ''}
+                onChange={(e) => setSelectedComp(Number(e.target.value))}
+                className="w-full appearance-none bg-slate-900/60 border border-slate-700/50 text-white text-sm font-medium px-4 py-3 rounded-xl backdrop-blur-sm focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/30 transition-all duration-300 cursor-pointer hover:border-slate-600"
+              >
                 {competitions.map((comp) => (
-                <button
-                    key={comp.id}
-                    onClick={() => setSelectedComp(comp.id)}
-                    className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 border backdrop-blur-sm ${
-                    selectedComp === comp.id
-                        ? 'bg-amber-600/80 border-amber-500/50 text-white shadow-lg shadow-amber-500/20'
-                        : 'bg-slate-900/40 border-slate-700/40 text-slate-400 hover:text-white hover:border-slate-500/60 hover:bg-slate-800/50'
-                    }`}
-                >
-                    {selectedComp === comp.id && (
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-300 mr-2 animate-pulse" />
-                    )}
+                  <option key={comp.id} value={comp.id} className="bg-slate-900">
                     {comp.title}
-                </button>
+                  </option>
                 ))}
+              </select>
+              <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none">
+                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
             </div>
-            </div>
+          </div>
 
           {/* Achievements Grid */}
           {loading ? (
@@ -219,28 +177,23 @@ export default function AchievementsPage() {
               {achievements.map((achievement, idx) => {
                 const team = teams.find(t => t.id === achievement.team_id);
                 const teamName = team ? (team.team_code || `Team ${team.id}`) : 'Unknown Team';
-                
+
                 return (
                   <div
                     key={achievement.achievement_id}
                     className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-md border border-slate-700/50 p-8 transition-all duration-300 hover:border-amber-500/30 hover:shadow-[0_0_20px_rgba(217,119,6,0.2)] animate-fadeIn"
                   >
-                    {/* Background gradient */}
                     <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-                    
-                    {/* Content */}
+
                     <div className="relative z-10">
-                      {/* Icon */}
                       <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/30 text-amber-400 mb-4 group-hover:scale-110 transition-transform duration-300">
                         {getIconComponent(idx)}
                       </div>
 
-                      {/* Achievement Name */}
                       <h3 className="text-xl font-bold text-white mb-4 group-hover:text-amber-100 transition-colors">
                         {achievement.achievement_name}
                       </h3>
 
-                      {/* Team Info */}
                       {team && (
                         <div className="flex items-center justify-between pt-4 border-t border-slate-700/50">
                           <div className="flex gap-2">
@@ -255,7 +208,6 @@ export default function AchievementsPage() {
                       )}
                     </div>
 
-                    {/* Border glow effect */}
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-2xl bg-gradient-to-br from-amber-500/20 via-transparent to-orange-500/20" />
                   </div>
                 );
