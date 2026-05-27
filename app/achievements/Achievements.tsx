@@ -158,11 +158,10 @@ export default function AchievementsPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-slate-400 hover:text-white transition-colors mb-4"
-          >
-            <ChevronLeft className="w-5 h-5" />
-            Back to Home
-          </Link>
+            className="p-2 rounded-lg bg-slate-900/40 border border-slate-700/40 hover:bg-slate-800/40 transition-all inline-flex items-center justify-center"
+            >
+            <ChevronLeft className="w-5 h-5 text-slate-300" />
+        </Link>
         </div>
       </div>
 
