@@ -32,6 +32,39 @@ if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseKey === 'placeh
   console.warn('[Init] ⚠️ SUPABASE CREDENTIALS MISSING - using placeholders');
 }
 
+// ─── Data Cache System ────────────────────────────────────────────────────────
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const dataCache = new Map<string, { data: any; timestamp: number }>();
+
+const getCachedData = (key: string) => {
+  const cached = dataCache.get(key);
+  if (!cached) return null;
+  
+  const isExpired = Date.now() - cached.timestamp > CACHE_DURATION;
+  if (isExpired) {
+    dataCache.delete(key);
+    return null;
+  }
+  
+  console.log(`[Cache] ✅ Using cached data for: ${key}`);
+  return cached.data;
+};
+
+const setCachedData = (key: string, data: any) => {
+  dataCache.set(key, { data, timestamp: Date.now() });
+  console.log(`[Cache] 📝 Cached data for: ${key}`);
+};
+
+const clearCache = (key?: string) => {
+  if (key) {
+    dataCache.delete(key);
+    console.log(`[Cache] 🗑️ Cleared cache for: ${key}`);
+  } else {
+    dataCache.clear();
+    console.log(`[Cache] 🗑️ Cleared all cache`);
+  }
+};
+
 async function uploadMemberAvatar(
   file: File,
   memberId: string
@@ -351,6 +384,14 @@ const CompetitionsSection = () => {
     console.log('[CompetitionsSection] useEffect hook running');
     const fetchCompetitions = async () => {
       try {
+        // Check cache first
+        const cached = getCachedData('competitions');
+        if (cached) {
+          setCompetitions(cached);
+          setLoading(false);
+          return;
+        }
+
         console.log('[Competitions] Fetching...');
         
         const { data, error } = await supabase
@@ -362,7 +403,9 @@ const CompetitionsSection = () => {
           console.error('[Competitions] ❌ Error:', error.message);
         } else {
           console.log('[Competitions] ✅ Fetched:', data?.length || 0, 'items');
-          setCompetitions(data ?? []);
+          const result = data ?? [];
+          setCachedData('competitions', result);
+          setCompetitions(result);
         }
       } catch (err: any) {
         console.error('[Competitions] ❌ Exception:', err?.message || err);
@@ -497,30 +540,48 @@ const MatchesSection = () => {
     console.log('[MatchesSection] useEffect for competitions hook running');
     const fetchCompetitionsAndTeams = async () => {
       try {
-        console.log('[Matches] Fetching competitions...');
-        const { data: compData, error: compError } = await supabase.from('competitions').select('id, title');
-        
-        if (compError) {
-          console.error('[Matches] ❌ Error:', compError.message);
-          return;
+        // Check cache for competitions
+        let compData = getCachedData('matches-competitions');
+        if (!compData) {
+          console.log('[Matches] Fetching competitions...');
+          const { data, error: compError } = await supabase.from('competitions').select('id, title');
+          
+          if (compError) {
+            console.error('[Matches] ❌ Error:', compError.message);
+            return;
+          }
+          
+          compData = data;
+          if (compData) {
+            setCachedData('matches-competitions', compData);
+          }
         }
         
-        console.log('[Matches] Fetching teams...');
-        const { data: teamData, error: teamError } = await supabase.from('teams').select('id, team_code, team_name');
-        
-        if (teamError) {
-          console.error('[Matches] ❌ Team Error:', teamError.message);
-          return;
+        // Check cache for teams
+        let teamData = getCachedData('matches-teams');
+        if (!teamData) {
+          console.log('[Matches] Fetching teams...');
+          const { data, error: teamError } = await supabase.from('teams').select('id, team_code, team_name');
+          
+          if (teamError) {
+            console.error('[Matches] ❌ Team Error:', teamError.message);
+            return;
+          }
+          
+          teamData = data;
+          if (teamData) {
+            setCachedData('matches-teams', teamData);
+          }
         }
         
         if (compData && compData.length > 0) {
-          console.log('[Matches] ✅ Fetched:', compData.length, 'competitions');
+          console.log('[Matches] ✅ Loaded:', compData.length, 'competitions');
           setCompetitions(compData);
           setSelectedComp(compData[0].id);
         }
         
         if (teamData && teamData.length > 0) {
-          console.log('[Matches] ✅ Fetched teams:', teamData);
+          console.log('[Matches] ✅ Loaded teams:', teamData);
           setTeams(teamData);
           setSelectedTeam(teamData[0].id);
         }
@@ -953,29 +1014,44 @@ const TeamMembersSection = () => {
     try {
       console.log('[TeamMembers] Fetching teams and members...');
       
-      // Fetch teams
-      const { data: teamsData, error: teamsError } = await supabase.from('teams').select('*').order('team_number');
-      if (teamsError) {
-        console.error('[TeamMembers] ❌ Teams Error:', teamsError.message);
-        return;
+      // Fetch teams with cache
+      let teamsData = getCachedData('team-members-teams');
+      if (!teamsData) {
+        const { data, error: teamsError } = await supabase.from('teams').select('*').order('team_number');
+        if (teamsError) {
+          console.error('[TeamMembers] ❌ Teams Error:', teamsError.message);
+          return;
+        }
+        teamsData = data;
+        if (teamsData) {
+          setCachedData('team-members-teams', teamsData);
+        }
       }
+      
       if (teamsData) {
-        console.log('[TeamMembers] ✅ Fetched teams:', teamsData);
+        console.log('[TeamMembers] ✅ Loaded teams:', teamsData);
         setTeams(teamsData);
       }
 
-      // Fetch members
-      const { data: membersData, error: membersError } = await supabase.from('team_members').select('*').order('id');
-      
-      if (membersError) {
-        console.error('[TeamMembers] ❌ Members Error:', membersError.message);
-        return;
+      // Fetch members with cache
+      let membersData = getCachedData('team-members-members');
+      if (!membersData) {
+        const { data, error: membersError } = await supabase.from('team_members').select('*').order('id');
+        
+        if (membersError) {
+          console.error('[TeamMembers] ❌ Members Error:', membersError.message);
+          return;
+        }
+        membersData = data;
+        if (membersData) {
+          setCachedData('team-members-members', membersData);
+        }
       }
       
       if (membersData) {
-        const team1 = membersData.filter((m) => m.team_number === 1);
-        const team2 = membersData.filter((m) => m.team_number === 2);
-        console.log('[TeamMembers] ✅ Fetched: Team 1:', team1.length, '| Team 2:', team2.length);
+        const team1 = membersData.filter((m: any) => m.team_number === 1);
+        const team2 = membersData.filter((m: any) => m.team_number === 2);
+        console.log('[TeamMembers] ✅ Loaded: Team 1:', team1.length, '| Team 2:', team2.length);
         setTeam1Members(team1);
         setTeam2Members(team2);
       }
@@ -1056,6 +1132,14 @@ const CoachesSection = () => {
     console.log('[CoachesSection] useEffect hook running');
     const fetchCoaches = async () => {
       try {
+        // Check cache first
+        const cached = getCachedData('coaches');
+        if (cached) {
+          setCoaches(cached);
+          setLoading(false);
+          return;
+        }
+
         console.log('[Coaches] Fetching coaches...');
         const { data, error } = await supabase.from('Coaches').select('*').order('id');
         
@@ -1066,6 +1150,7 @@ const CoachesSection = () => {
         
         if (data) {
           console.log('[Coaches] ✅ Fetched:', data.length, 'coaches');
+          setCachedData('coaches', data);
           setCoaches(data);
         }
       } catch (err: any) {
