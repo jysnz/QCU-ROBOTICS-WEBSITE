@@ -20,13 +20,10 @@ import {
 } from 'lucide-react';
 
 // ─── Supabase Client ──────────────────────────────────────────────────────────
-// Added fallback strings to prevent createClient from throwing an error in preview environments
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
-
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// ─── Initial Debug Logging ────────────────────────────────────────────────────
 console.log('[Init] Supabase URL:', supabaseUrl);
 console.log('[Init] Supabase Key valid:', supabaseKey !== 'placeholder-key');
 
@@ -35,19 +32,14 @@ if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseKey === 'placeh
 }
 
 // ─── Data Cache System ────────────────────────────────────────────────────────
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 5 * 60 * 1000;
 const dataCache = new Map<string, { data: any; timestamp: number }>();
 
 const getCachedData = (key: string) => {
   const cached = dataCache.get(key);
   if (!cached) return null;
-  
   const isExpired = Date.now() - cached.timestamp > CACHE_DURATION;
-  if (isExpired) {
-    dataCache.delete(key);
-    return null;
-  }
-  
+  if (isExpired) { dataCache.delete(key); return null; }
   console.log(`[Cache] ✅ Using cached data for: ${key}`);
   return cached.data;
 };
@@ -57,34 +49,65 @@ const setCachedData = (key: string, data: any) => {
   console.log(`[Cache] 📝 Cached data for: ${key}`);
 };
 
-const clearCache = (key?: string) => {
-  if (key) {
-    dataCache.delete(key);
-    console.log(`[Cache] 🗑️ Cleared cache for: ${key}`);
-  } else {
-    dataCache.clear();
-    console.log(`[Cache] 🗑️ Cleared all cache`);
+// ─── JSONB Helpers ────────────────────────────────────────────────────────────
+const formatRoleData = (role: any): string => {
+  if (!role) return 'Team Member';
+  if (typeof role === 'string') return role;
+  if (typeof role === 'object') {
+    if (Array.isArray(role.roles) && role.roles.length > 0) return role.roles.join(' • ');
+    if (role.title) return role.title;
+    if (role.department) return role.department;
   }
+  return 'Team Member';
 };
 
-// ─── Upload Functions ────────────────────────────────────────────────────────
-async function uploadMatchVideo(file: File, matchName: string): Promise<string> {
-  const fileExt = file.name.split('.').pop();
-  const filePath = `match-${matchName.replace(/\s+/g, '-')}-${Date.now()}.${fileExt}`;
-  const { error: uploadError } = await supabase.storage
-    .from('match-videos')
-    .upload(filePath, file, { upsert: true });
-  if (uploadError) throw uploadError;
-  const { data } = supabase.storage.from('match-videos').getPublicUrl(filePath);
-  return data.publicUrl;
-}
+const extractSeasons = (seasonData: any): string[] => {
+  // null / undefined
+  if (!seasonData) return [];
 
-// ─── Icon Map ─────────────────────────────────────────────────────────────────
-const iconMap = {
-  trophy: <Trophy className="w-8 h-8 text-red-400" />,
-  rocket: <Rocket className="w-8 h-8 text-yellow-400" />,
-  activity: <Activity className="w-8 h-8 text-red-300" />,
-  zap: <Zap className="w-8 h-8 text-yellow-500" />,
+  // Already an array from Supabase JSONB
+  if (Array.isArray(seasonData)) {
+    return seasonData
+      .map((item) => String(item).trim())
+      .filter(Boolean);
+  }
+
+  // JSON object format
+  // Example:
+  // { seasons: ["Season 1", "Season 2"] }
+  if (typeof seasonData === 'object') {
+    // direct seasons property
+    if (Array.isArray(seasonData.seasons)) {
+      return seasonData.seasons
+        .map((item: any) => String(item).trim())
+        .filter(Boolean);
+    }
+
+    // fallback: convert object values
+    return Object.values(seasonData)
+      .flat()
+      .map((item: any) => String(item).trim())
+      .filter(Boolean);
+  }
+
+  // plain string
+  if (typeof seasonData === 'string') {
+    try {
+      // if stored as JSON string
+      const parsed = JSON.parse(seasonData);
+
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((item) => String(item).trim())
+          .filter(Boolean);
+      }
+    } catch {
+      // normal text
+      return [seasonData.trim()].filter(Boolean);
+    }
+  }
+
+  return [];
 };
 
 // ─── Ambient Background ───────────────────────────────────────────────────────
@@ -93,7 +116,8 @@ const AmbientBackground = () => (
     <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-red-900/20 blur-[120px] mix-blend-screen" />
     <div className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[60%] rounded-full bg-yellow-900/20 blur-[100px] mix-blend-screen" />
     <div className="absolute top-[40%] left-[60%] w-[30%] h-[30%] rounded-full bg-red-800/10 blur-[90px] mix-blend-screen" />
-    <div className="absolute inset-0 opacity-50"
+    <div
+      className="absolute inset-0 opacity-50"
       style={{
         backgroundImage: `url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAwIDEwIEwgNDAgMTAgTSAxMCAwIEwgMTAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAyKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+")`
       }}
@@ -127,12 +151,11 @@ const Navbar = () => {
           <div className="flex items-center gap-3 group cursor-pointer">
             <div className="relative">
               <div className="w-11 h-11 rounded-lg flex items-center justify-center text-white font-bold shadow-lg group-hover:shadow-red-500/50 transition-shadow duration-300 overflow-hidden bg-slate-800">
-                <img 
-                  src="/Images/logo1.jpg" 
-                  alt="QCU Robotics Logo" 
+                <img
+                  src="/Images/logo1.jpg"
+                  alt="QCU Robotics Logo"
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    console.error('[Navbar Debug] Failed to load logo from /Images/logo1.jpg');
                     e.currentTarget.src = "https://ui-avatars.com/api/?name=QCU&background=dc143c&color=fff";
                   }}
                 />
@@ -217,7 +240,6 @@ const CAROUSEL_IMAGES = [
   "/Images/685920531_944634058361196_8201555872037207606_n.jpg",
 ];
 
-// Fallback high-quality robotics/tech images from Unsplash in case local paths 404 on network
 const FALLBACK_IMAGES = [
   "https://images.unsplash.com/photo-1485827404703-89b55fcc595e?q=80&w=2000&auto=format&fit=crop",
   "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=2000&auto=format&fit=crop",
@@ -231,28 +253,15 @@ const Hero = () => {
   const [currentImage, setCurrentImage] = useState(0);
 
   useEffect(() => {
-    console.log('[Carousel Debug] Carousel Component Mounted.');
-    console.log(`[Carousel Debug] Starting interval for ${CAROUSEL_IMAGES.length} images.`);
-    
     const timer = setInterval(() => {
-      setCurrentImage((prev) => {
-        const nextIndex = (prev + 1) % CAROUSEL_IMAGES.length;
-        console.log(`[Carousel Debug] Transitioning to image index: ${nextIndex}`);
-        return nextIndex;
-      });
+      setCurrentImage((prev) => (prev + 1) % CAROUSEL_IMAGES.length);
     }, 4000);
-    
-    return () => {
-      console.log('[Carousel Debug] Cleaning up interval.');
-      clearInterval(timer);
-    };
+    return () => clearInterval(timer);
   }, []);
 
   return (
     <div className="relative overflow-hidden">
-      {/* Carousel Section */}
       <div className="relative min-h-screen pt-32 pb-12 sm:pt-40 sm:pb-16 overflow-hidden">
-        {/* Carousel Background */}
         <div className="absolute inset-0 h-full w-full bg-slate-900">
           <div
             className="flex h-full w-full transition-transform duration-1000 ease-in-out"
@@ -271,10 +280,7 @@ const Hero = () => {
                   src={src}
                   alt={`Robotics showcase ${idx + 1}`}
                   className="w-full h-full object-cover"
-                  onLoad={() => console.log(`[Carousel Debug] Image ${idx} loaded successfully:`, src)}
                   onError={(e) => {
-                    console.error(`[Carousel Debug] ERROR: Failed to load image ${idx}:`, src);
-                    console.warn(`[Carousel Debug] RECOVERY: Applying fallback remote image for index ${idx}.`);
                     e.currentTarget.src = FALLBACK_IMAGES[idx % FALLBACK_IMAGES.length];
                   }}
                 />
@@ -285,7 +291,6 @@ const Hero = () => {
           </div>
         </div>
 
-        {/* Hero Content */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full text-center pointer-events-none">
           <div className="flex justify-center mb-8 pointer-events-auto">
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/50 backdrop-blur-md border border-slate-700/50">
@@ -314,22 +319,17 @@ const Hero = () => {
             </button>
           </div>
 
-          {/* Carousel Indicators - Below Buttons */}
           <div className="flex justify-center items-center gap-3 pointer-events-auto">
             {CAROUSEL_IMAGES.map((_, idx) => (
               <button
                 key={idx}
-                onClick={() => {
-                  console.log(`[Carousel Debug] User clicked dot indicator for index: ${idx}`);
-                  setCurrentImage(idx);
-                }}
+                onClick={() => setCurrentImage(idx)}
                 className={`transition-all duration-500 rounded-full ${
                   idx === currentImage
                     ? 'w-10 h-2 bg-gradient-to-r from-red-500 to-red-600 shadow-[0_0_12px_rgba(220,20,60,0.8)]'
                     : 'w-2 h-2 bg-slate-500/70 hover:bg-slate-300'
                 }`}
                 aria-label={`Go to slide ${idx + 1}`}
-                title={`Slide ${idx + 1}`}
               />
             ))}
           </div>
@@ -360,33 +360,23 @@ const Hero = () => {
 
 // ─── Competitions Section ─────────────────────────────────────────────────────
 const CompetitionsSection = () => {
-  console.log('[CompetitionsSection] Component rendering');
   const [competitions, setCompetitions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log('[CompetitionsSection] useEffect hook running');
     const fetchCompetitions = async () => {
       try {
-        // Check cache first
         const cached = getCachedData('competitions');
-        if (cached) {
-          setCompetitions(cached);
-          setLoading(false);
-          return;
-        }
+        if (cached) { setCompetitions(cached); setLoading(false); return; }
 
-        console.log('[Competitions] Fetching...');
-        
         const { data, error } = await supabase
           .from('competitions')
           .select('*')
           .order('created_at', { ascending: false });
-        
+
         if (error) {
           console.error('[Competitions] ❌ Error:', error.message);
         } else {
-          console.log('[Competitions] ✅ Fetched:', data?.length || 0, 'items');
           const result = data ?? [];
           setCachedData('competitions', result);
           setCompetitions(result);
@@ -397,7 +387,6 @@ const CompetitionsSection = () => {
         setLoading(false);
       }
     };
-    
     fetchCompetitions();
   }, []);
 
@@ -406,9 +395,7 @@ const CompetitionsSection = () => {
       <section className="py-24 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(3)].map((_, i) => (
-              <SkeletonCompetitionCard key={i} />
-            ))}
+            {[...Array(3)].map((_, i) => <SkeletonCompetitionCard key={i} />)}
           </div>
         </div>
       </section>
@@ -417,9 +404,7 @@ const CompetitionsSection = () => {
 
   return (
     <section id="competitions" className="py-24 relative z-10">
-      {/* Background accent */}
       <div className="absolute inset-0 bg-gradient-to-b from-red-500/5 via-transparent to-transparent pointer-events-none" />
-      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-16">
           <div className="max-w-2xl">
@@ -430,46 +415,35 @@ const CompetitionsSection = () => {
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-4 leading-tight">
               Competitions & <span className="bg-gradient-to-r from-red-400 via-red-500 to-orange-500 bg-clip-text text-transparent">Achievements</span>
             </h2>
-            <p className="text-slate-400 text-lg leading-relaxed">QCU Robotics competes at the highest level, showcasing innovation and engineering excellence across multiple prestigious competitions worldwide.</p>
+            <p className="text-slate-400 text-lg leading-relaxed">
+              QCU Robotics competes at the highest level, showcasing innovation and engineering excellence across multiple prestigious competitions worldwide.
+            </p>
           </div>
           <a href="#" className="hidden md:inline-flex items-center gap-2 text-red-400 hover:text-red-300 font-medium transition-colors mt-6 md:mt-0">
             View All Events <ArrowUpRight className="w-4 h-4" />
           </a>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-stagger">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {competitions.length > 0 ? competitions.map((comp, idx) => (
             <div
               key={comp.id}
-              className="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:scale-105 animate-fadeIn"
+              className="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:scale-105"
               style={{ animationDelay: `${idx * 100}ms` }}
             >
-              {/* Card background with gradient */}
               <div className="absolute inset-0 bg-gradient-to-br from-slate-800/50 via-slate-900/30 to-slate-950/50 backdrop-blur-xl border border-slate-700/40 group-hover:border-red-500/30 transition-colors duration-500" />
-              
-              {/* Animated gradient overlay on hover */}
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br from-red-500/10 via-transparent to-orange-600/5" />
-              
-              {/* Content */}
               <div className="relative z-10 p-8 flex flex-col h-full">
-                {/* Image container - only show if image_url exists */}
                 {comp.image_url && (
                   <div className="mb-6 -mx-8 -mt-8 h-40 bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-t-2xl overflow-hidden flex items-center justify-center group-hover:opacity-90 transition-opacity">
-                    <img 
-                      src={comp.image_url} 
+                    <img
+                      src={comp.image_url}
                       alt={comp.title}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                      }}
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
                     />
                   </div>
                 )}
-
-                {/* Icon container */}
-                {/* Removed */}
-
-                {/* Status and date */}
                 <div className="flex items-center gap-3 mb-4 flex-wrap">
                   <span className={`text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider transition-all duration-300 ${
                     comp.status === 'Active'
@@ -482,40 +456,33 @@ const CompetitionsSection = () => {
                   </span>
                   <span className="text-xs text-slate-500 font-medium">{comp.date}</span>
                 </div>
-
-                {/* Title */}
                 <h3 className="text-xl font-bold text-white mb-2 group-hover:text-red-100 transition-colors">{comp.title}</h3>
-
-                {/* Location */}
                 <p className="text-slate-400 text-sm font-medium mb-4 flex items-center gap-2">
                   <span className="w-1 h-1 rounded-full bg-red-500" />
                   {comp.location}
                 </p>
-
-                {/* Buttons - fixed at bottom */}
                 <div className="mt-auto flex gap-3">
-                  <Link 
+                  <Link
                     href={`/matches?id=${comp.id}`}
-                    className="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-red-400 group-hover:text-red-300 transition-colors relative overflow-hidden py-2 px-3 rounded-lg bg-red-600/10 border border-red-500/30 hover:bg-red-600/20"
+                    className="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-red-400 group-hover:text-red-300 transition-colors py-2 px-3 rounded-lg bg-red-600/10 border border-red-500/30 hover:bg-red-600/20"
                   >
                     <span>Matches</span>
                     <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </Link>
-                  <Link 
+                  <Link
                     href={`/achievements?id=${comp.id}`}
-                    className="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-amber-400 group-hover:text-amber-300 transition-colors relative overflow-hidden py-2 px-3 rounded-lg bg-amber-600/10 border border-amber-500/30 hover:bg-amber-600/20"
+                    className="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-amber-400 group-hover:text-amber-300 transition-colors py-2 px-3 rounded-lg bg-amber-600/10 border border-amber-500/30 hover:bg-amber-600/20"
                   >
                     <span>Achievements</span>
                     <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </div>
               </div>
-
-              {/* Border glow effect */}
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-2xl bg-gradient-to-br from-red-500/20 via-transparent to-orange-500/20" />
             </div>
           )) : (
-            <p className="text-slate-500 md:col-span-2 lg:col-span-3 text-center py-12">No active competitions found or waiting for database connection.</p>
+            <p className="text-slate-500 md:col-span-2 lg:col-span-3 text-center py-12">
+              No active competitions found or waiting for database connection.
+            </p>
           )}
         </div>
       </div>
@@ -523,8 +490,6 @@ const CompetitionsSection = () => {
   );
 };
 
-// ─── Matches Section ──────────────────────────────────────────────────────────
-// ─── Matches Section (Summary) ────────────────────────────────────────────────
 // ─── About Section ────────────────────────────────────────────────────────────
 const AboutSection = () => (
   <section id="about-us" className="py-24 relative z-10">
@@ -570,44 +535,22 @@ const AboutSection = () => (
 );
 
 // ─── Member Card ──────────────────────────────────────────────────────────────
-const formatRoleData = (role: any): string => {
-  if (!role) return 'Team Member';
-  
-  // If it's a string, return as-is
-  if (typeof role === 'string') return role;
-  
-  // If it's a jsonb object
-  if (typeof role === 'object') {
-    // Handle roles array format: { roles: ["Programmer", "Builder"] }
-    if (Array.isArray(role.roles) && role.roles.length > 0) {
-      return role.roles.join(' • ');
-    }
-    // Handle other potential formats
-    if (role.title) return role.title;
-    if (role.department) return role.department;
-  }
-  
-  return 'Team Member';
-};
-
 const MemberCard = ({ member }: { member: any }) => {
-  const [avatarUrl, setAvatarUrl] = useState(member.profile_image_url ?? null);
+  const [avatarUrl] = useState(member.profile_image_url ?? null);
+  const seasons = extractSeasons(member.season);
 
-  // Unified blue color scheme for all teams
-  const accentText = 'text-blue-300';
-  const accentBg = 'bg-blue-900/50';
+  const accentText   = 'text-blue-300';
+  const accentBg     = 'bg-blue-900/50';
   const accentBorder = 'border-blue-500/40';
-  const gradientBg = 'bg-gradient-to-br from-blue-500/20 to-cyan-500/20';
-  const hoverGlowColor = 'hover:shadow-[0_0_20px_rgba(59,130,246,0.3)]';
+  const gradientBg   = 'bg-gradient-to-br from-blue-500/20 to-cyan-500/20';
+  const hoverGlow    = 'hover:shadow-[0_0_20px_rgba(59,130,246,0.3)]';
 
   return (
-    <div className={`group p-8 rounded-3xl bg-gradient-to-b from-slate-800/40 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 relative overflow-hidden transition-all duration-300 hover:border-slate-600/80 ${hoverGlowColor}`}>
-      {/* Background accent decoration */}
+    <div className={`group p-8 rounded-3xl bg-gradient-to-b from-slate-800/40 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 relative overflow-hidden transition-all duration-300 hover:border-slate-600/80 ${hoverGlow}`}>
       <div className="absolute top-0 right-0 w-24 h-24 opacity-5 group-hover:opacity-10 transition-opacity">
         <div className={`w-full h-full rounded-full ${gradientBg}`} />
       </div>
 
-      {/* Content */}
       <div className="relative z-10 flex flex-col items-center">
         {/* Avatar */}
         <div className="relative w-24 h-24 mx-auto mb-6">
@@ -615,100 +558,116 @@ const MemberCard = ({ member }: { member: any }) => {
             <img
               src={avatarUrl}
               alt={member.name}
-              className="w-24 h-24 rounded-full object-cover border-2 border-slate-600 transition-all duration-300 shadow-lg"
+              className="w-24 h-24 rounded-full object-cover border-2 border-slate-600 shadow-lg"
             />
           ) : (
-            <div className={`w-24 h-24 rounded-full flex items-center justify-center border-2 ${accentBg} ${accentBorder} transition-all duration-300`}>
+            <div className={`w-24 h-24 rounded-full flex items-center justify-center border-2 ${accentBg} ${accentBorder}`}>
               <span className={`text-4xl font-bold ${accentText}`}>{member.name?.charAt(0) || 'M'}</span>
             </div>
           )}
         </div>
 
         {/* Name */}
-        <h4 className="text-lg font-bold text-white text-center mb-2 group-hover:text-slate-100 transition-colors">{member.name}</h4>
-        
+        <h4 className="text-lg font-bold text-white text-center mb-2 group-hover:text-slate-100 transition-colors">
+          {member.name}
+        </h4>
+
         {/* Role */}
-        <div className={`inline-flex items-center px-3 py-1.5 rounded-full ${accentBg} ${accentBorder} border text-center mb-4 transition-all duration-300`}>
+        <div className={`inline-flex items-center px-3 py-1.5 rounded-full ${accentBg} ${accentBorder} border text-center mb-3`}>
           <p className={`text-xs font-semibold ${accentText} uppercase tracking-wider`}>
             {formatRoleData(member.role)}
           </p>
         </div>
 
-        {/* Status indicator */}
-        <div className="flex items-center gap-2">
+        {/* Season badges — one pill per season string, never combined */}
+        {seasons.length > 0 && (
+          <div className="flex flex-wrap justify-center gap-1.5 mb-4">
+            {seasons.map((s, idx) => (
+              <span
+                key={idx}
+                className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 border border-slate-600/70 text-slate-300"
+              >
+                {s}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Status */}
+        <div className="flex items-center gap-2 mt-auto pt-2">
           <div className="w-2 h-2 rounded-full bg-emerald-400/80 animate-pulse" />
           <span className="text-xs text-slate-400">Active Member</span>
         </div>
       </div>
 
-      {/* Border glow effect on hover */}
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-3xl bg-gradient-to-br from-slate-700/20 via-transparent to-slate-700/20" />
     </div>
   );
 };
 
-// ─── Team Members Section ─────────────────────────────────────────────────────
 const TeamMembersSection = () => {
-  console.log('[TeamMembersSection] Component rendering');
   const [team1Members, setTeam1Members] = useState<any[]>([]);
   const [team2Members, setTeam2Members] = useState<any[]>([]);
-  const [teams, setTeams] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const refetch = async () => {
-    try {
-      console.log('[TeamMembers] Fetching teams and members...');
-      
-      // Fetch teams with cache
-      let teamsData = getCachedData('team-members-teams');
-      if (!teamsData) {
-        const { data, error: teamsError } = await supabase.from('teams').select('*').order('team_number');
-        if (teamsError) {
-          console.error('[TeamMembers] ❌ Teams Error:', teamsError.message);
-          return;
-        }
-        teamsData = data;
-        if (teamsData) {
-          setCachedData('team-members-teams', teamsData);
-        }
-      }
-      
-      if (teamsData) {
-        console.log('[TeamMembers] ✅ Loaded teams:', teamsData);
-        setTeams(teamsData);
-      }
-
-      // Fetch members with cache
-      let membersData = getCachedData('team-members-members');
-      if (!membersData) {
-        const { data, error: membersError } = await supabase.from('team_members').select('*').order('id');
-        
-        if (membersError) {
-          console.error('[TeamMembers] ❌ Members Error:', membersError.message);
-          return;
-        }
-        membersData = data;
-        if (membersData) {
-          setCachedData('team-members-members', membersData);
-        }
-      }
-      
-      if (membersData) {
-        const team1 = membersData.filter((m: any) => m.team_number === 1);
-        const team2 = membersData.filter((m: any) => m.team_number === 2);
-        console.log('[TeamMembers] ✅ Loaded: Team 1:', team1.length, '| Team 2:', team2.length);
-        setTeam1Members(team1);
-        setTeam2Members(team2);
-      }
-    } catch (err: any) {
-      console.error('[TeamMembers] ❌ Exception:', err?.message || err);
-    }
-  };
+  const [teams, setTeams]               = useState<any[]>([]);
+  const [loading, setLoading]           = useState(true);
+  const [selectedSeason, setSelectedSeason]     = useState('All');
+  const [availableSeasons, setAvailableSeasons] = useState<string[]>([]);
 
   useEffect(() => {
-    console.log('[TeamMembersSection] useEffect hook running');
-    refetch().then(() => setLoading(false));
+    const fetchTeamsData = async () => {
+      try {
+        let teamsData = getCachedData('team-members-teams');
+        if (!teamsData) {
+          const { data, error } = await supabase.from('teams').select('*').order('team_number');
+          if (error) console.error('[TeamMembers] Teams error:', error.message);
+          else { teamsData = data; setCachedData('team-members-teams', data); }
+        }
+        if (teamsData) setTeams(teamsData);
+
+        let membersData = getCachedData('team-members-members');
+        if (!membersData) {
+          const { data, error } = await supabase.from('team_members').select('*').order('id');
+          if (error) console.error('[TeamMembers] Members error:', error.message);
+          else { membersData = data; setCachedData('team-members-members', data); }
+        }
+
+        if (membersData) {
+          // Debug: log raw season values to confirm DB shape
+          console.log('[TeamMembers] Raw season values:',
+            membersData.map((m: any) => ({ name: m.name, season: m.season }))
+          );
+
+          const seasonsSet = new Set<string>();
+          membersData.forEach((m: any) => {
+            const parsed = extractSeasons(m.season);
+            console.log(`[TeamMembers] ${m.name} seasons:`, parsed);
+            parsed.forEach((s) => seasonsSet.add(s));
+          });
+
+          const sorted = Array.from(seasonsSet).sort();
+          console.log('[TeamMembers] Available seasons:', sorted);
+          setAvailableSeasons(sorted);
+
+          setTeam1Members(membersData.filter((m: any) => m.team_number === 1));
+          setTeam2Members(membersData.filter((m: any) => m.team_number === 2));
+        }
+      } catch (err: any) {
+        console.error('[TeamMembers] Exception:', err?.message || err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTeamsData();
   }, []);
+
+  const filterBySeason = (members: any[]) =>
+    selectedSeason === 'All'
+      ? members
+      : members.filter((m) => extractSeasons(m.season).includes(selectedSeason));
+
+  const teamLabel = (data: any, num: number) =>
+    `${data?.team_code ?? `Team ${num}`}${data?.team_name ? ` - ${data.team_name}` : ''}`;
 
   if (loading) {
     return (
@@ -719,9 +678,7 @@ const TeamMembersSection = () => {
               <div key={t}>
                 <div className="h-8 w-1/2 bg-slate-700/50 rounded mb-8 animate-pulse" />
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {[...Array(6)].map((_, i) => (
-                    <SkeletonTeamMemberCard key={i} />
-                  ))}
+                  {[...Array(6)].map((_, i) => <SkeletonTeamMemberCard key={i} />)}
                 </div>
               </div>
             ))}
@@ -736,30 +693,59 @@ const TeamMembersSection = () => {
 
   return (
     <section id="teams" className="py-24 relative z-10 bg-slate-950/50">
-      {/* Background accent */}
       <div className="absolute inset-0 bg-gradient-to-b from-blue-500/5 via-transparent to-transparent pointer-events-none" />
-      
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-        {/* Section Header */}
-        <div className="text-center max-w-3xl mx-auto mb-16">
+        {/* Header */}
+        <div className="text-center max-w-3xl mx-auto mb-12">
           <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30">
             <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
             <span className="text-xs font-semibold text-blue-300 uppercase tracking-wider">Our Team</span>
           </div>
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Meet Our Teams</h2>
-          <p className="text-slate-400 text-lg">Dedicated engineers and innovators working together to achieve excellence in competitive robotics.</p>
+          <p className="text-slate-400 text-lg">
+            Dedicated engineers and innovators working together to achieve excellence in competitive robotics.
+          </p>
+        </div>
+
+        {/* Season dropdown — always visible, shows "No seasons found" if DB has no data */}
+        <div className="flex justify-center mb-14">
+          <div className="flex items-center gap-3 bg-slate-900/60 backdrop-blur-md border border-slate-700/50 px-5 py-3 rounded-2xl shadow-xl">
+            <span className="text-slate-400 text-sm font-medium whitespace-nowrap">Filter by Season:</span>
+            <div className="relative">
+              <select
+                value={selectedSeason}
+                onChange={(e) => setSelectedSeason(e.target.value)}
+                disabled={availableSeasons.length === 0}
+                className="appearance-none bg-slate-800 border border-slate-600 text-white text-sm font-semibold rounded-xl px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer hover:bg-slate-700 transition-colors min-w-[180px] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="All">
+                  {availableSeasons.length === 0 ? 'No seasons in DB' : 'All Seasons'}
+                </option>
+                {availableSeasons.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Team 1 */}
         <div className="mb-20">
           <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
             <span className="inline-block w-3 h-3 rounded-full bg-blue-500" />
-            {team1Data?.team_code ? `${team1Data.team_code}` : `Team ${team1Data?.team_number}`}{team1Data?.team_name ? ` - ${team1Data.team_name}` : ''}
+            {teamLabel(team1Data, 1)}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {team1Members.length > 0 ? team1Members.map((member) => (
-              <MemberCard key={member.id} member={member} />
-            )) : <p className="text-slate-500 text-sm col-span-full text-center py-12">No members added yet.</p>}
+            {filterBySeason(team1Members).length > 0
+              ? filterBySeason(team1Members).map((m) => <MemberCard key={m.id} member={m} />)
+              : <p className="text-slate-500 text-sm col-span-full py-8 italic bg-slate-900/30 rounded-xl px-6 border border-slate-800/50">No members found for this season.</p>
+            }
           </div>
         </div>
 
@@ -767,12 +753,13 @@ const TeamMembersSection = () => {
         <div>
           <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
             <span className="inline-block w-3 h-3 rounded-full bg-blue-500" />
-            {team2Data?.team_code ? `${team2Data.team_code}` : `Team ${team2Data?.team_number}`}{team2Data?.team_name ? ` - ${team2Data.team_name}` : ''}
+            {teamLabel(team2Data, 2)}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {team2Members.length > 0 ? team2Members.map((member) => (
-              <MemberCard key={member.id} member={member} />
-            )) : <p className="text-slate-500 text-sm col-span-full text-center py-12">No members added yet.</p>}
+            {filterBySeason(team2Members).length > 0
+              ? filterBySeason(team2Members).map((m) => <MemberCard key={m.id} member={m} />)
+              : <p className="text-slate-500 text-sm col-span-full py-8 italic bg-slate-900/30 rounded-xl px-6 border border-slate-800/50">No members found for this season.</p>
+            }
           </div>
         </div>
       </div>
@@ -782,32 +769,19 @@ const TeamMembersSection = () => {
 
 // ─── Coaches Section ──────────────────────────────────────────────────────────
 const CoachesSection = () => {
-  console.log('[CoachesSection] Component rendering');
   const [coaches, setCoaches] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    console.log('[CoachesSection] useEffect hook running');
     const fetchCoaches = async () => {
       try {
-        // Check cache first
         const cached = getCachedData('coaches');
-        if (cached) {
-          setCoaches(cached);
-          setLoading(false);
-          return;
-        }
+        if (cached) { setCoaches(cached); setLoading(false); return; }
 
-        console.log('[Coaches] Fetching coaches...');
         const { data, error } = await supabase.from('Coaches').select('*').order('id');
-        
         if (error) {
           console.error('[Coaches] ❌ Error:', error.message);
-          return;
-        }
-        
-        if (data) {
-          console.log('[Coaches] ✅ Fetched:', data.length, 'coaches');
+        } else if (data) {
           setCachedData('coaches', data);
           setCoaches(data);
         }
@@ -817,17 +791,13 @@ const CoachesSection = () => {
         setLoading(false);
       }
     };
-    
     fetchCoaches();
   }, []);
 
   return (
     <section id="coaches" className="py-24 relative z-10 bg-slate-950/50">
-      {/* Background accent */}
       <div className="absolute inset-0 bg-gradient-to-b from-purple-500/5 via-transparent to-transparent pointer-events-none" />
-      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-        {/* Section Header */}
         <div className="text-center max-w-3xl mx-auto mb-16">
           <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/30">
             <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
@@ -837,23 +807,19 @@ const CoachesSection = () => {
           <p className="text-slate-400 text-lg">Expert mentors guiding our teams to victory and fostering the next generation of robotic enthusiasts.</p>
         </div>
 
-        {/* Coaches Grid */}
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {[...Array(4)].map((_, i) => (
-              <SkeletonCoachCard key={i} />
-            ))}
+            {[...Array(4)].map((_, i) => <SkeletonCoachCard key={i} />)}
           </div>
         ) : coaches.length === 0 ? (
           <p className="text-slate-500 text-center py-12">No coaches added yet.</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 animate-stagger">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {coaches.map((coach) => (
               <div
                 key={coach.id}
-                className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-md border border-slate-700/50 transition-all duration-300 hover:border-purple-500/50 hover:shadow-[0_0_20px_rgba(168,85,247,0.2)] animate-fadeIn"
+                className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-md border border-slate-700/50 transition-all duration-300 hover:border-purple-500/50 hover:shadow-[0_0_20px_rgba(168,85,247,0.2)]"
               >
-                {/* Coach Image */}
                 <div className="relative h-64 overflow-hidden bg-slate-950">
                   {coach.image_url ? (
                     <img
@@ -866,11 +832,8 @@ const CoachesSection = () => {
                       <Cpu className="w-16 h-16 text-slate-700" />
                     </div>
                   )}
-                  {/* Overlay gradient */}
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 </div>
-
-                {/* Coach Info */}
                 <div className="p-6">
                   <h3 className="text-lg font-bold text-white mb-1">{coach.name}</h3>
                   <p className="text-sm text-purple-300 font-medium">Team Coach</p>
@@ -893,12 +856,8 @@ const Footer = () => {
     if (!email || !email.includes('@')) return;
     setStatus('loading');
     const { error } = await supabase.from('email_signups').insert([{ email }]);
-    if (error) {
-      setStatus('error');
-    } else {
-      setStatus('success');
-      setEmail('');
-    }
+    if (error) { setStatus('error'); }
+    else { setStatus('success'); setEmail(''); }
     setTimeout(() => setStatus('idle'), 3000);
   };
 
@@ -909,9 +868,7 @@ const Footer = () => {
           {/* Brand */}
           <div className="md:col-span-1">
             <div className="flex items-center gap-2 mb-6">
-              <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center text-white font-bold text-xs">
-                Q
-              </div>
+              <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center text-white font-bold text-xs">Q</div>
               <span className="text-lg font-bold text-white">QCU ROBOTICS</span>
             </div>
             <p className="text-slate-400 text-sm leading-relaxed mb-6">
