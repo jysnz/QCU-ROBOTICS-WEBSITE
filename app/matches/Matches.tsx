@@ -1,11 +1,13 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from 'react';
+import Hls from 'hls.js';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { LoadingSpinner, SkeletonMatchCard } from '../components/LoadingSpinner';
 import { ChevronLeft, ChevronDown, Check } from 'lucide-react'; // Added ChevronDown and Check
 import Link from 'next/link';
+
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
@@ -24,6 +26,73 @@ const getCachedData = (key: string) => {
 
 const setCachedData = (key: string, data: any) => {
   dataCache.set(key, { data, timestamp: Date.now() });
+};
+
+const HLSVideo = ({ url }: { url: string }) => {
+  const videoRef = useRef<HTMLVideoElement>(null);
+
+  useEffect(() => {
+    console.log('==============================');
+    console.log('[HLS DEBUG] URL:', url);
+
+    if (!videoRef.current || !url) {
+      console.error('[HLS DEBUG] Missing video or URL');
+      return;
+    }
+
+    const video = videoRef.current;
+
+    let hls: Hls | null = null;
+
+    // ❗ FORCE hls.js for ALL non-Safari browsers
+    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+    console.log('[HLS DEBUG] Is Safari?', isSafari);
+
+    if (isSafari) {
+      console.log('[HLS DEBUG] Using native HLS');
+      video.src = url;
+      return;
+    }
+
+    if (!Hls.isSupported()) {
+      console.error('[HLS DEBUG] hls.js NOT supported');
+      return;
+    }
+
+    console.log('[HLS DEBUG] Using hls.js');
+
+    hls = new Hls({
+      enableWorker: true,
+      lowLatencyMode: true,
+    });
+
+    hls.loadSource(url);
+    hls.attachMedia(video);
+
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      console.log('[HLS DEBUG] Manifest loaded → playing video');
+      video.play().catch(err => {
+        console.warn('[HLS DEBUG] Autoplay blocked:', err);
+      });
+    });
+
+    hls.on(Hls.Events.ERROR, (_, data) => {
+      console.error('[HLS DEBUG] HLS ERROR:', data);
+    });
+
+    return () => {
+      if (hls) hls.destroy();
+    };
+  }, [url]);
+
+  return (
+    <video
+      ref={videoRef}
+      controls
+      className="w-full max-h-48 object-cover bg-black"
+    />
+  );
 };
 
 const MatchesSection = () => {
@@ -235,9 +304,7 @@ const MatchesSection = () => {
 
                 {match.video_url && (
                   <div className="rounded-xl overflow-hidden border border-slate-700/50">
-                    <video controls className="w-full max-h-48 object-cover bg-black" src={match.video_url}>
-                      Your browser does not support video playback.
-                    </video>
+                    <HLSVideo url={match.video_url} />
                   </div>
                 )}
 
