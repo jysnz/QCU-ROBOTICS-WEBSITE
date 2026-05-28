@@ -310,7 +310,9 @@ const Hero = () => {
 
   const statCards = [
     { label: 'Competitions', value: stats.competitions },
-    { label: 'International Awards', value: stats.internationalAwards },
+    ...(stats.internationalAwards > 0
+      ? [{ label: 'International Awards', value: stats.internationalAwards }]
+      : []),
     { label: 'Team Members', value: stats.teamMembers },
     { label: 'National Awards', value: stats.nationalAwards },
   ];
