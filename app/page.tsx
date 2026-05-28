@@ -405,9 +405,9 @@ const Hero = () => {
       {/* Stats */}
       <div className="relative pt-0 pb-16 sm:pb-20 bg-slate-950">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto -mt-8">
+          <div className="flex flex-wrap justify-center gap-4 max-w-4xl mx-auto -mt-8">
             {statCards.map((stat, idx) => (
-              <div key={idx} className="p-6 rounded-2xl bg-slate-900/80 backdrop-blur-md border border-slate-700/50 flex flex-col items-center justify-center shadow-xl">
+              <div key={idx} className="min-w-[160px] flex-1 basis-[calc(50%-1rem)] md:basis-[calc(25%-1rem)] p-6 rounded-2xl bg-slate-900/80 backdrop-blur-md border border-slate-700/50 flex flex-col items-center justify-center shadow-xl">
                 <span className="text-3xl font-bold text-white mb-1">{stat.value}</span>
                 <span className="text-xs text-slate-400 uppercase tracking-wider">{stat.label}</span>
               </div>
