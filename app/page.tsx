@@ -159,7 +159,7 @@ const Navbar = () => {
             {navItems.map((item) => (
               <a
                 key={item}
-                href={`#${item.toLowerCase().replace(' ', '-')}`}
+                href={item === 'Teams' ? '#members' : `#${item.toLowerCase().replace(' ', '-')}`}
                 onMouseEnter={() => setActiveLink(item)}
                 onMouseLeave={() => setActiveLink('')}
                 className="relative px-3 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors"
@@ -202,7 +202,7 @@ const Navbar = () => {
               {navItems.map((item) => (
                 <a
                   key={item}
-                  href={`#${item.toLowerCase().replace(' ', '-')}`}
+                  href={item === 'Teams' ? '#members' : `#${item.toLowerCase().replace(' ', '-')}`}
                   className="text-slate-300 hover:text-red-400 font-medium px-3 py-2 rounded-lg hover:bg-slate-800/50 transition-all duration-300"
                   onClick={() => setIsOpen(false)}
                 >
@@ -251,10 +251,9 @@ const Hero = () => {
     const target = document.getElementById(sectionId);
     if (!target) return;
 
-    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    window.setTimeout(() => {
-      window.scrollBy(0, -96);
-    }, 250);
+    const top = target.getBoundingClientRect().top + window.scrollY - 96;
+    window.history.replaceState(null, '', `#${sectionId}`);
+    window.scrollTo({ top, behavior: 'smooth' });
   };
 
   useEffect(() => {
@@ -378,7 +377,7 @@ const Hero = () => {
             </button>
             <button
               type="button"
-              onClick={() => scrollToSection('teams')}
+              onClick={() => scrollToSection('members')}
               className="px-8 py-4 rounded-xl bg-slate-800/40 backdrop-blur-md border border-slate-600/50 text-white font-medium hover:bg-slate-800/60 transition-all flex items-center justify-center gap-2"
             >
               Meet Our Teams
@@ -969,7 +968,7 @@ const TeamMembersSection = () => {
   const team2Data = teams.find((t) => t.team_number === 2);
 
   return (
-    <section id="teams" className="py-24 relative z-10 bg-slate-950/50">
+    <section id="members" className="py-24 relative z-10 bg-slate-950/50 scroll-mt-28 md:scroll-mt-32">
       <div className="absolute inset-0 bg-gradient-to-b from-blue-500/5 via-transparent to-transparent pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
