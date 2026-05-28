@@ -244,7 +244,7 @@ const MatchesSection = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-10">
           <div className="flex items-center gap-4">
-            <Link href="/" className="p-2 rounded-lg bg-slate-900/40 border border-slate-700/40 hover:bg-slate-800/40 transition-all">
+            <Link href="/#competitions" className="p-2 rounded-lg bg-slate-900/40 border border-slate-700/40 hover:bg-slate-800/40 transition-all">
               <ChevronLeft className="w-5 h-5 text-slate-300" />
             </Link>
             <div>

@@ -82,12 +82,6 @@ export default function AchievementsPage() {
           const selectedId = competitionIdParam ? parseInt(competitionIdParam, 10) : compData[0].id;
           setSelectedComp(selectedId);
         }
-
-        if (teamData && teamData.length > 0) {
-          setTeams(teamData);
-          // Default to the first team in the array rather than null
-          setSelectedTeam(teamData[0].id);
-        }
       } catch (err: any) {
         console.error('[Achievements] ❌ Exception:', err?.message || err);
       }
@@ -95,6 +89,55 @@ export default function AchievementsPage() {
 
     fetchCompetitionsAndTeams();
   }, [competitionIdParam]);
+
+  useEffect(() => {
+    const fetchCompetitionTeams = async () => {
+      if (!selectedComp) return;
+
+      try {
+        const cacheKey = `achievements-competition-teams-${selectedComp}`;
+        let competitionTeams = getCachedData(cacheKey);
+
+        if (!competitionTeams) {
+          const { data, error } = await supabase
+            .from('team_competitions')
+            .select('team_id, teams ( id, team_code, team_name )')
+            .eq('competition_id', selectedComp);
+
+          if (error) {
+            console.error('[Achievements] ❌ Team competition error:', error.message);
+            setTeams([]);
+            setSelectedTeam(null);
+            return;
+          }
+
+          competitionTeams = (data ?? [])
+            .map((row: any) => row.teams)
+            .filter((team: any) => Boolean(team?.id));
+
+          setCachedData(cacheKey, competitionTeams);
+        }
+
+        setTeams(competitionTeams);
+
+        const currentSelectionStillValid = competitionTeams.some(
+          (team: any) => Number(team.id) === Number(selectedTeam)
+        );
+
+        if (competitionTeams.length === 0) {
+          setSelectedTeam(null);
+        } else if (!currentSelectionStillValid) {
+          setSelectedTeam(competitionTeams[0].id);
+        }
+      } catch (err: any) {
+        console.error('[Achievements] ❌ Competition teams exception:', err?.message || err);
+        setTeams([]);
+        setSelectedTeam(null);
+      }
+    };
+
+    fetchCompetitionTeams();
+  }, [selectedComp]);
 
   useEffect(() => {
     const fetchAchievements = async () => {
@@ -145,7 +188,7 @@ export default function AchievementsPage() {
       <div className="fixed top-0 left-0 right-0 z-40 bg-gradient-to-b from-slate-950/95 to-slate-950/80 backdrop-blur-md border-b border-slate-800/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <Link
-            href="/"
+            href="/#competitions"
             className="p-2 rounded-lg bg-slate-900/40 border border-slate-700/40 hover:bg-slate-800/40 transition-all inline-flex items-center justify-center"
           >
             <ChevronLeft className="w-5 h-5 text-slate-300" />
@@ -220,7 +263,7 @@ export default function AchievementsPage() {
             <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900/40 to-slate-900/20 backdrop-blur-md border border-slate-700/40 text-center">
               <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold mb-4">Select Team</p>
               <div className="flex gap-4 flex-wrap justify-center">
-                {teams.map((team) => (
+                {teams.length > 0 ? teams.map((team) => (
                   <button
                     key={team.id}
                     onClick={() => setSelectedTeam(team.id)}
@@ -232,7 +275,9 @@ export default function AchievementsPage() {
                   >
                     {team.team_code || `Team ${team.team_number || team.id}`}
                   </button>
-                ))}
+                )) : (
+                  <p className="text-slate-500 text-sm">No teams are linked to this competition.</p>
+                )}
               </div>
             </div>
           </div>
