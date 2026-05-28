@@ -143,11 +143,6 @@ const MatchesSection = () => {
           const selectedId = competitionIdParam ? parseInt(competitionIdParam, 10) : compData[0].id;
           setSelectedComp(selectedId);
         }
-
-        if (teamData && teamData.length > 0) {
-          setTeams(teamData);
-          setSelectedTeam(teamData[0].id);
-        }
       } catch (err: any) {
         console.error('[Matches] ❌ Exception:', err?.message || err);
       }
@@ -155,6 +150,69 @@ const MatchesSection = () => {
 
     fetchCompetitionsAndTeams();
   }, [competitionIdParam]);
+
+  useEffect(() => {
+    const fetchCompetitionTeams = async () => {
+      if (!selectedComp) return;
+
+      try {
+        const cacheKey = `matches-competition-teams-${selectedComp}`;
+        let competitionTeams = getCachedData(cacheKey);
+
+        if (!competitionTeams) {
+          const { data, error } = await supabase
+            .from('team_competitions')
+            .select('team_id, teams ( id, team_code, team_name )')
+            .eq('competition_id', selectedComp);
+
+          if (error) {
+            console.error('[Matches] ❌ Team competition error:', error.message);
+            setTeams([]);
+            setSelectedTeam(null);
+            return;
+          }
+
+          competitionTeams = (data ?? [])
+            .map((row: any) => row.teams)
+            .filter((team: any) => Boolean(team?.id));
+
+          console.log('[Matches] ✅ Competition teams fetched:', {
+            selectedComp,
+            rows: data,
+            teams: competitionTeams,
+          });
+
+          setCachedData(cacheKey, competitionTeams);
+        } else {
+          console.log('[Matches] ♻️ Using cached competition teams:', {
+            selectedComp,
+            teams: competitionTeams,
+          });
+        }
+
+        setTeams(competitionTeams);
+
+        const currentSelectionStillValid = competitionTeams.some(
+          (team: any) => Number(team.id) === Number(selectedTeam)
+        );
+
+        if (competitionTeams.length === 0) {
+          console.warn('[Matches] ⚠️ No teams linked to this competition:', selectedComp);
+          setSelectedTeam(null);
+        } else if (!currentSelectionStillValid) {
+          const nextTeamId = competitionTeams[0].id;
+          console.log('[Matches] 🔁 Reset selected team to first competition-linked team:', nextTeamId);
+          setSelectedTeam(nextTeamId);
+        }
+      } catch (err: any) {
+        console.error('[Matches] ❌ Competition teams exception:', err?.message || err);
+        setTeams([]);
+        setSelectedTeam(null);
+      }
+    };
+
+    fetchCompetitionTeams();
+  }, [selectedComp]);
 
   useEffect(() => {
     const fetchMatches = async () => {
@@ -174,6 +232,8 @@ const MatchesSection = () => {
     };
     fetchMatches();
   }, [selectedComp, selectedTeam]);
+
+  const teamOptions = teams;
 
   // Helper to get currently selected competition title
   const currentCompTitle = competitions.find(c => c.id === selectedComp)?.title || 'Select Competition...';
@@ -244,7 +304,7 @@ const MatchesSection = () => {
           <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900/40 to-slate-900/20 backdrop-blur-md border border-slate-700/40 text-center">
             <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold mb-4">Select Team</p>
             <div className="flex gap-4 flex-wrap justify-center">
-              {teams.map((team) => (
+              {teamOptions.length > 0 ? teamOptions.map((team) => (
                 <button
                   key={team.id}
                   onClick={() => setSelectedTeam(team.id)}
@@ -256,7 +316,9 @@ const MatchesSection = () => {
                 >
                   {team.team_code || `Team ${team.team_number}`}
                 </button>
-              ))}
+              )) : (
+                <p className="text-slate-500 text-sm">No teams are linked to this competition.</p>
+              )}
             </div>
           </div>
         </div>
@@ -290,7 +352,7 @@ const MatchesSection = () => {
 
                 <div className="flex items-center justify-center gap-6 py-4 mb-4 rounded-xl bg-slate-950/40 border border-slate-800/50">
                   <div className="text-center">
-                    <p className="text-xs text-slate-400 mb-1">{teams.find(t => t.id === match.team_id)?.team_code || 'Our Team'}</p>
+                    <p className="text-xs text-slate-400 mb-1">{teamOptions.find(t => Number(t.id) === Number(match.team_id))?.team_code || 'Our Team'}</p>
                     <p className="text-4xl font-extrabold text-white">{match.our_score}</p>
                   </div>
                   <span className="text-slate-600 text-xl font-bold">vs</span>
