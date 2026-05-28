@@ -634,12 +634,6 @@ const CompetitionsSection = () => {
             </p>
           </div>
 
-          <a
-            href="#"
-            className="inline-flex items-center gap-2 text-red-400 hover:text-red-300 font-medium transition-colors mt-6"
-          >
-            View All Events <ArrowUpRight className="w-4 h-4" />
-          </a>
         </div>
 
         {/* Season Filter Dropdown */}
@@ -770,45 +764,80 @@ const CompetitionsSection = () => {
 };
 
 // ─── About Section ────────────────────────────────────────────────────────────
-const AboutSection = () => (
-  <section id="about-us" className="py-24 relative z-10">
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-        <div className="rounded-3xl overflow-hidden border border-slate-700/50 shadow-[0_0_40px_rgba(220,20,60,0.15)]">
-          <img
-            src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=2000&auto=format&fit=crop"
-            alt="QCU Robotics Team"
-            className="w-full h-96 object-cover"
-          />
-        </div>
-        <div>
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">About QCU Robotics</h2>
-          <div className="space-y-4 mb-8">
-            <p className="text-slate-400 leading-relaxed">
-              QCU Robotics is a premier competitive robotics organization dedicated to fostering innovation, teamwork, and technical excellence. Our organization brings together talented engineers, programmers, and designers who share a passion for robotics.
-            </p>
-            <p className="text-slate-400 leading-relaxed">
-              Built on a foundation of collaboration and continuous improvement, QCU Robotics has established itself as a powerhouse in the competitive robotics community.
-            </p>
+const AboutSection = () => {
+  const [activeTeamCount, setActiveTeamCount] = useState(0);
+  const [activeMemberCount, setActiveMemberCount] = useState(0);
+
+  useEffect(() => {
+    const fetchAboutStats = async () => {
+      try {
+        const [teamsResult, membersResult] = await Promise.all([
+          supabase.from('teams').select('id', { count: 'exact', head: true }).eq('is_active', true),
+          supabase.from('team_members').select('id', { count: 'exact', head: true }).eq('is_active', true),
+        ]);
+
+        if (teamsResult.error) {
+          console.error('[About Stats] Teams error:', teamsResult.error.message);
+        }
+        if (membersResult.error) {
+          console.error('[About Stats] Members error:', membersResult.error.message);
+        }
+
+        setActiveTeamCount(teamsResult.count ?? 0);
+        setActiveMemberCount(membersResult.count ?? 0);
+
+        console.log('[About Stats] Loaded counts:', {
+          activeTeams: teamsResult.count ?? 0,
+          activeMembers: membersResult.count ?? 0,
+        });
+      } catch (err: any) {
+        console.error('[About Stats] Exception:', err?.message || err);
+      }
+    };
+
+    fetchAboutStats();
+  }, []);
+
+  return (
+    <section id="about-us" className="py-24 relative z-10">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div className="rounded-3xl overflow-hidden border border-slate-700/50 shadow-[0_0_40px_rgba(220,20,60,0.15)]">
+            <img
+              src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=2000&auto=format&fit=crop"
+              alt="QCU Robotics Team"
+              className="w-full h-96 object-cover"
+            />
           </div>
-          <div className="grid grid-cols-2 gap-6 mb-8">
-            <div className="p-6 rounded-2xl bg-slate-900/40 backdrop-blur-sm border border-slate-700/30">
-              <span className="text-2xl font-bold text-red-400">2</span>
-              <p className="text-slate-400 text-sm mt-2">Competitive Teams</p>
+          <div>
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">About QCU Robotics</h2>
+            <div className="space-y-4 mb-8">
+              <p className="text-slate-400 leading-relaxed">
+                QCU Robotics is a premier competitive robotics organization dedicated to fostering innovation, teamwork, and technical excellence. Our organization brings together talented engineers, programmers, and designers who share a passion for robotics.
+              </p>
+              <p className="text-slate-400 leading-relaxed">
+                Built on a foundation of collaboration and continuous improvement, QCU Robotics has established itself as a powerhouse in the competitive robotics community.
+              </p>
             </div>
-            <div className="p-6 rounded-2xl bg-slate-900/40 backdrop-blur-sm border border-slate-700/30">
-              <span className="text-2xl font-bold text-red-400">45+</span>
-              <p className="text-slate-400 text-sm mt-2">Active Members</p>
+            <div className="grid grid-cols-2 gap-6 mb-8">
+              <div className="p-6 rounded-2xl bg-slate-900/40 backdrop-blur-sm border border-slate-700/30">
+                <span className="text-2xl font-bold text-red-400">{activeTeamCount}</span>
+                <p className="text-slate-400 text-sm mt-2">Competitive Teams</p>
+              </div>
+              <div className="p-6 rounded-2xl bg-slate-900/40 backdrop-blur-sm border border-slate-700/30">
+                <span className="text-2xl font-bold text-red-400">{activeMemberCount}</span>
+                <p className="text-slate-400 text-sm mt-2">Active Members</p>
+              </div>
             </div>
+            <button className="px-8 py-3 rounded-xl bg-red-600/80 backdrop-blur-sm border border-red-500/50 text-white font-medium hover:bg-red-700/80 transition-all shadow-[0_0_15px_rgba(220,20,60,0.2)] hover:shadow-[0_0_20px_rgba(220,20,60,0.4)]">
+              Join Our Community
+            </button>
           </div>
-          <button className="px-8 py-3 rounded-xl bg-red-600/80 backdrop-blur-sm border border-red-500/50 text-white font-medium hover:bg-red-700/80 transition-all shadow-[0_0_15px_rgba(220,20,60,0.2)] hover:shadow-[0_0_20px_rgba(220,20,60,0.4)]">
-            Join Our Community
-          </button>
         </div>
       </div>
-    </div>
-  </section>
-);
+    </section>
+  );
+};
 
 // ─── Member Card ──────────────────────────────────────────────────────────────
 const MemberCard = ({ member }: { member: any }) => {
