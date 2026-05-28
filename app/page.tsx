@@ -240,6 +240,22 @@ const FALLBACK_IMAGES = [
 // ─── Hero ─────────────────────────────────────────────────────────────────────
 const Hero = () => {
   const [currentImage, setCurrentImage] = useState(0);
+  const [stats, setStats] = useState({
+    competitions: 0,
+    internationalAwards: 0,
+    teamMembers: 0,
+    nationalAwards: 0,
+  });
+
+  const scrollToSection = (sectionId: string) => {
+    const target = document.getElementById(sectionId);
+    if (!target) return;
+
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.setTimeout(() => {
+      window.scrollBy(0, -96);
+    }, 250);
+  };
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -247,6 +263,57 @@ const Hero = () => {
     }, 4000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    const fetchHeroStats = async () => {
+      try {
+        const [competitionsResult, internationalAwardsResult, teamMembersResult, nationalAwardsResult] = await Promise.all([
+          supabase.from('competitions').select('id', { count: 'exact', head: true }),
+          supabase.from('Achievements').select('achievement_id', { count: 'exact', head: true }).eq('international_award', true),
+          supabase.from('team_members').select('id', { count: 'exact', head: true }),
+          supabase.from('Achievements').select('achievement_id', { count: 'exact', head: true }).eq('national_award', true),
+        ]);
+
+        if (competitionsResult.error) {
+          console.error('[Hero Stats] Competitions error:', competitionsResult.error.message);
+        }
+        if (internationalAwardsResult.error) {
+          console.error('[Hero Stats] International awards error:', internationalAwardsResult.error.message);
+        }
+        if (teamMembersResult.error) {
+          console.error('[Hero Stats] Team members error:', teamMembersResult.error.message);
+        }
+        if (nationalAwardsResult.error) {
+          console.error('[Hero Stats] National awards error:', nationalAwardsResult.error.message);
+        }
+
+        setStats({
+          competitions: competitionsResult.count ?? 0,
+          internationalAwards: internationalAwardsResult.count ?? 0,
+          teamMembers: teamMembersResult.count ?? 0,
+          nationalAwards: nationalAwardsResult.count ?? 0,
+        });
+
+        console.log('[Hero Stats] Loaded counts:', {
+          competitions: competitionsResult.count ?? 0,
+          internationalAwards: internationalAwardsResult.count ?? 0,
+          teamMembers: teamMembersResult.count ?? 0,
+          nationalAwards: nationalAwardsResult.count ?? 0,
+        });
+      } catch (err: any) {
+        console.error('[Hero Stats] Exception:', err?.message || err);
+      }
+    };
+
+    fetchHeroStats();
+  }, []);
+
+  const statCards = [
+    { label: 'Competitions', value: stats.competitions },
+    { label: 'International Awards', value: stats.internationalAwards },
+    { label: 'Team Members', value: stats.teamMembers },
+    { label: 'National Awards', value: stats.nationalAwards },
+  ];
 
   return (
     <div className="relative overflow-hidden">
@@ -300,10 +367,18 @@ const Hero = () => {
           </p>
 
           <div className="flex flex-col sm:flex-row justify-center gap-4 pointer-events-auto mb-8">
-            <button className="px-8 py-4 rounded-xl bg-white text-slate-950 font-semibold hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(255,255,255,0.2)]">
+            <button
+              type="button"
+              onClick={() => scrollToSection('competitions')}
+              className="px-8 py-4 rounded-xl bg-white text-slate-950 font-semibold hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(255,255,255,0.2)]"
+            >
               View Competitions <ChevronRight className="w-5 h-5" />
             </button>
-            <button className="px-8 py-4 rounded-xl bg-slate-800/40 backdrop-blur-md border border-slate-600/50 text-white font-medium hover:bg-slate-800/60 transition-all flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => scrollToSection('teams')}
+              className="px-8 py-4 rounded-xl bg-slate-800/40 backdrop-blur-md border border-slate-600/50 text-white font-medium hover:bg-slate-800/60 transition-all flex items-center justify-center gap-2"
+            >
               Meet Our Teams
             </button>
           </div>
@@ -329,12 +404,7 @@ const Hero = () => {
       <div className="relative pt-0 pb-16 sm:pb-20 bg-slate-950">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto -mt-8">
-            {[
-              { label: 'Competitions', value: '12+' },
-              { label: 'International Awards', value: '8' },
-              { label: 'Team Members', value: '45+' },
-              { label: 'Championships', value: '3' },
-            ].map((stat, idx) => (
+            {statCards.map((stat, idx) => (
               <div key={idx} className="p-6 rounded-2xl bg-slate-900/80 backdrop-blur-md border border-slate-700/50 flex flex-col items-center justify-center shadow-xl">
                 <span className="text-3xl font-bold text-white mb-1">{stat.value}</span>
                 <span className="text-xs text-slate-400 uppercase tracking-wider">{stat.label}</span>
@@ -715,9 +785,6 @@ const AboutSection = () => (
           <div className="space-y-4 mb-8">
             <p className="text-slate-400 leading-relaxed">
               QCU Robotics is a premier competitive robotics organization dedicated to fostering innovation, teamwork, and technical excellence. Our organization brings together talented engineers, programmers, and designers who share a passion for robotics.
-            </p>
-            <p className="text-slate-400 leading-relaxed">
-              With two competitive teams, we participate in international robotics competitions including FIRST Robotics, VEX Robotics, and specialized robotic sports events. Our mission is to inspire the next generation of engineers while pushing the boundaries of what's possible in robotics technology.
             </p>
             <p className="text-slate-400 leading-relaxed">
               Built on a foundation of collaboration and continuous improvement, QCU Robotics has established itself as a powerhouse in the competitive robotics community.
