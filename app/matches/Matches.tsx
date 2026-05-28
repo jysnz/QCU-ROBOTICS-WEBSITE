@@ -5,7 +5,7 @@ import Hls from 'hls.js';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { LoadingSpinner, SkeletonMatchCard } from '../components/LoadingSpinner';
-import { ChevronLeft, ChevronDown, Check } from 'lucide-react'; // Added ChevronDown and Check
+import { ChevronLeft, ChevronDown, Check, Trophy } from 'lucide-react';
 import Link from 'next/link';
 
 
@@ -237,6 +237,7 @@ const MatchesSection = () => {
 
   // Helper to get currently selected competition title
   const currentCompTitle = competitions.find(c => c.id === selectedComp)?.title || 'Select Competition...';
+  const currentTeamLabel = teams.find((team) => Number(team.id) === Number(selectedTeam))?.team_code || 'All linked teams';
 
   return (
     <section id="matches" className="py-24 relative z-10 bg-slate-950/50">
@@ -329,7 +330,23 @@ const MatchesSection = () => {
             {[...Array(4)].map((_, i) => <SkeletonMatchCard key={i} />)}
           </div>
         ) : matches.length === 0 ? (
-          <p className="text-slate-500 text-center py-12">No matches recorded for this competition yet.</p>
+          <div className="relative overflow-hidden rounded-3xl border border-slate-700/50 bg-gradient-to-br from-slate-900/70 via-slate-900/40 to-slate-950/80 p-10 text-center">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.12),transparent_35%),radial-gradient(circle_at_bottom,rgba(220,38,38,0.10),transparent_32%)]" />
+            <div className="relative z-10 mx-auto flex max-w-xl flex-col items-center">
+              <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-red-500/30 bg-red-500/10 shadow-[0_0_28px_rgba(239,68,68,0.16)]">
+                <Trophy className="h-8 w-8 text-red-300" />
+              </div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.3em] text-red-300/80">
+                No matches available
+              </p>
+              <h3 className="text-2xl font-bold text-white mb-3">
+                No results recorded for this competition yet.
+              </h3>
+              <p className="text-slate-400 leading-relaxed max-w-lg">
+                The selected competition is {currentCompTitle}. The current team filter is {currentTeamLabel}. If this event has not been linked to matches yet, they will appear here once entries are added.
+              </p>
+            </div>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-stagger">
             {matches.map((match) => (

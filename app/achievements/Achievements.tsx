@@ -137,6 +137,8 @@ export default function AchievementsPage() {
     ? achievements.filter(a => a.team_id === selectedTeam)
     : achievements;
 
+  const selectedTeamLabel = teams.find((team) => Number(team.id) === Number(selectedTeam))?.team_code || 'All teams';
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
       {/* Header */}
@@ -241,8 +243,22 @@ export default function AchievementsPage() {
               <LoadingSpinner />
             </div>
           ) : displayedAchievements.length === 0 ? (
-            <div className="text-center py-20">
-              <p className="text-slate-400 text-lg">No achievements recorded for this team/competition yet.</p>
+            <div className="relative overflow-hidden rounded-3xl border border-slate-700/50 bg-gradient-to-br from-slate-900/70 via-slate-900/40 to-slate-950/80 px-6 py-14 text-center md:px-10">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.14),transparent_35%),radial-gradient(circle_at_bottom,rgba(249,115,22,0.10),transparent_32%)]" />
+              <div className="relative z-10 mx-auto flex max-w-xl flex-col items-center">
+                <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-500/30 bg-amber-500/10 shadow-[0_0_28px_rgba(245,158,11,0.16)]">
+                  <Trophy className="w-8 h-8 text-amber-300" />
+                </div>
+                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.3em] text-amber-300/80">
+                  No achievements available
+                </p>
+                <h3 className="text-2xl font-bold text-white mb-3">
+                  Nothing has been recorded for this competition yet.
+                </h3>
+                <p className="text-slate-400 leading-relaxed max-w-lg">
+                  The selected competition is {currentCompTitle} and the active team filter is {selectedTeamLabel}. Once awards or placements are added for this team, they will appear here.
+                </p>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-stagger">
