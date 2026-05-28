@@ -12,6 +12,7 @@ import Link from 'next/link';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
 const supabase = createClient(supabaseUrl, supabaseKey);
+let activeVideoElement: HTMLVideoElement | null = null;
 
 const CACHE_DURATION = 5 * 60 * 1000;
 const dataCache = new Map<string, { data: any; timestamp: number }>();
@@ -32,11 +33,42 @@ const HLSVideo = ({ url }: { url: string }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const handlePlay = () => {
+      if (activeVideoElement && activeVideoElement !== video) {
+        activeVideoElement.pause();
+      }
+      activeVideoElement = video;
+    };
+
+    const handlePauseOrEnd = () => {
+      if (activeVideoElement === video) {
+        activeVideoElement = null;
+      }
+    };
+
+    video.addEventListener('play', handlePlay);
+    video.addEventListener('pause', handlePauseOrEnd);
+    video.addEventListener('ended', handlePauseOrEnd);
+
+    return () => {
+      video.removeEventListener('play', handlePlay);
+      video.removeEventListener('pause', handlePauseOrEnd);
+      video.removeEventListener('ended', handlePauseOrEnd);
+      if (activeVideoElement === video) {
+        activeVideoElement = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     console.log('==============================');
     console.log('[HLS DEBUG] URL:', url);
 
     if (!videoRef.current || !url) {
-      console.error('[HLS DEBUG] Missing video or URL');
+      console.warn('[HLS DEBUG] Missing video or URL');
       return;
     }
 
@@ -56,7 +88,7 @@ const HLSVideo = ({ url }: { url: string }) => {
     }
 
     if (!Hls.isSupported()) {
-      console.error('[HLS DEBUG] hls.js NOT supported');
+      console.warn('[HLS DEBUG] hls.js NOT supported');
       return;
     }
 
@@ -76,7 +108,7 @@ const HLSVideo = ({ url }: { url: string }) => {
     });
 
     hls.on(Hls.Events.ERROR, (_, data) => {
-      console.error('[HLS DEBUG] HLS ERROR:', data);
+      console.warn('[HLS DEBUG] HLS ERROR:', data);
     });
 
     return () => {
