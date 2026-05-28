@@ -614,7 +614,7 @@ const CompetitionsSection = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
 
         {/* Header */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-8">
+        <div className="flex flex-col items-center text-center mb-8">
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/30">
               <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
@@ -636,7 +636,7 @@ const CompetitionsSection = () => {
 
           <a
             href="#"
-            className="hidden md:inline-flex items-center gap-2 text-red-400 hover:text-red-300 font-medium transition-colors mt-6 md:mt-0"
+            className="inline-flex items-center gap-2 text-red-400 hover:text-red-300 font-medium transition-colors mt-6"
           >
             View All Events <ArrowUpRight className="w-4 h-4" />
           </a>
