@@ -616,7 +616,7 @@ const CompetitionsSection = () => {
                 <div className="absolute inset-0 bg-gradient-to-br from-slate-800/50 via-slate-900/30 to-slate-950/50 backdrop-blur-xl border border-slate-700/40 group-hover:border-red-500/30 transition-colors duration-500" />
                 <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br from-red-500/10 via-transparent to-orange-600/5" />
                 <div className="relative z-10 p-8 flex flex-col h-full">
-                  {comp.image_url && (
+                  {comp.image_url ? (
                     <div className="mb-6 -mx-8 -mt-8 h-40 bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-t-2xl overflow-hidden flex items-center justify-center group-hover:opacity-90 transition-opacity">
                       <img
                         src={comp.image_url}
@@ -626,6 +626,24 @@ const CompetitionsSection = () => {
                           e.currentTarget.style.display = 'none';
                         }}
                       />
+                    </div>
+                  ) : (
+                    <div className="mb-6 -mx-8 -mt-8 h-40 rounded-t-2xl overflow-hidden relative bg-gradient-to-br from-red-950/80 via-slate-900 to-slate-950 border-b border-white/5">
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(248,113,113,0.22),transparent_35%),radial-gradient(circle_at_bottom_left,rgba(251,191,36,0.16),transparent_32%)]" />
+                      <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)', backgroundSize: '22px 22px' }} />
+                      <div className="relative h-full flex flex-col items-center justify-center gap-3 text-center px-6">
+                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-red-500/30 bg-red-500/10 shadow-[0_0_24px_rgba(239,68,68,0.18)]">
+                          <Trophy className="w-7 h-7 text-red-300" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-red-200/80">
+                            Competition Spotlight
+                          </p>
+                          <p className="mt-1 text-sm text-slate-300/80">
+                            No cover image available
+                          </p>
+                        </div>
+                      </div>
                     </div>
                   )}
                   <div className="flex items-center gap-3 mb-4 flex-wrap">
