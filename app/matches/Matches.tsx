@@ -71,10 +71,8 @@ const HLSVideo = ({ url }: { url: string }) => {
     hls.attachMedia(video);
 
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      console.log('[HLS DEBUG] Manifest loaded → playing video');
-      video.play().catch(err => {
-        console.warn('[HLS DEBUG] Autoplay blocked:', err);
-      });
+      console.log('[HLS DEBUG] Manifest loaded (NO autoplay)');
+      // Do nothing — user must press play
     });
 
     hls.on(Hls.Events.ERROR, (_, data) => {
