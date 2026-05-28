@@ -643,7 +643,7 @@ const CompetitionsSection = () => {
         </div>
 
         {/* Season Filter Dropdown */}
-        <div className="flex justify-start mb-10">
+        <div className="flex justify-center mb-10">
           <div className="flex items-center gap-3 bg-slate-900/60 backdrop-blur-md border border-slate-700/50 px-5 py-3 rounded-2xl shadow-xl">
             <span className="text-slate-400 text-sm font-medium whitespace-nowrap">
               Filter by Season:
