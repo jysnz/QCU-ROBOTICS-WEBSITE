@@ -10,6 +10,7 @@ import {
   Activity,
   Zap,
   ChevronRight,
+  ChevronDown,
   Menu,
   X,
   Mail,
@@ -62,47 +63,35 @@ const formatRoleData = (role: any): string => {
 };
 
 const extractSeasons = (seasonData: any): string[] => {
-  // null / undefined
   if (!seasonData) return [];
 
-  // Already an array from Supabase JSONB
   if (Array.isArray(seasonData)) {
     return seasonData
       .map((item) => String(item).trim())
       .filter(Boolean);
   }
 
-  // JSON object format
-  // Example:
-  // { seasons: ["Season 1", "Season 2"] }
   if (typeof seasonData === 'object') {
-    // direct seasons property
     if (Array.isArray(seasonData.seasons)) {
       return seasonData.seasons
         .map((item: any) => String(item).trim())
         .filter(Boolean);
     }
-
-    // fallback: convert object values
     return Object.values(seasonData)
       .flat()
       .map((item: any) => String(item).trim())
       .filter(Boolean);
   }
 
-  // plain string
   if (typeof seasonData === 'string') {
     try {
-      // if stored as JSON string
       const parsed = JSON.parse(seasonData);
-
       if (Array.isArray(parsed)) {
         return parsed
           .map((item) => String(item).trim())
           .filter(Boolean);
       }
     } catch {
-      // normal text
       return [seasonData.trim()].filter(Boolean);
     }
   }
@@ -361,41 +350,187 @@ const Hero = () => {
 // ─── Competitions Section ─────────────────────────────────────────────────────
 const CompetitionsSection = () => {
   const [competitions, setCompetitions] = useState<any[]>([]);
+  const [seasons, setSeasons] = useState<any[]>([]);
+  const [selectedSeason, setSelectedSeason] = useState<number | 'all'>('all');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchCompetitions = async () => {
+    console.log('[Competitions] selectedSeason changed:', selectedSeason);
+  }, [selectedSeason]);
+
+  useEffect(() => {
+    if (seasons.length > 0) {
+      console.log(
+        '[Competitions] seasons state snapshot:',
+        seasons.map((season) => ({ id: season.id, season_name: season.season_name }))
+      );
+    }
+  }, [seasons]);
+
+  useEffect(() => {
+    if (competitions.length > 0) {
+      console.log(
+        '[Competitions] competitions state snapshot:',
+        competitions.map((competition) => ({
+          id: competition.id,
+          title: competition.title,
+          season_id: competition.season_id,
+          created_at: competition.created_at,
+        }))
+      );
+    }
+  }, [competitions]);
+
+  const sortedSeasons = [...seasons].sort((a, b) => {
+    const aName = String(a.season_name ?? '').trim();
+    const bName = String(b.season_name ?? '').trim();
+
+    if (aName && bName) {
+      return bName.localeCompare(aName, undefined, { numeric: true, sensitivity: 'base' });
+    }
+
+    return Number(b.id) - Number(a.id);
+  });
+
+  const seasonOrderMap = new Map<number, number>(
+    sortedSeasons.map((season, index) => [Number(season.id), index])
+  );
+
+  useEffect(() => {
+    const fetchCompetitionsAndSeasons = async () => {
       try {
-        const cached = getCachedData('competitions');
-        if (cached) { setCompetitions(cached); setLoading(false); return; }
-
-        const { data, error } = await supabase
-          .from('competitions')
+        // ── Seasons (always fresh, no cache to avoid stale empty arrays) ──
+        const { data: seasonData, error: seasonError } = await supabase
+          .from('seasons')
           .select('*')
-          .order('created_at', { ascending: false });
+          .order('id', { ascending: false });
 
-        if (error) {
-          console.error('[Competitions] ❌ Error:', error.message);
+        if (seasonError) {
+          console.error('[Seasons] ❌ Error:', seasonError.message);
         } else {
-          const result = data ?? [];
-          setCachedData('competitions', result);
-          setCompetitions(result);
+          console.log('[Seasons] ✅ Fetched:', seasonData);
+          console.log(
+            '[Seasons] 🔎 Normalized order preview:',
+            (seasonData ?? []).map((season: any) => ({ id: season.id, season_name: season.season_name }))
+          );
+          const normalizedSeasons = [...(seasonData ?? [])].sort((a, b) => {
+            const aName = String(a.season_name ?? '').trim();
+            const bName = String(b.season_name ?? '').trim();
+
+            if (aName && bName) {
+              return bName.localeCompare(aName, undefined, { numeric: true, sensitivity: 'base' });
+            }
+
+            return Number(b.id) - Number(a.id);
+          });
+
+          console.log(
+            '[Seasons] ✅ Sorted seasons:',
+            normalizedSeasons.map((season: any) => ({ id: season.id, season_name: season.season_name }))
+          );
+          setSeasons(normalizedSeasons);
+          setCachedData('landing-seasons', seasonData ?? []);
         }
+
+        // ── Competitions ──
+        let compData = getCachedData('landing-competitions');
+        if (!compData) {
+          const { data, error } = await supabase
+            .from('competitions')
+            .select('id, title, status, date, location, created_at, image_url, season_id, seasons ( id, season_name )')
+            .order('created_at', { ascending: false });
+
+          if (error) {
+            console.error('[Competitions] ❌ Error:', error.message);
+          } else {
+            compData = data ?? [];
+            console.log('[Competitions] ✅ Fetched:', compData);
+            console.log(
+              '[Competitions] 🔎 Competition season mapping:',
+              (compData ?? []).map((competition: any) => ({
+                id: competition.id,
+                title: competition.title,
+                season_id: competition.season_id,
+                season_name: Array.isArray(competition.seasons)
+                  ? competition.seasons[0]?.season_name ?? null
+                  : competition.seasons?.season_name ?? null,
+              }))
+            );
+            setCachedData('landing-competitions', compData);
+          }
+        } else {
+          console.log(
+            '[Competitions] ♻️ Using cached competitions:',
+            compData.map((competition: any) => ({
+              id: competition.id,
+              title: competition.title,
+              season_id: competition.season_id,
+              season_name: Array.isArray(competition.seasons)
+                ? competition.seasons[0]?.season_name ?? null
+                : competition.seasons?.season_name ?? null,
+            }))
+          );
+        }
+        if (compData) setCompetitions(compData);
+
       } catch (err: any) {
         console.error('[Competitions] ❌ Exception:', err?.message || err);
       } finally {
         setLoading(false);
       }
     };
-    fetchCompetitions();
+
+    fetchCompetitionsAndSeasons();
   }, []);
+
+  const filteredCompetitions =
+    selectedSeason === 'all'
+      ? competitions
+      : competitions.filter((c) => Number(c.season_id) === Number(selectedSeason));
+
+  const seasonNameById = new Map(
+    seasons.map((season) => [Number(season.id), String(season.season_name ?? '').trim()])
+  );
+
+  const sortedCompetitions = [...filteredCompetitions].sort((a, b) => {
+    const seasonOrderA = seasonOrderMap.get(Number(a.season_id)) ?? Number.MAX_SAFE_INTEGER;
+    const seasonOrderB = seasonOrderMap.get(Number(b.season_id)) ?? Number.MAX_SAFE_INTEGER;
+
+    if (seasonOrderA !== seasonOrderB) {
+      return seasonOrderA - seasonOrderB;
+    }
+
+    const seasonNameA = seasonNameById.get(Number(a.season_id)) ?? '';
+    const seasonNameB = seasonNameById.get(Number(b.season_id)) ?? '';
+
+    if (seasonNameA !== seasonNameB) {
+      return seasonNameB.localeCompare(seasonNameA, undefined, { numeric: true, sensitivity: 'base' });
+    }
+
+    const aCreatedAt = a.created_at ? new Date(a.created_at).getTime() : 0;
+    const bCreatedAt = b.created_at ? new Date(b.created_at).getTime() : 0;
+    return bCreatedAt - aCreatedAt;
+  });
+
+  useEffect(() => {
+    console.log('[Competitions] filter summary:', {
+      selectedSeason,
+      totalCompetitions: competitions.length,
+      matchedCompetitions: filteredCompetitions.length,
+      sortedCompetitions: sortedCompetitions.length,
+      seasonIds: competitions.map((competition) => competition.season_id),
+      seasonNames: competitions.map((competition) => seasonNameById.get(Number(competition.season_id)) ?? null),
+    });
+  }, [selectedSeason, competitions, filteredCompetitions.length, sortedCompetitions.length, seasonNameById]);
 
   if (loading) {
     return (
       <section className="py-24 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(3)].map((_, i) => <SkeletonCompetitionCard key={i} />)}
+            {[...Array(3)].map((_, i) => (
+              <SkeletonCompetitionCard key={i} />
+            ))}
           </div>
         </div>
       </section>
@@ -406,85 +541,140 @@ const CompetitionsSection = () => {
     <section id="competitions" className="py-24 relative z-10">
       <div className="absolute inset-0 bg-gradient-to-b from-red-500/5 via-transparent to-transparent pointer-events-none" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-16">
+
+        {/* Header */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-8">
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/30">
               <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-xs font-semibold text-red-400 uppercase tracking-wider">Featured Competitions</span>
+              <span className="text-xs font-semibold text-red-400 uppercase tracking-wider">
+                Featured Competitions
+              </span>
             </div>
             <h2 className="text-4xl md:text-5xl font-bold text-white mb-4 leading-tight">
-              Competitions & <span className="bg-gradient-to-r from-red-400 via-red-500 to-orange-500 bg-clip-text text-transparent">Achievements</span>
+              Competitions &{' '}
+              <span className="bg-gradient-to-r from-red-400 via-red-500 to-orange-500 bg-clip-text text-transparent">
+                Achievements
+              </span>
             </h2>
             <p className="text-slate-400 text-lg leading-relaxed">
-              QCU Robotics competes at the highest level, showcasing innovation and engineering excellence across multiple prestigious competitions worldwide.
+              QCU Robotics competes at the highest level, showcasing innovation and engineering
+              excellence across multiple prestigious competitions worldwide.
             </p>
           </div>
-          <a href="#" className="hidden md:inline-flex items-center gap-2 text-red-400 hover:text-red-300 font-medium transition-colors mt-6 md:mt-0">
+
+          <a
+            href="#"
+            className="hidden md:inline-flex items-center gap-2 text-red-400 hover:text-red-300 font-medium transition-colors mt-6 md:mt-0"
+          >
             View All Events <ArrowUpRight className="w-4 h-4" />
           </a>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {competitions.length > 0 ? competitions.map((comp, idx) => (
-            <div
-              key={comp.id}
-              className="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:scale-105"
-              style={{ animationDelay: `${idx * 100}ms` }}
-            >
-              <div className="absolute inset-0 bg-gradient-to-br from-slate-800/50 via-slate-900/30 to-slate-950/50 backdrop-blur-xl border border-slate-700/40 group-hover:border-red-500/30 transition-colors duration-500" />
-              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br from-red-500/10 via-transparent to-orange-600/5" />
-              <div className="relative z-10 p-8 flex flex-col h-full">
-                {comp.image_url && (
-                  <div className="mb-6 -mx-8 -mt-8 h-40 bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-t-2xl overflow-hidden flex items-center justify-center group-hover:opacity-90 transition-opacity">
-                    <img
-                      src={comp.image_url}
-                      alt={comp.title}
-                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                    />
-                  </div>
-                )}
-                <div className="flex items-center gap-3 mb-4 flex-wrap">
-                  <span className={`text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider transition-all duration-300 ${
-                    comp.status === 'Active'
-                      ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                      : comp.status === 'Recent'
-                      ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
-                      : 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
-                  }`}>
-                    {comp.status}
-                  </span>
-                  <span className="text-xs text-slate-500 font-medium">{comp.date}</span>
-                </div>
-                <h3 className="text-xl font-bold text-white mb-2 group-hover:text-red-100 transition-colors">{comp.title}</h3>
-                <p className="text-slate-400 text-sm font-medium mb-4 flex items-center gap-2">
-                  <span className="w-1 h-1 rounded-full bg-red-500" />
-                  {comp.location}
-                </p>
-                <div className="mt-auto flex gap-3">
-                  <Link
-                    href={`/matches?id=${comp.id}`}
-                    className="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-red-400 group-hover:text-red-300 transition-colors py-2 px-3 rounded-lg bg-red-600/10 border border-red-500/30 hover:bg-red-600/20"
-                  >
-                    <span>Matches</span>
-                    <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </Link>
-                  <Link
-                    href={`/achievements?id=${comp.id}`}
-                    className="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-amber-400 group-hover:text-amber-300 transition-colors py-2 px-3 rounded-lg bg-amber-600/10 border border-amber-500/30 hover:bg-amber-600/20"
-                  >
-                    <span>Achievements</span>
-                    <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </Link>
-                </div>
+        {/* Season Filter Dropdown */}
+        <div className="flex justify-start mb-10">
+          <div className="flex items-center gap-3 bg-slate-900/60 backdrop-blur-md border border-slate-700/50 px-5 py-3 rounded-2xl shadow-xl">
+            <span className="text-slate-400 text-sm font-medium whitespace-nowrap">
+              Filter by Season:
+            </span>
+            <div className="relative">
+              <select
+                value={selectedSeason}
+                onChange={(e) =>
+                  setSelectedSeason(
+                    e.target.value === 'all' ? 'all' : Number(e.target.value)
+                  )
+                }
+                disabled={seasons.length === 0}
+                className="appearance-none bg-slate-800 border border-slate-600 text-white text-sm font-semibold rounded-xl px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent cursor-pointer hover:bg-slate-700 transition-colors min-w-[180px] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="all">
+                  {sortedSeasons.length === 0 ? 'No seasons found' : 'All Seasons'}
+                </option>
+                {sortedSeasons.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.season_name}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                <ChevronDown className="w-4 h-4 text-slate-400" />
               </div>
             </div>
-          )) : (
-            <p className="text-slate-500 md:col-span-2 lg:col-span-3 text-center py-12">
-              No active competitions found or waiting for database connection.
+          </div>
+        </div>
+
+        {/* Competition Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {sortedCompetitions.length > 0 ? (
+            sortedCompetitions.map((comp, idx) => (
+              <div
+                key={comp.id}
+                className="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:scale-105"
+                style={{ animationDelay: `${idx * 100}ms` }}
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-800/50 via-slate-900/30 to-slate-950/50 backdrop-blur-xl border border-slate-700/40 group-hover:border-red-500/30 transition-colors duration-500" />
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br from-red-500/10 via-transparent to-orange-600/5" />
+                <div className="relative z-10 p-8 flex flex-col h-full">
+                  {comp.image_url && (
+                    <div className="mb-6 -mx-8 -mt-8 h-40 bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-t-2xl overflow-hidden flex items-center justify-center group-hover:opacity-90 transition-opacity">
+                      <img
+                        src={comp.image_url}
+                        alt={comp.title}
+                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                        }}
+                      />
+                    </div>
+                  )}
+                  <div className="flex items-center gap-3 mb-4 flex-wrap">
+                    <span
+                      className={`text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider transition-all duration-300 ${
+                        comp.status === 'Active'
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                          : comp.status === 'Recent'
+                          ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
+                          : 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
+                      }`}
+                    >
+                      {comp.status}
+                    </span>
+                    <span className="text-xs text-slate-500 font-medium">{comp.date}</span>
+                  </div>
+                  <h3 className="text-xl font-bold text-white mb-2 group-hover:text-red-100 transition-colors">
+                    {comp.title}
+                  </h3>
+                  <p className="text-slate-400 text-sm font-medium mb-4 flex items-center gap-2">
+                    <span className="w-1 h-1 rounded-full bg-red-500" />
+                    {comp.location}
+                  </p>
+                  <div className="mt-auto flex gap-3">
+                    <Link
+                      href={`/matches?id=${comp.id}`}
+                      className="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-red-400 group-hover:text-red-300 transition-colors py-2 px-3 rounded-lg bg-red-600/10 border border-red-500/30 hover:bg-red-600/20"
+                    >
+                      <span>Matches</span>
+                      <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </Link>
+                    <Link
+                      href={`/achievements?id=${comp.id}`}
+                      className="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-amber-400 group-hover:text-amber-300 transition-colors py-2 px-3 rounded-lg bg-amber-600/10 border border-amber-500/30 hover:bg-amber-600/20"
+                    >
+                      <span>Achievements</span>
+                      <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <p className="text-slate-500 md:col-span-2 lg:col-span-3 text-center py-12 bg-slate-900/30 rounded-2xl border border-slate-800/50">
+              No competitions found for the selected season.
             </p>
           )}
         </div>
+
       </div>
     </section>
   );
@@ -727,9 +917,7 @@ const TeamMembersSection = () => {
                 ))}
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-                <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
+                <ChevronDown className="w-4 h-4 text-slate-400" />
               </div>
             </div>
           </div>
