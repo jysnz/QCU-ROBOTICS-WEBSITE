@@ -31,12 +31,21 @@ const setCachedData = (key: string, data: any) => {
 
 const HLSVideo = ({ url }: { url: string }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const hlsRef = useRef<Hls | null>(null);
+  const hasPrefetchedFirstSegmentRef = useRef(false);
+  const isLoadActiveRef = useRef(false);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     const handlePlay = () => {
+      if (hlsRef.current && !isLoadActiveRef.current) {
+        hlsRef.current.startLoad(video.currentTime || 0);
+        isLoadActiveRef.current = true;
+        console.log('[HLS DEBUG] Resumed segment loading after user play');
+      }
+
       if (activeVideoElement && activeVideoElement !== video) {
         activeVideoElement.pause();
       }
@@ -73,6 +82,9 @@ const HLSVideo = ({ url }: { url: string }) => {
     }
 
     const video = videoRef.current;
+    hasPrefetchedFirstSegmentRef.current = false;
+    isLoadActiveRef.current = false;
+    hlsRef.current = null;
 
     let hls: Hls | null = null;
 
@@ -97,14 +109,36 @@ const HLSVideo = ({ url }: { url: string }) => {
     hls = new Hls({
       enableWorker: true,
       lowLatencyMode: true,
+      autoStartLoad: false,
+      startLevel: 0,
+      maxBufferLength: 8,
+      maxMaxBufferLength: 16,
     });
+
+    hlsRef.current = hls;
 
     hls.loadSource(url);
     hls.attachMedia(video);
 
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      console.log('[HLS DEBUG] Manifest loaded (NO autoplay)');
-      // Do nothing — user must press play
+      console.log('[HLS DEBUG] Manifest loaded. Preloading first segment only...');
+      hls?.startLoad(0);
+      isLoadActiveRef.current = true;
+    });
+
+    hls.on(Hls.Events.FRAG_BUFFERED, () => {
+      if (hasPrefetchedFirstSegmentRef.current) return;
+
+      hasPrefetchedFirstSegmentRef.current = true;
+
+      // If user has not started playback yet, stop network loading after first segment.
+      if (video.paused) {
+        hls?.stopLoad();
+        isLoadActiveRef.current = false;
+        console.log('[HLS DEBUG] First segment prefetched. Further loading paused until play.');
+      } else {
+        console.log('[HLS DEBUG] First segment buffered during playback. Continue loading.');
+      }
     });
 
     hls.on(Hls.Events.ERROR, (_, data) => {
@@ -113,6 +147,9 @@ const HLSVideo = ({ url }: { url: string }) => {
 
     return () => {
       if (hls) hls.destroy();
+      hlsRef.current = null;
+      hasPrefetchedFirstSegmentRef.current = false;
+      isLoadActiveRef.current = false;
     };
   }, [url]);
 
@@ -120,6 +157,8 @@ const HLSVideo = ({ url }: { url: string }) => {
     <video
       ref={videoRef}
       controls
+      preload="metadata"
+      playsInline
       className="w-full max-h-48 object-cover bg-black"
     />
   );
