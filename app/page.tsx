@@ -989,7 +989,6 @@ const TeamMembersSection = () => {
         image_url: member.profile_image_url ?? member.image_url ?? null,
         position: roleNames.length > 0 ? roleNames.join(' • ') : (member.position ?? 'Team Member'),
         role: roleNames.length > 0 ? roleNames : member.role,
-        season: seasonNames,
       };
 
       const relevantMemberships = memberships.filter((membership: any) => {
@@ -1107,13 +1106,9 @@ const TeamMembersSection = () => {
           <div className="space-y-14">
             {groupedTeams.map((group) => (
               <div key={`${group.seasonId}-${group.teamId}`}>
-                <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3 flex-wrap">
-                  <span className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs uppercase tracking-wider">
-                    {group.teamLabel}
-                  </span>
-                  {selectedSeason === 'all' && (
-                    <span className="text-sm font-medium text-slate-400">{group.seasonName}</span>
-                  )}
+                <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
+                  <span className="inline-block w-3 h-3 rounded-full bg-blue-500" />
+                  {group.teamLabel}
                 </h3>
                 <div className="flex flex-wrap justify-center gap-6">
                   {group.members.map((member) => (
