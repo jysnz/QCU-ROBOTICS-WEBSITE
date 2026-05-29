@@ -34,7 +34,50 @@ const isHlsUrl = (url: string) => /\.m3u8($|\?)/i.test(url);
 const HLSVideo = ({ url }: { url: string }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
-  const [isReady, setIsReady] = useState(false);
+  const [hasFirstFrame, setHasFirstFrame] = useState(false);
+  const [poster, setPoster] = useState<string | undefined>(undefined);
+  const firstFrameCapturedRef = useRef(false);
+
+  const capturePosterFrame = () => {
+    const video = videoRef.current;
+
+    if (!video || firstFrameCapturedRef.current || poster || video.videoWidth === 0 || video.videoHeight === 0) {
+      return;
+    }
+
+    try {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+
+      const context = canvas.getContext('2d');
+      if (!context) return;
+
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      firstFrameCapturedRef.current = true;
+      setPoster(canvas.toDataURL('image/jpeg', 0.82));
+    } catch (error) {
+      console.warn('[HLS DEBUG] Could not capture poster frame:', error);
+    }
+  };
+
+  const revealFirstFrame = () => {
+    const video = videoRef.current;
+
+    if (!video) return;
+
+    const finalize = () => {
+      capturePosterFrame();
+      setHasFirstFrame(true);
+    };
+
+    if ('requestVideoFrameCallback' in video) {
+      video.requestVideoFrameCallback(() => finalize());
+      return;
+    }
+
+    window.requestAnimationFrame(() => finalize());
+  };
 
   useEffect(() => {
     const video = videoRef.current;
@@ -53,15 +96,17 @@ const HLSVideo = ({ url }: { url: string }) => {
       }
     };
 
-    const handleCanPlay = () => setIsReady(true);
-    const handleLoadStart = () => setIsReady(false);
-    const handleWaiting = () => setIsReady(false);
+    const handleLoadedData = () => revealFirstFrame();
+    const handleLoadStart = () => {
+      setHasFirstFrame(false);
+      firstFrameCapturedRef.current = false;
+    };
+    const handleWaiting = () => setHasFirstFrame(false);
 
     video.addEventListener('play', handlePlay);
     video.addEventListener('pause', handlePauseOrEnd);
     video.addEventListener('ended', handlePauseOrEnd);
-    video.addEventListener('canplay', handleCanPlay);
-    video.addEventListener('loadeddata', handleCanPlay);
+    video.addEventListener('loadeddata', handleLoadedData);
     video.addEventListener('loadstart', handleLoadStart);
     video.addEventListener('waiting', handleWaiting);
 
@@ -69,8 +114,7 @@ const HLSVideo = ({ url }: { url: string }) => {
       video.removeEventListener('play', handlePlay);
       video.removeEventListener('pause', handlePauseOrEnd);
       video.removeEventListener('ended', handlePauseOrEnd);
-      video.removeEventListener('canplay', handleCanPlay);
-      video.removeEventListener('loadeddata', handleCanPlay);
+      video.removeEventListener('loadeddata', handleLoadedData);
       video.removeEventListener('loadstart', handleLoadStart);
       video.removeEventListener('waiting', handleWaiting);
       if (activeVideoElement === video) {
@@ -90,7 +134,9 @@ const HLSVideo = ({ url }: { url: string }) => {
 
     const video = videoRef.current;
     hlsRef.current = null;
-    setIsReady(false);
+    setHasFirstFrame(false);
+    setPoster(undefined);
+    firstFrameCapturedRef.current = false;
 
     let hls: Hls | null = null;
 
@@ -159,11 +205,13 @@ const HLSVideo = ({ url }: { url: string }) => {
         controls
         preload="auto"
         playsInline
+        crossOrigin="anonymous"
+        poster={poster}
         disablePictureInPicture
         controlsList="nodownload noplaybackrate"
         className="w-full max-h-48 object-cover bg-black"
       />
-      {!isReady && (
+      {!hasFirstFrame && (
         <div className="absolute inset-0 flex items-center justify-center bg-slate-950/55 backdrop-blur-sm">
           <LoadingSpinner />
         </div>
