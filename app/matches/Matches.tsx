@@ -512,11 +512,6 @@ const MatchesSection = () => {
                   </div>
                 )}
 
-                <p className="text-xs text-slate-500 mt-3">
-                  {new Date(match.created_at).toLocaleDateString('en-US', {
-                    year: 'numeric', month: 'long', day: 'numeric',
-                  })}
-                </p>
               </div>
             ))}
           </div>
