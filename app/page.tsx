@@ -50,55 +50,6 @@ const setCachedData = (key: string, data: any) => {
   console.log(`[Cache] 📝 Cached data for: ${key}`);
 };
 
-// ─── JSONB Helpers ────────────────────────────────────────────────────────────
-const formatRoleData = (role: any): string => {
-  if (!role) return 'Team Member';
-  if (typeof role === 'string') return role;
-  if (typeof role === 'object') {
-    if (Array.isArray(role.roles) && role.roles.length > 0) return role.roles.join(' • ');
-    if (role.title) return role.title;
-    if (role.department) return role.department;
-  }
-  return 'Team Member';
-};
-
-const extractSeasons = (seasonData: any): string[] => {
-  if (!seasonData) return [];
-
-  if (Array.isArray(seasonData)) {
-    return seasonData
-      .map((item) => String(item).trim())
-      .filter(Boolean);
-  }
-
-  if (typeof seasonData === 'object') {
-    if (Array.isArray(seasonData.seasons)) {
-      return seasonData.seasons
-        .map((item: any) => String(item).trim())
-        .filter(Boolean);
-    }
-    return Object.values(seasonData)
-      .flat()
-      .map((item: any) => String(item).trim())
-      .filter(Boolean);
-  }
-
-  if (typeof seasonData === 'string') {
-    try {
-      const parsed = JSON.parse(seasonData);
-      if (Array.isArray(parsed)) {
-        return parsed
-          .map((item) => String(item).trim())
-          .filter(Boolean);
-      }
-    } catch {
-      return [seasonData.trim()].filter(Boolean);
-    }
-  }
-
-  return [];
-};
-
 // ─── Ambient Background ───────────────────────────────────────────────────────
 const AmbientBackground = () => (
   <div className="fixed inset-0 z-[-1] bg-slate-950 overflow-hidden">
@@ -839,16 +790,209 @@ const AboutSection = () => {
   );
 };
 
-// ─── Member Card ──────────────────────────────────────────────────────────────
-const MemberCard = ({ member }: { member: any }) => {
-  const [avatarUrl] = useState(member.profile_image_url ?? null);
+// ─── Team Members Helpers ────────────────────────────────────────────────────
+const formatRoleData = (role: any): string => {
+  if (!role) return 'Team Member';
+  if (typeof role === 'string') return role;
+  if (typeof role === 'object') {
+    if (Array.isArray(role.roles) && role.roles.length > 0) return role.roles.join(' • ');
+    if (role.title) return role.title;
+    if (role.department) return role.department;
+  }
+  return 'Team Member';
+};
+
+const extractSeasons = (seasonData: any): string[] => {
+  if (!seasonData) return [];
+
+  if (Array.isArray(seasonData)) {
+    return seasonData.map((item) => String(item).trim()).filter(Boolean);
+  }
+
+  if (typeof seasonData === 'object') {
+    if (Array.isArray(seasonData.seasons)) {
+      return seasonData.seasons.map((item: any) => String(item).trim()).filter(Boolean);
+    }
+
+    return Object.values(seasonData)
+      .flat()
+      .map((item: any) => String(item).trim())
+      .filter(Boolean);
+  }
+
+  if (typeof seasonData === 'string') {
+    try {
+      const parsed = JSON.parse(seasonData);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => String(item).trim()).filter(Boolean);
+      }
+    } catch {
+      return [seasonData.trim()].filter(Boolean);
+    }
+  }
+
+  return [];
+};
+
+const TeamMembersSection = () => {
+  const [team1Members, setTeam1Members] = useState<any[]>([]);
+  const [team2Members, setTeam2Members] = useState<any[]>([]);
+  const [teams, setTeams] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedSeason, setSelectedSeason] = useState('All');
+  const [availableSeasons, setAvailableSeasons] = useState<string[]>([]);
+
+  useEffect(() => {
+    const fetchTeamMembers = async () => {
+      try {
+        let teamsData = getCachedData('team-members-teams');
+        if (!teamsData) {
+          const { data, error } = await supabase.from('teams').select('*').order('team_number');
+          if (error) console.error('[TeamMembers] Teams error:', error.message);
+          else {
+            teamsData = data ?? [];
+            setCachedData('team-members-teams', teamsData);
+          }
+        }
+        if (teamsData) setTeams(teamsData);
+
+        let membersData = getCachedData('team-members-members');
+        if (!membersData) {
+          const { data, error } = await supabase.from('team_members').select('*').order('id');
+          if (error) console.error('[TeamMembers] Members error:', error.message);
+          else {
+            membersData = data ?? [];
+            setCachedData('team-members-members', membersData);
+          }
+        }
+
+        if (membersData) {
+          const seasonsSet = new Set<string>();
+          membersData.forEach((member: any) => {
+            extractSeasons(member.season).forEach((season) => seasonsSet.add(season));
+          });
+
+          setAvailableSeasons(Array.from(seasonsSet).sort());
+          setTeam1Members(membersData.filter((member: any) => Number(member.team_number) === 1));
+          setTeam2Members(membersData.filter((member: any) => Number(member.team_number) === 2));
+        }
+      } catch (err: any) {
+        console.error('[TeamMembers] Exception:', err?.message || err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTeamMembers();
+  }, []);
+
+  const filterBySeason = (members: any[]) =>
+    selectedSeason === 'All'
+      ? members
+      : members.filter((member) => extractSeasons(member.season).includes(selectedSeason));
+
+  const teamLabel = (teamData: any, teamNumber: number) =>
+    `${teamData?.team_code ?? `Team ${teamNumber}`}${teamData?.team_name ? ` - ${teamData.team_name}` : ''}`;
+
+  if (loading) {
+    return (
+      <section id="team-members" className="py-24 relative z-10 bg-slate-950/50 scroll-mt-28 md:scroll-mt-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
+            {[...Array(2)].map((_, index) => (
+              <div key={index}>
+                <div className="h-8 w-1/2 bg-slate-700/50 rounded mb-8 animate-pulse" />
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {[...Array(6)].map((_, itemIndex) => <SkeletonTeamMemberCard key={itemIndex} />)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const team1Data = teams.find((team) => Number(team.team_number) === 1);
+  const team2Data = teams.find((team) => Number(team.team_number) === 2);
+
+  return (
+    <section id="team-members" className="py-24 relative z-10 bg-slate-950/50 scroll-mt-28 md:scroll-mt-32">
+      <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/5 via-transparent to-transparent pointer-events-none" />
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+        <div className="text-center max-w-3xl mx-auto mb-12">
+          <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30">
+            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-semibold text-emerald-300 uppercase tracking-wider">Team Members</span>
+          </div>
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Meet the Team Members</h2>
+          <p className="text-slate-400 text-lg">The core robotics teams organized by team number, with seasons and roles.</p>
+        </div>
+
+        <div className="flex justify-center mb-14">
+          <div className="flex items-center gap-3 bg-slate-900/60 backdrop-blur-md border border-slate-700/50 px-5 py-3 rounded-2xl shadow-xl">
+            <span className="text-slate-400 text-sm font-medium whitespace-nowrap">Filter by Season:</span>
+            <div className="relative">
+              <select
+                value={selectedSeason}
+                onChange={(e) => setSelectedSeason(e.target.value)}
+                disabled={availableSeasons.length === 0}
+                className="appearance-none bg-slate-800 border border-slate-600 text-white text-sm font-semibold rounded-xl px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent cursor-pointer hover:bg-slate-700 transition-colors min-w-[180px] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <option value="All">{availableSeasons.length === 0 ? 'No seasons in DB' : 'All Seasons'}</option>
+                {availableSeasons.map((season) => (
+                  <option key={season} value={season}>{season}</option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
+                <ChevronDown className="w-4 h-4 text-slate-400" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-20">
+          <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
+            <span className="inline-block w-3 h-3 rounded-full bg-blue-500" />
+            {teamLabel(team1Data, 1)}
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {filterBySeason(team1Members).length > 0
+              ? filterBySeason(team1Members).map((member) => <MemberCard key={member.id} member={member} label="Team Member" />)
+              : <p className="text-slate-500 text-sm col-span-full py-8 italic bg-slate-900/30 rounded-xl px-6 border border-slate-800/50">No members found for this season.</p>
+            }
+          </div>
+        </div>
+
+        <div>
+          <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
+            <span className="inline-block w-3 h-3 rounded-full bg-blue-500" />
+            {teamLabel(team2Data, 2)}
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {filterBySeason(team2Members).length > 0
+              ? filterBySeason(team2Members).map((member) => <MemberCard key={member.id} member={member} label="Team Member" />)
+              : <p className="text-slate-500 text-sm col-span-full py-8 italic bg-slate-900/30 rounded-xl px-6 border border-slate-800/50">No members found for this season.</p>
+            }
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+// ─── Roster Card ─────────────────────────────────────────────────────────────
+const MemberCard = ({ member, label }: { member: any; label: string }) => {
+  const avatarUrl = member.image_url ?? member.profile_image_url ?? null;
+  const subtitle = member.position || formatRoleData(member.role) || label;
   const seasons = extractSeasons(member.season);
 
-  const accentText   = 'text-blue-300';
-  const accentBg     = 'bg-blue-900/50';
-  const accentBorder = 'border-blue-500/40';
-  const gradientBg   = 'bg-gradient-to-br from-blue-500/20 to-cyan-500/20';
-  const hoverGlow    = 'hover:shadow-[0_0_20px_rgba(59,130,246,0.3)]';
+  const accentText   = label === 'Media Team' ? 'text-red-300' : 'text-blue-300';
+  const accentBg     = label === 'Media Team' ? 'bg-red-900/50' : 'bg-blue-900/50';
+  const accentBorder = label === 'Media Team' ? 'border-red-500/40' : 'border-blue-500/40';
+  const gradientBg   = label === 'Media Team' ? 'bg-gradient-to-br from-red-500/20 to-yellow-500/20' : 'bg-gradient-to-br from-blue-500/20 to-cyan-500/20';
+  const hoverGlow    = label === 'Media Team' ? 'hover:shadow-[0_0_20px_rgba(239,68,68,0.24)]' : 'hover:shadow-[0_0_20px_rgba(59,130,246,0.3)]';
 
   return (
     <div className={`group p-8 rounded-3xl bg-gradient-to-b from-slate-800/40 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 relative overflow-hidden transition-all duration-300 hover:border-slate-600/80 ${hoverGlow}`}>
@@ -857,7 +1001,6 @@ const MemberCard = ({ member }: { member: any }) => {
       </div>
 
       <div className="relative z-10 flex flex-col items-center">
-        {/* Avatar */}
         <div className="relative w-24 h-24 mx-auto mb-6">
           {avatarUrl ? (
             <img
@@ -872,37 +1015,28 @@ const MemberCard = ({ member }: { member: any }) => {
           )}
         </div>
 
-        {/* Name */}
         <h4 className="text-lg font-bold text-white text-center mb-2 group-hover:text-slate-100 transition-colors">
           {member.name}
         </h4>
 
-        {/* Role */}
-        <div className={`inline-flex items-center px-3 py-1.5 rounded-full ${accentBg} ${accentBorder} border text-center mb-3`}>
+        <div className={`inline-flex items-center px-3 py-1.5 rounded-full ${accentBg} ${accentBorder} border text-center`}>
           <p className={`text-xs font-semibold ${accentText} uppercase tracking-wider`}>
-            {formatRoleData(member.role)}
+            {subtitle}
           </p>
         </div>
 
-        {/* Season badges — one pill per season string, never combined */}
         {seasons.length > 0 && (
-          <div className="flex flex-wrap justify-center gap-1.5 mb-4">
-            {seasons.map((s, idx) => (
+          <div className="flex flex-wrap justify-center gap-1.5 mt-4">
+            {seasons.map((season, index) => (
               <span
-                key={idx}
+                key={`${season}-${index}`}
                 className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 border border-slate-600/70 text-slate-300"
               >
-                {s}
+                {season}
               </span>
             ))}
           </div>
         )}
-
-        {/* Status */}
-        <div className="flex items-center gap-2 mt-auto pt-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-400/80 animate-pulse" />
-          <span className="text-xs text-slate-400">Active Member</span>
-        </div>
       </div>
 
       <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-3xl bg-gradient-to-br from-slate-700/20 via-transparent to-slate-700/20" />
@@ -910,163 +1044,194 @@ const MemberCard = ({ member }: { member: any }) => {
   );
 };
 
-const TeamMembersSection = () => {
-  const [team1Members, setTeam1Members] = useState<any[]>([]);
-  const [team2Members, setTeam2Members] = useState<any[]>([]);
-  const [teams, setTeams]               = useState<any[]>([]);
-  const [loading, setLoading]           = useState(true);
-  const [selectedSeason, setSelectedSeason]     = useState('All');
-  const [availableSeasons, setAvailableSeasons] = useState<string[]>([]);
+const RosterEmptyState = ({
+  icon,
+  title,
+  accent,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  accent: 'blue' | 'red';
+}) => {
+  const accentClasses = accent === 'blue'
+    ? 'bg-blue-500/10 border-blue-500/20 text-blue-300'
+    : 'bg-red-500/10 border-red-500/20 text-red-300';
+
+  return (
+    <div className="col-span-full rounded-3xl border border-slate-700/50 bg-gradient-to-br from-slate-900/70 via-slate-900/40 to-slate-950/80 p-8 md:p-10 overflow-hidden relative">
+      <div className={`absolute inset-0 opacity-70 ${accent === 'blue' ? 'bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_35%)]' : 'bg-[radial-gradient(circle_at_top_left,rgba(239,68,68,0.16),transparent_35%)]'}`} />
+      <div className="relative z-10 flex flex-col items-center text-center max-w-xl mx-auto">
+        <div className={`mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border ${accentClasses} shadow-[0_0_24px_rgba(15,23,42,0.4)]`}>
+          {icon}
+        </div>
+        <p className={`mb-2 text-xs font-semibold uppercase tracking-[0.3em] ${accent === 'blue' ? 'text-blue-300/80' : 'text-red-300/80'}`}>
+          Roster unavailable
+        </p>
+        <h4 className="text-2xl font-bold text-white mb-3">{title}</h4>
+      </div>
+    </div>
+  );
+};
+
+const RosterSectionShell = ({
+  id,
+  eyebrow,
+  title,
+  description,
+  accentClass,
+  children,
+}: {
+  id: string;
+  eyebrow: string;
+  title: string;
+  description: string;
+  accentClass: string;
+  children: React.ReactNode;
+}) => (
+  <section id={id} className="py-24 relative z-10 bg-slate-950/50 scroll-mt-28 md:scroll-mt-32">
+    <div className={`absolute inset-0 ${accentClass} pointer-events-none`} />
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+      <div className="text-center max-w-3xl mx-auto mb-16">
+        <div className={`inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full ${accentClass.includes('blue') ? 'bg-blue-500/10 border-blue-500/30' : 'bg-red-500/10 border-red-500/30'} border`}>
+          <div className={`w-2 h-2 rounded-full ${accentClass.includes('blue') ? 'bg-blue-500' : 'bg-red-500'} animate-pulse`} />
+          <span className={`text-xs font-semibold uppercase tracking-wider ${accentClass.includes('blue') ? 'text-blue-300' : 'text-red-300'}`}>{eyebrow}</span>
+        </div>
+        <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">{title}</h2>
+        <p className="text-slate-400 text-lg">{description}</p>
+      </div>
+
+      {children}
+    </div>
+  </section>
+);
+
+const MembersSection = () => {
+  const [members, setMembers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchTeamsData = async () => {
+    const fetchMembers = async () => {
       try {
-        let teamsData = getCachedData('team-members-teams');
-        if (!teamsData) {
-          const { data, error } = await supabase.from('teams').select('*').order('team_number');
-          if (error) console.error('[TeamMembers] Teams error:', error.message);
-          else { teamsData = data; setCachedData('team-members-teams', data); }
-        }
-        if (teamsData) setTeams(teamsData);
-
-        let membersData = getCachedData('team-members-members');
-        if (!membersData) {
-          const { data, error } = await supabase.from('team_members').select('*').order('id');
-          if (error) console.error('[TeamMembers] Members error:', error.message);
-          else { membersData = data; setCachedData('team-members-members', data); }
+        let membersData = getCachedData('homepage-members');
+        if (!membersData || membersData.length === 0) {
+          const { data, error } = await supabase.from('members').select('id, name, image_url').order('id');
+          if (error) console.error('[Members] Error:', error.message);
+          else {
+            membersData = data ?? [];
+            if (membersData.length > 0) {
+              setCachedData('homepage-members', membersData);
+            }
+          }
         }
 
-        if (membersData) {
-          // Debug: log raw season values to confirm DB shape
-          console.log('[TeamMembers] Raw season values:',
-            membersData.map((m: any) => ({ name: m.name, season: m.season }))
-          );
-
-          const seasonsSet = new Set<string>();
-          membersData.forEach((m: any) => {
-            const parsed = extractSeasons(m.season);
-            console.log(`[TeamMembers] ${m.name} seasons:`, parsed);
-            parsed.forEach((s) => seasonsSet.add(s));
-          });
-
-          const sorted = Array.from(seasonsSet).sort();
-          console.log('[TeamMembers] Available seasons:', sorted);
-          setAvailableSeasons(sorted);
-
-          setTeam1Members(membersData.filter((m: any) => m.team_number === 1));
-          setTeam2Members(membersData.filter((m: any) => m.team_number === 2));
-        }
+        setMembers(membersData ?? []);
       } catch (err: any) {
-        console.error('[TeamMembers] Exception:', err?.message || err);
+        console.error('[Members] Exception:', err?.message || err);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchTeamsData();
+    fetchMembers();
   }, []);
 
-  const filterBySeason = (members: any[]) =>
-    selectedSeason === 'All'
-      ? members
-      : members.filter((m) => extractSeasons(m.season).includes(selectedSeason));
-
-  const teamLabel = (data: any, num: number) =>
-    `${data?.team_code ?? `Team ${num}`}${data?.team_name ? ` - ${data.team_name}` : ''}`;
-
-  if (loading) {
-    return (
-      <section className="py-24 relative z-10 bg-slate-950/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
-            {[...Array(2)].map((_, t) => (
-              <div key={t}>
-                <div className="h-8 w-1/2 bg-slate-700/50 rounded mb-8 animate-pulse" />
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {[...Array(6)].map((_, i) => <SkeletonTeamMemberCard key={i} />)}
-                </div>
-              </div>
-            ))}
-          </div>
+  return (
+    <RosterSectionShell
+      id="members"
+      eyebrow="Our Members"
+      title="Members"
+      description="The students building and competing with the team."
+      accentClass="bg-gradient-to-b from-blue-500/5 via-transparent to-transparent"
+    >
+      {loading ? (
+        <div className="flex flex-wrap justify-center gap-6">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="w-full max-w-sm basis-full sm:basis-[calc(50%-0.75rem)] lg:basis-[calc(25%-1.125rem)]">
+              <SkeletonTeamMemberCard />
+            </div>
+          ))}
         </div>
-      </section>
-    );
-  }
+      ) : members.length > 0 ? (
+        <div className="flex flex-wrap justify-center gap-6">
+          {members.map((member) => (
+            <div key={member.id} className="w-full max-w-sm basis-full sm:basis-[calc(50%-0.75rem)] lg:basis-[calc(25%-1.125rem)]">
+              <MemberCard member={member} label="Member" />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <RosterEmptyState
+          icon={<Bot className="w-6 h-6" />}
+          title="No members found yet"
+          accent="blue"
+        />
+      )}
+    </RosterSectionShell>
+  );
+};
 
-  const team1Data = teams.find((t) => t.team_number === 1);
-  const team2Data = teams.find((t) => t.team_number === 2);
+const MediaTeamSection = () => {
+  const [mediaTeam, setMediaTeam] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchMediaTeam = async () => {
+      try {
+        let mediaTeamData = getCachedData('homepage-media-team');
+        if (!mediaTeamData || mediaTeamData.length === 0) {
+          const { data, error } = await supabase.from('media_team').select('id, name, position, image_url').order('id');
+          if (error) console.error('[MediaTeam] Error:', error.message);
+          else {
+            mediaTeamData = data ?? [];
+            if (mediaTeamData.length > 0) {
+              setCachedData('homepage-media-team', mediaTeamData);
+            }
+          }
+        }
+
+        setMediaTeam(mediaTeamData ?? []);
+      } catch (err: any) {
+        console.error('[MediaTeam] Exception:', err?.message || err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMediaTeam();
+  }, []);
 
   return (
-    <section id="members" className="py-24 relative z-10 bg-slate-950/50 scroll-mt-28 md:scroll-mt-32">
-      <div className="absolute inset-0 bg-gradient-to-b from-blue-500/5 via-transparent to-transparent pointer-events-none" />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-        {/* Header */}
-        <div className="text-center max-w-3xl mx-auto mb-12">
-          <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30">
-            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
-            <span className="text-xs font-semibold text-blue-300 uppercase tracking-wider">Our Team</span>
-          </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Meet Our Teams</h2>
-          <p className="text-slate-400 text-lg">
-            Dedicated engineers and innovators working together to achieve excellence in competitive robotics.
-          </p>
-        </div>
-
-        {/* Season dropdown — always visible, shows "No seasons found" if DB has no data */}
-        <div className="flex justify-center mb-14">
-          <div className="flex items-center gap-3 bg-slate-900/60 backdrop-blur-md border border-slate-700/50 px-5 py-3 rounded-2xl shadow-xl">
-            <span className="text-slate-400 text-sm font-medium whitespace-nowrap">Filter by Season:</span>
-            <div className="relative">
-              <select
-                value={selectedSeason}
-                onChange={(e) => setSelectedSeason(e.target.value)}
-                disabled={availableSeasons.length === 0}
-                className="appearance-none bg-slate-800 border border-slate-600 text-white text-sm font-semibold rounded-xl px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent cursor-pointer hover:bg-slate-700 transition-colors min-w-[180px] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <option value="All">
-                  {availableSeasons.length === 0 ? 'No seasons in DB' : 'All Seasons'}
-                </option>
-                {availableSeasons.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-                <ChevronDown className="w-4 h-4 text-slate-400" />
-              </div>
+    <RosterSectionShell
+      id="media-team"
+      eyebrow="Media Team"
+      title="Media Team"
+      description="The people behind photos, videos, and team coverage."
+      accentClass="bg-gradient-to-b from-red-500/5 via-transparent to-transparent"
+    >
+      {loading ? (
+        <div className="flex flex-wrap justify-center gap-6">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="w-full max-w-sm basis-full sm:basis-[calc(50%-0.75rem)] lg:basis-[calc(25%-1.125rem)]">
+              <SkeletonTeamMemberCard />
             </div>
-          </div>
+          ))}
         </div>
-
-        {/* Team 1 */}
-        <div className="mb-20">
-          <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
-            <span className="inline-block w-3 h-3 rounded-full bg-blue-500" />
-            {teamLabel(team1Data, 1)}
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {filterBySeason(team1Members).length > 0
-              ? filterBySeason(team1Members).map((m) => <MemberCard key={m.id} member={m} />)
-              : <p className="text-slate-500 text-sm col-span-full py-8 italic bg-slate-900/30 rounded-xl px-6 border border-slate-800/50">No members found for this season.</p>
-            }
-          </div>
+      ) : mediaTeam.length > 0 ? (
+        <div className="flex flex-wrap justify-center gap-6">
+          {mediaTeam.map((person) => (
+            <div key={person.id} className="w-full max-w-sm basis-full sm:basis-[calc(50%-0.75rem)] lg:basis-[calc(25%-1.125rem)]">
+              <MemberCard member={person} label={person.position || 'Media Team'} />
+            </div>
+          ))}
         </div>
-
-        {/* Team 2 */}
-        <div>
-          <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
-            <span className="inline-block w-3 h-3 rounded-full bg-blue-500" />
-            {teamLabel(team2Data, 2)}
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {filterBySeason(team2Members).length > 0
-              ? filterBySeason(team2Members).map((m) => <MemberCard key={m.id} member={m} />)
-              : <p className="text-slate-500 text-sm col-span-full py-8 italic bg-slate-900/30 rounded-xl px-6 border border-slate-800/50">No members found for this season.</p>
-            }
-          </div>
-        </div>
-      </div>
-    </section>
+      ) : (
+        <RosterEmptyState
+          icon={<Cpu className="w-6 h-6" />}
+          title="No media team members found yet"
+          accent="red"
+        />
+      )}
+    </RosterSectionShell>
   );
 };
 
@@ -1260,6 +1425,8 @@ export default function App() {
         <CompetitionsSection />
         <AboutSection />
         <TeamMembersSection />
+        <MediaTeamSection />
+        <MembersSection />
         <CoachesSection />
       </main>
       <Footer />
