@@ -308,9 +308,9 @@ const Hero = () => {
           </div>
 
           <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold text-white tracking-tight mb-6">
-            QCU Robotics <br className="hidden sm:block" />
+            Quezon City University <br className="hidden sm:block" />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-yellow-500 to-red-500">
-              Alpha & Beta
+              Robotics Society
             </span>
           </h1>
 
