@@ -834,48 +834,115 @@ const extractSeasons = (seasonData: any): string[] => {
   return [];
 };
 
+const formatTeamLabel = (team: any): string => {
+  if (!team) return 'Unassigned Team';
+
+  const teamCode = String(team.team_code ?? '').trim();
+  const teamName = String(team.team_name ?? '').trim();
+
+  if (teamCode && teamName) return `${teamCode} - ${teamName}`;
+  if (teamCode) return teamCode;
+  if (teamName) return teamName;
+
+  const teamNumber = Number(team.team_number);
+  if (Number.isFinite(teamNumber)) return `Team ${teamNumber}`;
+
+  return 'Team';
+};
+
+const formatSeasonLabel = (season: any): string => {
+  const seasonName = String(season?.season_name ?? '').trim();
+  if (seasonName) return seasonName;
+
+  const seasonId = Number(season?.id ?? season?.season_id);
+  if (Number.isFinite(seasonId)) return `Season ${seasonId}`;
+
+  return 'Season';
+};
+
+const formatMemberRoles = (memberRoles: any): string[] => {
+  if (!Array.isArray(memberRoles)) return [];
+
+  return memberRoles
+    .map((memberRole) => {
+      if (!memberRole) return '';
+      const roleName = memberRole.roles?.role_name ?? memberRole.role_name ?? memberRole.name ?? '';
+      return String(roleName).trim();
+    })
+    .filter(Boolean);
+};
+
 const TeamMembersSection = () => {
-  const [team1Members, setTeam1Members] = useState<any[]>([]);
-  const [team2Members, setTeam2Members] = useState<any[]>([]);
-  const [teams, setTeams] = useState<any[]>([]);
+  const [seasons, setSeasons] = useState<any[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedSeason, setSelectedSeason] = useState('All');
-  const [availableSeasons, setAvailableSeasons] = useState<string[]>([]);
+  const [selectedSeason, setSelectedSeason] = useState<number | 'all'>('all');
 
   useEffect(() => {
     const fetchTeamMembers = async () => {
       try {
-        let teamsData = getCachedData('team-members-teams');
-        if (!teamsData) {
-          const { data, error } = await supabase.from('teams').select('*').order('team_number');
-          if (error) console.error('[TeamMembers] Teams error:', error.message);
+        let seasonRows = getCachedData('team-members-seasons');
+        if (!seasonRows || seasonRows.length === 0) {
+          const { data, error } = await supabase
+            .from('seasons')
+            .select('id, season_name')
+            .order('id', { ascending: false });
+
+          if (error) console.error('[TeamMembers] Seasons error:', error.message);
           else {
-            teamsData = data ?? [];
-            setCachedData('team-members-teams', teamsData);
+            seasonRows = data ?? [];
+            if (seasonRows.length > 0) {
+              setCachedData('team-members-seasons', seasonRows);
+            }
           }
         }
-        if (teamsData) setTeams(teamsData);
+        setSeasons(seasonRows ?? []);
 
-        let membersData = getCachedData('team-members-members');
-        if (!membersData) {
-          const { data, error } = await supabase.from('team_members').select('*').order('id');
+        let memberRows = getCachedData('team-members-members');
+        if (!memberRows || memberRows.length === 0) {
+          const { data, error } = await supabase
+            .from('team_members')
+            .select(`
+              id,
+              name,
+              profile_image_url,
+              is_graduated,
+              is_active,
+              member_roles (
+                role_id,
+                roles (
+                  id,
+                  role_name
+                )
+              ),
+              member_team_seasons (
+                team_id,
+                season_id,
+                teams (
+                  id,
+                  team_name,
+                  team_number,
+                  team_code,
+                  is_active
+                ),
+                seasons (
+                  id,
+                  season_name
+                )
+              )
+            `)
+            .order('name', { ascending: true });
+
           if (error) console.error('[TeamMembers] Members error:', error.message);
           else {
-            membersData = data ?? [];
-            setCachedData('team-members-members', membersData);
+            memberRows = data ?? [];
+            if (memberRows.length > 0) {
+              setCachedData('team-members-members', memberRows);
+            }
           }
         }
 
-        if (membersData) {
-          const seasonsSet = new Set<string>();
-          membersData.forEach((member: any) => {
-            extractSeasons(member.season).forEach((season) => seasonsSet.add(season));
-          });
-
-          setAvailableSeasons(Array.from(seasonsSet).sort());
-          setTeam1Members(membersData.filter((member: any) => Number(member.team_number) === 1));
-          setTeam2Members(membersData.filter((member: any) => Number(member.team_number) === 2));
-        }
+        setMembers(memberRows ?? []);
       } catch (err: any) {
         console.error('[TeamMembers] Exception:', err?.message || err);
       } finally {
@@ -886,24 +953,111 @@ const TeamMembersSection = () => {
     fetchTeamMembers();
   }, []);
 
-  const filterBySeason = (members: any[]) =>
-    selectedSeason === 'All'
-      ? members
-      : members.filter((member) => extractSeasons(member.season).includes(selectedSeason));
+  const seasonOptions = [...seasons].sort((left, right) => {
+    const leftName = String(left.season_name ?? '').trim();
+    const rightName = String(right.season_name ?? '').trim();
 
-  const teamLabel = (teamData: any, teamNumber: number) =>
-    `${teamData?.team_code ?? `Team ${teamNumber}`}${teamData?.team_name ? ` - ${teamData.team_name}` : ''}`;
+    if (leftName && rightName) {
+      return rightName.localeCompare(leftName, undefined, { numeric: true, sensitivity: 'base' });
+    }
+
+    return Number(right.id) - Number(left.id);
+  });
+
+  const groupedTeams = (() => {
+    const groups = new Map<string, {
+      seasonId: number;
+      seasonName: string;
+      teamId: number;
+      teamNumber: number;
+      teamLabel: string;
+      members: any[];
+    }>();
+
+    members.forEach((member) => {
+      const roleNames = formatMemberRoles(member.member_roles);
+      const memberships = Array.isArray(member.member_team_seasons) ? member.member_team_seasons : [];
+      const seasonNames = Array.from(new Set(
+        memberships
+          .map((membership: any) => membership?.seasons?.season_name ?? formatSeasonLabel(membership?.seasons))
+          .map((seasonName: any) => String(seasonName).trim())
+          .filter(Boolean)
+      ));
+
+      const displayMember = {
+        ...member,
+        image_url: member.profile_image_url ?? member.image_url ?? null,
+        position: roleNames.length > 0 ? roleNames.join(' • ') : (member.position ?? 'Team Member'),
+        role: roleNames.length > 0 ? roleNames : member.role,
+        season: seasonNames,
+      };
+
+      const relevantMemberships = memberships.filter((membership: any) => {
+        if (selectedSeason === 'all') return true;
+        return Number(membership.season_id) === Number(selectedSeason);
+      });
+
+      if (relevantMemberships.length === 0) return;
+
+      relevantMemberships.forEach((membership: any) => {
+        const teamData = membership.teams ?? {};
+        const seasonData = membership.seasons ?? {};
+        const teamId = Number(membership.team_id ?? teamData.id);
+        const seasonId = Number(membership.season_id ?? seasonData.id);
+        const key = `${seasonId}-${teamId}`;
+
+        if (!groups.has(key)) {
+          groups.set(key, {
+            seasonId,
+            seasonName: formatSeasonLabel(seasonData),
+            teamId,
+            teamNumber: Number(teamData.team_number ?? 0),
+            teamLabel: formatTeamLabel(teamData),
+            members: [],
+          });
+        }
+
+        const group = groups.get(key);
+        if (group) {
+          group.members.push(displayMember);
+        }
+      });
+    });
+
+    return Array.from(groups.values()).sort((left, right) => {
+      if (left.seasonId !== right.seasonId) {
+        const leftSeasonIndex = seasonOptions.findIndex((season) => Number(season.id) === Number(left.seasonId));
+        const rightSeasonIndex = seasonOptions.findIndex((season) => Number(season.id) === Number(right.seasonId));
+
+        if (leftSeasonIndex !== rightSeasonIndex) {
+          return leftSeasonIndex - rightSeasonIndex;
+        }
+
+        return right.seasonId - left.seasonId;
+      }
+
+      if (left.teamNumber !== right.teamNumber) {
+        return left.teamNumber - right.teamNumber;
+      }
+
+      return left.teamLabel.localeCompare(right.teamLabel, undefined, { numeric: true, sensitivity: 'base' });
+    });
+  })();
 
   if (loading) {
     return (
       <section id="team-members" className="py-24 relative z-10 bg-slate-950/50 scroll-mt-28 md:scroll-mt-32">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-16">
+          <div className="space-y-14">
             {[...Array(2)].map((_, index) => (
               <div key={index}>
                 <div className="h-8 w-1/2 bg-slate-700/50 rounded mb-8 animate-pulse" />
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  {[...Array(6)].map((_, itemIndex) => <SkeletonTeamMemberCard key={itemIndex} />)}
+                <div className="flex flex-wrap justify-center gap-6">
+                  {[...Array(4)].map((_, itemIndex) => (
+                    <div key={itemIndex} className="w-full max-w-sm basis-full sm:basis-[calc(50%-0.75rem)] lg:basis-[calc(25%-1.125rem)]">
+                      <SkeletonTeamMemberCard />
+                    </div>
+                  ))}
                 </div>
               </div>
             ))}
@@ -912,9 +1066,6 @@ const TeamMembersSection = () => {
       </section>
     );
   }
-
-  const team1Data = teams.find((team) => Number(team.team_number) === 1);
-  const team2Data = teams.find((team) => Number(team.team_number) === 2);
 
   return (
     <section id="team-members" className="py-24 relative z-10 bg-slate-950/50 scroll-mt-28 md:scroll-mt-32">
@@ -936,13 +1087,13 @@ const TeamMembersSection = () => {
             <div className="relative">
               <select
                 value={selectedSeason}
-                onChange={(e) => setSelectedSeason(e.target.value)}
-                disabled={availableSeasons.length === 0}
+                onChange={(e) => setSelectedSeason(e.target.value === 'all' ? 'all' : Number(e.target.value))}
+                disabled={seasonOptions.length === 0}
                 className="appearance-none bg-slate-800 border border-slate-600 text-white text-sm font-semibold rounded-xl px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent cursor-pointer hover:bg-slate-700 transition-colors min-w-[180px] disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <option value="All">{availableSeasons.length === 0 ? 'No seasons in DB' : 'All Seasons'}</option>
-                {availableSeasons.map((season) => (
-                  <option key={season} value={season}>{season}</option>
+                <option value="all">{seasonOptions.length === 0 ? 'No seasons in DB' : 'All Seasons'}</option>
+                {seasonOptions.map((season) => (
+                  <option key={season.id} value={season.id}>{season.season_name}</option>
                 ))}
               </select>
               <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
@@ -952,31 +1103,35 @@ const TeamMembersSection = () => {
           </div>
         </div>
 
-        <div className="mb-20">
-          <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
-            <span className="inline-block w-3 h-3 rounded-full bg-blue-500" />
-            {teamLabel(team1Data, 1)}
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {filterBySeason(team1Members).length > 0
-              ? filterBySeason(team1Members).map((member) => <MemberCard key={member.id} member={member} label="Team Member" />)
-              : <p className="text-slate-500 text-sm col-span-full py-8 italic bg-slate-900/30 rounded-xl px-6 border border-slate-800/50">No members found for this season.</p>
-            }
+        {groupedTeams.length > 0 ? (
+          <div className="space-y-14">
+            {groupedTeams.map((group) => (
+              <div key={`${group.seasonId}-${group.teamId}`}>
+                <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3 flex-wrap">
+                  <span className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-xs uppercase tracking-wider">
+                    {group.teamLabel}
+                  </span>
+                  {selectedSeason === 'all' && (
+                    <span className="text-sm font-medium text-slate-400">{group.seasonName}</span>
+                  )}
+                </h3>
+                <div className="flex flex-wrap justify-center gap-6">
+                  {group.members.map((member) => (
+                    <div key={`${group.seasonId}-${group.teamId}-${member.id}`} className="w-full max-w-sm basis-full sm:basis-[calc(50%-0.75rem)] lg:basis-[calc(25%-1.125rem)]">
+                      <MemberCard member={member} label="Team Member" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
-
-        <div>
-          <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
-            <span className="inline-block w-3 h-3 rounded-full bg-blue-500" />
-            {teamLabel(team2Data, 2)}
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {filterBySeason(team2Members).length > 0
-              ? filterBySeason(team2Members).map((member) => <MemberCard key={member.id} member={member} label="Team Member" />)
-              : <p className="text-slate-500 text-sm col-span-full py-8 italic bg-slate-900/30 rounded-xl px-6 border border-slate-800/50">No members found for this season.</p>
-            }
-          </div>
-        </div>
+        ) : (
+          <RosterEmptyState
+            icon={<Bot className="w-6 h-6" />}
+            title="No team members found for the selected season"
+            accent="blue"
+          />
+        )}
       </div>
     </section>
   );
