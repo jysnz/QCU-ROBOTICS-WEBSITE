@@ -924,9 +924,9 @@ const TeamMembersSection = () => {
         <div className="text-center max-w-3xl mx-auto mb-12">
           <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30">
             <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-xs font-semibold text-emerald-300 uppercase tracking-wider">Team Members</span>
+            <span className="text-xs font-semibold text-emerald-300 uppercase tracking-wider">Team Players</span>
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Meet the Team Members</h2>
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Meet the Team Players</h2>
           <p className="text-slate-400 text-lg">The core robotics teams organized by team number, with seasons and roles.</p>
         </div>
 
