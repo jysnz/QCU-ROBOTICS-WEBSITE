@@ -24,6 +24,7 @@ import {
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
 const supabase = createClient(supabaseUrl, supabaseKey);
+const JOIN_TEAM_FORM_URL = 'https://forms.gle/v87Ugf3L7rqRWTNH8';
 
 console.log('[Init] Supabase URL:', supabaseUrl);
 console.log('[Init] Supabase Key valid:', supabaseKey !== 'placeholder-key');
@@ -31,6 +32,10 @@ console.log('[Init] Supabase Key valid:', supabaseKey !== 'placeholder-key');
 if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseKey === 'placeholder-key') {
   console.warn('[Init] ⚠️ SUPABASE CREDENTIALS MISSING - using placeholders');
 }
+
+const redirectToJoinTeamForm = () => {
+  window.location.href = JOIN_TEAM_FORM_URL;
+};
 
 // ─── Data Cache System ────────────────────────────────────────────────────────
 const CACHE_DURATION = 5 * 60 * 1000;
@@ -212,7 +217,11 @@ const Navbar = () => {
 
           {/* CTA */}
           <div className="hidden md:flex items-center justify-end justify-self-end gap-4">
-            <button className="group relative px-6 py-2.5 rounded-lg font-medium text-white text-sm overflow-hidden">
+            <button
+              type="button"
+              onClick={redirectToJoinTeamForm}
+              className="group relative px-6 py-2.5 rounded-lg font-medium text-white text-sm overflow-hidden"
+            >
               <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-red-700 rounded-lg transition-all duration-300 group-hover:shadow-lg group-hover:shadow-red-500/50" />
               <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-yellow-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               <span className="relative flex items-center gap-2">
@@ -261,7 +270,11 @@ const Navbar = () => {
                   </Link>
                 )
               ))}
-              <button className="w-full mt-2 px-5 py-3 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/50 transition-all duration-300 flex items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={redirectToJoinTeamForm}
+                className="w-full mt-2 px-5 py-3 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/50 transition-all duration-300 flex items-center justify-center gap-2"
+              >
                 Join Team <ChevronRight className="w-4 h-4" />
               </button>
             </div>
@@ -450,7 +463,7 @@ const Hero = () => {
           <div className="flex flex-col sm:flex-row justify-center gap-4 pointer-events-auto mb-8">
             <button
               type="button"
-              onClick={() => scrollToSection('members')}
+              onClick={redirectToJoinTeamForm}
               className="px-8 py-4 rounded-xl bg-white text-slate-950 font-semibold hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(255,255,255,0.2)]"
             >
               Join Team <ChevronRight className="w-5 h-5" />
