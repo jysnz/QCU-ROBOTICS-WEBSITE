@@ -67,6 +67,13 @@ const getBearerToken = (authHeader: string | null) => {
   return token;
 };
 
+const slugify = (value: string) =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
 const createPublicClient = () => {
   const url = getEnvValue('NEXT_PUBLIC_SUPABASE_URL');
   const anonKey = getEnvValue('NEXT_PUBLIC_SUPABASE_ANON_KEY');
@@ -86,10 +93,6 @@ const createPublicClient = () => {
 const validatePayload = (body: CreateQuestionBody) => {
   if (!body.form_id && !body.form_slug) {
     return 'Either form_id or form_slug is required.';
-  }
-
-  if (!body.question_key || body.question_key.trim().length < 2) {
-    return 'question_key is required and must have at least 2 characters.';
   }
 
   if (!body.label || body.label.trim().length < 2) {
@@ -185,7 +188,7 @@ export async function POST(request: Request) {
 
     const questionInsert = {
       form_id: formId,
-      question_key: body.question_key!.trim(),
+      question_key: (body.question_key?.trim() || slugify(body.label!)),
       type: body.type!,
       label: body.label!.trim(),
       description: body.description ?? null,
