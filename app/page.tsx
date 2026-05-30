@@ -276,9 +276,9 @@ const Navbar = () => {
 const CAROUSEL_IMAGES = [
   "/Images/carouselImage1.jpg",
   "/Images/carouselImage2.jpg",
-  "/Images/carouselImage3.jpg",
-  "/Images/carouselImage4.jpg",
-  "/Images/carouselImage5.jpg",
+  "/Images/CarouselImage3.jpg",
+  "/Images/CarouselImage4.jpg",
+  "/Images/CarouselImage5.jpg",
 ];
 
 const ABOUT_CAROUSEL_IMAGES = [
