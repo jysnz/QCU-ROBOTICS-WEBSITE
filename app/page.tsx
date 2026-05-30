@@ -155,7 +155,6 @@ const AmbientBackground = () => (
   </div>
 );
 
-// ─── Navbar ───────────────────────────────────────────────────────────────────
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -186,15 +185,15 @@ const Navbar = () => {
   return (
     <nav className={`fixed w-full z-50 transition-all duration-300 ${scrolled ? 'py-2' : 'py-4'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className={`grid grid-cols-[1fr_auto_1fr] items-center gap-6 px-6 py-3 rounded-xl transition-all duration-300 ${
+        <div className={`grid grid-cols-[1fr_1fr] md:grid-cols-[1fr_auto_1fr] items-center gap-6 px-6 py-3 rounded-xl transition-all duration-300 ${
           scrolled
             ? 'bg-slate-950/70 backdrop-blur-xl border border-slate-700/40 shadow-2xl shadow-slate-900/30'
             : 'bg-slate-950/40 backdrop-blur-lg border border-slate-700/30'
         }`}>
           {/* Logo */}
-            <div className="justify-self-start">
-              <QcuLogo />
-            </div>
+          <div className="justify-self-start">
+            <QcuLogo />
+          </div>
 
           {/* Desktop Links */}
           <div className="hidden md:flex items-center justify-center justify-self-center gap-1">
@@ -230,7 +229,7 @@ const Navbar = () => {
             ))}
           </div>
 
-          {/* CTA */}
+          {/* Desktop CTA */}
           <div className="hidden md:flex items-center justify-end justify-self-end gap-4">
             <button
               type="button"
@@ -247,7 +246,7 @@ const Navbar = () => {
           </div>
 
           {/* Mobile Toggle */}
-          <div className="md:hidden">
+          <div className="md:hidden justify-self-end">
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="text-slate-300 hover:text-red-400 p-2 rounded-lg hover:bg-slate-800/50 transition-all duration-300"
@@ -1000,7 +999,6 @@ const AboutSection = () => {
   );
 };
 
-// ─── Sponsors Section ────────────────────────────────────────────────────────
 const SponsorSection = () => {
   const [sponsorCompanies, setSponsorCompanies] = useState<any[]>([]);
   const [sponsors, setSponsors] = useState<any[]>([]);
@@ -1065,6 +1063,7 @@ const SponsorSection = () => {
         </div>
 
         <div className="space-y-16">
+          {/* Companies */}
           <div>
             <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
               <div>
@@ -1115,6 +1114,7 @@ const SponsorSection = () => {
             )}
           </div>
 
+          {/* People */}
           <div>
             <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
               <div>
@@ -1124,14 +1124,17 @@ const SponsorSection = () => {
             </div>
 
             {sponsors.length > 0 ? (
-              <div className="flex flex-wrap justify-center gap-6">
+              <div className="flex flex-wrap justify-center gap-8">
                 {sponsors.map((person) => {
                   const company = companyById.get(Number(person.company_id));
                   const companyName = company?.company_name || 'Sponsor Company';
 
                   return (
-                    <div key={person.id} className="group w-full max-w-sm basis-full sm:basis-[calc(50%-0.75rem)] lg:basis-[calc(25%-1.125rem)] overflow-hidden rounded-3xl border border-slate-700/50 bg-slate-900/40 backdrop-blur-sm transition-all duration-300 hover:border-amber-500/40 hover:bg-slate-800/50">
-                      <div className="aspect-square bg-slate-950/60 overflow-hidden">
+                    <div
+                      key={person.id}
+                      className="w-full max-w-[280px] group relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-md border border-slate-700/50 transition-all duration-300 hover:border-amber-500/50 hover:shadow-[0_0_20px_rgba(251,191,36,0.18)]"
+                    >
+                      <div className="relative h-64 overflow-hidden bg-slate-950">
                         {person.image_url ? (
                           <img
                             src={person.image_url}
@@ -1139,17 +1142,17 @@ const SponsorSection = () => {
                             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                           />
                         ) : (
-                          <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 px-6 text-center">
-                            <div className="flex h-18 w-18 items-center justify-center rounded-full border border-amber-400/20 bg-amber-500/10">
+                          <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 px-6 text-center">
+                            <div className="flex h-16 w-16 items-center justify-center rounded-full border border-amber-400/20 bg-amber-500/10">
                               <span className="text-4xl font-bold text-amber-300">{person.name?.charAt(0) || 'S'}</span>
                             </div>
-                            <p className="text-sm text-slate-300">No image available</p>
+                            <p className="mt-4 text-sm text-slate-300">No image available</p>
                           </div>
                         )}
                       </div>
-                      <div className="p-5 text-center">
+                      <div className="p-6">
                         <h4 className="text-lg font-bold text-white">{person.name}</h4>
-                        <p className="mt-2 text-sm text-amber-300">{companyName}</p>
+                        <p className="text-sm text-amber-300 font-medium">{companyName}</p>
                       </div>
                     </div>
                   );
