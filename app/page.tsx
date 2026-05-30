@@ -13,7 +13,6 @@ import {
   ChevronDown,
   Menu,
   X,
-  Mail,
   Bot,
   Cpu,
   Shield,
@@ -49,6 +48,25 @@ const setCachedData = (key: string, data: any) => {
   dataCache.set(key, { data, timestamp: Date.now() });
   console.log(`[Cache] 📝 Cached data for: ${key}`);
 };
+
+const QcuLogo = () => (
+  <div className="flex items-center gap-3 group cursor-pointer">
+    <div className="relative">
+      <div className="w-11 h-11 rounded-lg flex items-center justify-center text-white font-bold shadow-lg group-hover:shadow-red-500/50 transition-shadow duration-300 overflow-hidden bg-slate-800">
+        <img
+          src="/Images/logo1.jpg"
+          alt="QCU Robotics Logo"
+          className="w-full h-full object-cover"
+          onError={(e) => {
+            e.currentTarget.src = "https://ui-avatars.com/api/?name=QCU&background=dc143c&color=fff";
+          }}
+        />
+      </div>
+      <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-red-500/20 to-yellow-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+    </div>
+    <span className="text-lg font-bold text-white whitespace-nowrap">QCU ROBOTICS</span>
+  </div>
+);
 
 // ─── Ambient Background ───────────────────────────────────────────────────────
 const AmbientBackground = () => (
@@ -88,22 +106,7 @@ const Navbar = () => {
             : 'bg-slate-950/40 backdrop-blur-lg border border-slate-700/30'
         }`}>
           {/* Logo */}
-          <div className="flex items-center gap-3 group cursor-pointer">
-            <div className="relative">
-              <div className="w-11 h-11 rounded-lg flex items-center justify-center text-white font-bold shadow-lg group-hover:shadow-red-500/50 transition-shadow duration-300 overflow-hidden bg-slate-800">
-                <img
-                  src="/Images/logo1.jpg"
-                  alt="QCU Robotics Logo"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    e.currentTarget.src = "https://ui-avatars.com/api/?name=QCU&background=dc143c&color=fff";
-                  }}
-                />
-              </div>
-              <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-red-500/20 to-yellow-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-            </div>
-            <span className="text-lg font-bold text-white whitespace-nowrap">QCU ROBOTICS</span>
-          </div>
+            <QcuLogo />
 
           {/* Desktop Links */}
           <div className="hidden md:flex items-center gap-1">
@@ -1467,30 +1470,19 @@ const CoachesSection = () => {
 
 // ─── Footer ───────────────────────────────────────────────────────────────────
 const Footer = () => {
-  const [email, setEmail] = useState('');
-  const [status, setStatus] = useState('idle');
-
-  const handleSignup = async () => {
-    if (!email || !email.includes('@')) return;
-    setStatus('loading');
-    const { error } = await supabase.from('email_signups').insert([{ email }]);
-    if (error) { setStatus('error'); }
-    else { setStatus('success'); setEmail(''); }
-    setTimeout(() => setStatus('idle'), 3000);
-  };
+  const contactEmail = 'qcu.robotics.team@gmail.com';
 
   return (
     <footer className="relative z-10 border-t border-slate-800 bg-slate-950/80 backdrop-blur-lg pt-16 pb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12">
           {/* Brand */}
-          <div className="md:col-span-1">
-            <div className="flex items-center gap-2 mb-6">
-              <div className="w-8 h-8 rounded-lg bg-red-600 flex items-center justify-center text-white font-bold text-xs">Q</div>
-              <span className="text-lg font-bold text-white">QCU ROBOTICS</span>
+          <div>
+            <div className="mb-6">
+              <QcuLogo />
             </div>
             <p className="text-slate-400 text-sm leading-relaxed mb-6">
-              Competing at the highest level. QCU Robotics Team brings innovation and excellence to international robotics competitions.
+              Competing at the highest level. QCU Robotics Team brings innovation, teamwork, and technical excellence to every event.
             </p>
             <div className="flex items-center gap-4">
               <a href="#" className="text-slate-400 hover:text-white transition-colors">
@@ -1505,50 +1497,25 @@ const Footer = () => {
             </div>
           </div>
 
-          {/* Competitions */}
-          <div>
-            <h4 className="text-white font-semibold mb-4">Competitions</h4>
-            <ul className="space-y-2">
-              {['FIRST Robotics', 'VEX Robotics', 'Robotic Sumo', 'Aerial Robotics'].map((link) => (
-                <li key={link}><a href="#" className="text-slate-400 hover:text-red-400 text-sm transition-colors">{link}</a></li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Organization */}
-          <div>
-            <h4 className="text-white font-semibold mb-4">Organization</h4>
-            <ul className="space-y-2">
-              {['About QCU Robotics', 'Our Teams', 'Achievements', 'Community Partners'].map((link) => (
-                <li key={link}><a href="#" className="text-slate-400 hover:text-red-400 text-sm transition-colors">{link}</a></li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Email Signup */}
-          <div>
-            <h4 className="text-white font-semibold mb-4">Get Involved</h4>
-            <p className="text-slate-400 text-sm mb-4">Join our mailing list for updates on competitions and team announcements.</p>
-            <div className="flex gap-2">
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSignup()}
-                placeholder="Enter email"
-                className="bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-red-500 w-full"
-                disabled={status === 'loading'}
-              />
-              <button
-                onClick={handleSignup}
-                disabled={status === 'loading'}
-                className="bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded-lg border border-slate-600 transition-colors"
+          {/* Contact CTA */}
+          <div className="rounded-3xl border border-slate-700/40 bg-gradient-to-br from-slate-900/60 via-slate-900/40 to-slate-950/80 p-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-red-300/80 mb-3">Get in touch</p>
+            <h4 className="text-2xl font-bold text-white mb-4">Message the QCU Robotics Team</h4>
+            <p className="text-slate-400 text-sm leading-relaxed mb-6 max-w-md">
+              Have questions, want to collaborate, need event information, or just want to send a general message? Reach out and the QCU Robotics Team will get back to you.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3">
+              <a
+                href={`mailto:${contactEmail}?subject=${encodeURIComponent('Message for QCU Robotics Team')}`}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600/80 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-500"
               >
-                {status === 'loading' ? '...' : <Mail className="w-4 h-4" />}
-              </button>
+                Send a Message
+                <ArrowUpRight className="h-4 w-4" />
+              </a>
+              <span className="inline-flex items-center justify-center rounded-xl border border-slate-700/70 bg-slate-900/60 px-5 py-3 text-sm text-slate-300">
+                {contactEmail}
+              </span>
             </div>
-            {status === 'success' && <p className="text-green-400 text-xs mt-2">You're on the list!</p>}
-            {status === 'error'   && <p className="text-red-400   text-xs mt-2">Already signed up or invalid email.</p>}
           </div>
         </div>
 
