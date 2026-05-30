@@ -922,6 +922,173 @@ const AboutSection = () => {
   );
 };
 
+// ─── Sponsors Section ────────────────────────────────────────────────────────
+const SponsorSection = () => {
+  const [sponsorCompanies, setSponsorCompanies] = useState<any[]>([]);
+  const [sponsors, setSponsors] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSponsors = async () => {
+      try {
+        const cachedCompanies = getCachedData('sponsor-companies');
+        const cachedSponsors = getCachedData('sponsors');
+
+        if (cachedCompanies && cachedSponsors) {
+          setSponsorCompanies(cachedCompanies);
+          setSponsors(cachedSponsors);
+          return;
+        }
+
+        const [companiesResult, sponsorsResult] = await Promise.all([
+          supabase.from('sponsor_company').select('id, image_url, company_name').order('id', { ascending: true }),
+          supabase.from('sponsors').select('id, name, image_url, company_id').order('id', { ascending: true }),
+        ]);
+
+        if (companiesResult.error) {
+          console.error('[Sponsors] Company error:', companiesResult.error.message);
+        }
+        if (sponsorsResult.error) {
+          console.error('[Sponsors] Sponsors error:', sponsorsResult.error.message);
+        }
+
+        const companyRows = companiesResult.data ?? [];
+        const sponsorRows = sponsorsResult.data ?? [];
+
+        setCachedData('sponsor-companies', companyRows);
+        setCachedData('sponsors', sponsorRows);
+
+        setSponsorCompanies(companyRows);
+        setSponsors(sponsorRows);
+      } catch (err: any) {
+        console.error('[Sponsors] Exception:', err?.message || err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSponsors();
+  }, []);
+
+  const companyById = new Map(sponsorCompanies.map((company) => [Number(company.id), company]));
+
+  return (
+    <section id="sponsors" className="py-24 relative z-10 bg-slate-950/50 scroll-mt-28 md:scroll-mt-32">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+        <div className="text-center max-w-3xl mx-auto mb-16">
+          <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30">
+            <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-amber-200">Sponsors</span>
+          </div>
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Our Sponsors</h2>
+          <p className="text-slate-400 text-lg">
+            Companies and the people behind them who support QCU Robotics.
+          </p>
+        </div>
+
+        <div className="space-y-16">
+          <div>
+            <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
+              <div>
+                <h3 className="text-2xl font-bold text-white">Companies</h3>
+                <p className="text-slate-400 text-sm mt-1">Featured sponsor companies and their branding.</p>
+              </div>
+            </div>
+
+            {loading ? (
+              <div className="flex flex-wrap justify-center gap-6">
+                {[...Array(3)].map((_, index) => (
+                  <div key={index} className="h-56 w-full max-w-sm basis-full sm:basis-[calc(50%-0.75rem)] lg:basis-[calc(33.333%-1rem)] rounded-3xl border border-slate-700/50 bg-slate-900/40 animate-pulse" />
+                ))}
+              </div>
+            ) : sponsorCompanies.length > 0 ? (
+              <div className="flex flex-wrap justify-center gap-6">
+                {sponsorCompanies.map((company) => (
+                  <div key={company.id} className="group w-full max-w-sm basis-full sm:basis-[calc(50%-0.75rem)] lg:basis-[calc(33.333%-1rem)] overflow-hidden rounded-3xl border border-slate-700/50 bg-slate-900/40 backdrop-blur-sm transition-all duration-300 hover:border-amber-500/40 hover:bg-slate-800/50">
+                    <div className="aspect-[4/3] bg-slate-950/60 overflow-hidden flex items-center justify-center">
+                      {company.image_url ? (
+                        <img
+                          src={company.image_url}
+                          alt={company.company_name || 'Sponsor company'}
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-gradient-to-br from-amber-500/10 via-slate-900/40 to-red-500/10 px-6 text-center">
+                          <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-400/30 bg-amber-500/10">
+                            <Shield className="h-8 w-8 text-amber-300/80" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300/70">Sponsor</p>
+                            <p className="mt-2 text-lg font-bold text-white">{company.company_name || 'Sponsor Company'}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-5 text-center">
+                      <h4 className="text-lg font-bold text-white">{company.company_name || 'Sponsor Company'}</h4>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="rounded-2xl border border-slate-800/50 bg-slate-900/30 px-6 py-10 text-center text-slate-500">
+                No sponsor companies found yet.
+              </p>
+            )}
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between gap-4 mb-6 flex-wrap">
+              <div>
+                <h3 className="text-2xl font-bold text-white">People</h3>
+                <p className="text-slate-400 text-sm mt-1">Sponsor representatives with their company name.</p>
+              </div>
+            </div>
+
+            {sponsors.length > 0 ? (
+              <div className="flex flex-wrap justify-center gap-6">
+                {sponsors.map((person) => {
+                  const company = companyById.get(Number(person.company_id));
+                  const companyName = company?.company_name || 'Sponsor Company';
+
+                  return (
+                    <div key={person.id} className="group w-full max-w-sm basis-full sm:basis-[calc(50%-0.75rem)] lg:basis-[calc(25%-1.125rem)] overflow-hidden rounded-3xl border border-slate-700/50 bg-slate-900/40 backdrop-blur-sm transition-all duration-300 hover:border-amber-500/40 hover:bg-slate-800/50">
+                      <div className="aspect-square bg-slate-950/60 overflow-hidden">
+                        {person.image_url ? (
+                          <img
+                            src={person.image_url}
+                            alt={person.name}
+                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-gradient-to-br from-slate-800 via-slate-900 to-slate-950 px-6 text-center">
+                            <div className="flex h-18 w-18 items-center justify-center rounded-full border border-amber-400/20 bg-amber-500/10">
+                              <span className="text-4xl font-bold text-amber-300">{person.name?.charAt(0) || 'S'}</span>
+                            </div>
+                            <p className="text-sm text-slate-300">No image available</p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="p-5 text-center">
+                        <h4 className="text-lg font-bold text-white">{person.name}</h4>
+                        <p className="mt-2 text-sm text-amber-300">{companyName}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="rounded-2xl border border-slate-800/50 bg-slate-900/30 px-6 py-10 text-center text-slate-500">
+                No sponsor people found yet.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
 // ─── Team Members Helpers ────────────────────────────────────────────────────
 const formatRoleData = (role: any): string => {
   if (!role) return 'Team Member';
@@ -1723,6 +1890,7 @@ export default function App() {
         <Hero />
         <CompetitionsSection />
         <AboutSection />
+        <SponsorSection />
         <TeamMembersSection />
         <MediaTeamSection />
         <MembersSection />
