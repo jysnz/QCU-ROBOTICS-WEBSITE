@@ -217,7 +217,10 @@ const HLSVideo = ({ url, thumbnailUrl }: { url: string; thumbnailUrl?: string | 
         await (video as HTMLVideoElement & { webkitEnterFullscreen?: () => void }).webkitEnterFullscreen?.();
       }
 
-      const orientation = screen.orientation;
+      // Typed fix
+      const orientation = screen.orientation as ScreenOrientation & {
+        lock?: (orientation: OrientationLockType) => Promise<void>;
+      };
       if (orientation?.lock) {
         await orientation.lock('landscape');
       }
