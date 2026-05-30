@@ -166,16 +166,18 @@ const Navbar = () => {
   return (
     <nav className={`fixed w-full z-50 transition-all duration-300 ${scrolled ? 'py-2' : 'py-4'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className={`flex items-center justify-between px-6 py-3 rounded-xl transition-all duration-300 ${
+        <div className={`grid grid-cols-[1fr_auto_1fr] items-center gap-6 px-6 py-3 rounded-xl transition-all duration-300 ${
           scrolled
             ? 'bg-slate-950/70 backdrop-blur-xl border border-slate-700/40 shadow-2xl shadow-slate-900/30'
             : 'bg-slate-950/40 backdrop-blur-lg border border-slate-700/30'
         }`}>
           {/* Logo */}
-            <QcuLogo />
+            <div className="justify-self-start">
+              <QcuLogo />
+            </div>
 
           {/* Desktop Links */}
-          <div className="hidden md:flex items-center gap-1">
+          <div className="hidden md:flex items-center justify-center justify-self-center gap-1">
             {navItems.map((item) => (
               item.sectionId ? (
                 <button
@@ -209,7 +211,7 @@ const Navbar = () => {
           </div>
 
           {/* CTA */}
-          <div className="hidden md:flex items-center gap-4">
+          <div className="hidden md:flex items-center justify-end justify-self-end gap-4">
             <button className="group relative px-6 py-2.5 rounded-lg font-medium text-white text-sm overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-red-700 rounded-lg transition-all duration-300 group-hover:shadow-lg group-hover:shadow-red-500/50" />
               <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-yellow-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -272,11 +274,19 @@ const Navbar = () => {
 
 // ─── Carousel Images ──────────────────────────────────────────────────────────
 const CAROUSEL_IMAGES = [
-  "/Images/678235897_1485046506604187_4125957943912417164_n.jpg",
-  "/Images/678299297_1459872215195693_2358093542589606207_n%20(1).jpg",
-  "/Images/678314792_1746064756186419_4411744446890772271_n.jpg",
-  "/Images/682477686_1365069988975435_6372022281528030398_n.jpg",
-  "/Images/685920531_944634058361196_8201555872037207606_n.jpg",
+  "/Images/carouselImage1.jpg",
+  "/Images/carouselImage2.jpg",
+  "/Images/carouselImage3.jpg",
+  "/Images/carouselImage4.jpg",
+  "/Images/carouselImage5.jpg",
+];
+
+const ABOUT_CAROUSEL_IMAGES = [
+  '/Images/aboutImage1.jpg',
+  '/Images/aboutImage2.jpg',
+  '/Images/aboutImage3.jpg',
+  '/Images/aboutImage4.jpg',
+  '/Images/aboutImage5.jpg',
 ];
 
 const FALLBACK_IMAGES = [
@@ -837,6 +847,7 @@ const CompetitionsSection = () => {
 const AboutSection = () => {
   const [activeTeamCount, setActiveTeamCount] = useState(0);
   const [activeMemberCount, setActiveMemberCount] = useState(0);
+  const [currentAboutImage, setCurrentAboutImage] = useState(0);
 
   useEffect(() => {
     const fetchAboutStats = async () => {
@@ -881,16 +892,58 @@ const AboutSection = () => {
     fetchAboutStats();
   }, []);
 
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentAboutImage((prev) => (prev + 1) % ABOUT_CAROUSEL_IMAGES.length);
+    }, 4000);
+
+    return () => clearInterval(timer);
+  }, []);
+
   return (
     <section id="about-us" className="py-24 relative z-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="rounded-3xl overflow-hidden border border-slate-700/50 shadow-[0_0_40px_rgba(220,20,60,0.15)]">
-            <img
-              src="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?q=80&w=2000&auto=format&fit=crop"
-              alt="QCU Robotics Team"
-              className="w-full h-96 object-cover"
-            />
+            <div className="relative h-96 overflow-hidden bg-slate-900">
+              <div
+                className="flex h-full w-full transition-transform duration-1000 ease-in-out"
+                style={{
+                  width: `${ABOUT_CAROUSEL_IMAGES.length * 100}%`,
+                  transform: `translateX(-${currentAboutImage * (100 / ABOUT_CAROUSEL_IMAGES.length)}%)`,
+                }}
+              >
+                {ABOUT_CAROUSEL_IMAGES.map((src, idx) => (
+                  <div
+                    key={src}
+                    className="relative h-full shrink-0"
+                    style={{ width: `${100 / ABOUT_CAROUSEL_IMAGES.length}%` }}
+                  >
+                    <img
+                      src={src}
+                      alt={`About QCU Robotics ${idx + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="absolute bottom-4 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 pointer-events-auto">
+                {ABOUT_CAROUSEL_IMAGES.map((_, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setCurrentAboutImage(idx)}
+                    aria-label={`Go to about image ${idx + 1}`}
+                    className={`transition-all duration-500 rounded-full ${
+                      idx === currentAboutImage
+                        ? 'w-10 h-2 bg-gradient-to-r from-red-500 to-red-600 shadow-[0_0_12px_rgba(220,20,60,0.8)]'
+                        : 'w-2 h-2 bg-slate-500/70 hover:bg-slate-300'
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
           <div>
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">About QCU Robotics</h2>
@@ -912,9 +965,6 @@ const AboutSection = () => {
                 <p className="text-slate-400 text-sm mt-2">Active Members</p>
               </div>
             </div>
-            <button className="px-8 py-3 rounded-xl bg-red-600/80 backdrop-blur-sm border border-red-500/50 text-white font-medium hover:bg-red-700/80 transition-all shadow-[0_0_15px_rgba(220,20,60,0.2)] hover:shadow-[0_0_20px_rgba(220,20,60,0.4)]">
-              Join Our Community
-            </button>
           </div>
         </div>
       </div>
