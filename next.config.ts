@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
   async headers() {
     const scriptSrc = isDevelopment
       ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-      : "script-src 'self' 'unsafe-inline'";
+      : "script-src 'self'";
 
     return [
       {
