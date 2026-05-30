@@ -17,6 +17,7 @@ import {
   Cpu,
   Shield,
   ArrowUpRight,
+  Globe,
 } from 'lucide-react';
 
 // ─── Supabase Client ──────────────────────────────────────────────────────────
@@ -48,6 +49,57 @@ const setCachedData = (key: string, data: any) => {
   dataCache.set(key, { data, timestamp: Date.now() });
   console.log(`[Cache] 📝 Cached data for: ${key}`);
 };
+
+const getSocialIcon = (platform: string) => {
+  const normalizedPlatform = platform.trim().toLowerCase();
+
+  if (normalizedPlatform.includes('facebook')) return FacebookIcon;
+  if (normalizedPlatform.includes('instagram')) return InstagramIcon;
+  if (normalizedPlatform.includes('linkedin')) return LinkedinIcon;
+  if (normalizedPlatform.includes('youtube')) return YoutubeIcon;
+  if (normalizedPlatform === 'x' || normalizedPlatform.includes('twitter')) return XIcon;
+  if (normalizedPlatform.includes('github')) return GithubIcon;
+
+  return Globe;
+};
+
+const FacebookIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
+    <path d="M13.5 22v-8h2.7l.4-3.1h-3.1V8.9c0-.9.3-1.5 1.6-1.5H16V4.6c-.3 0-1.2-.1-2.2-.1-2.2 0-3.8 1.3-3.8 3.8V11H7.6V14H10v8h3.5z" />
+  </svg>
+);
+
+const InstagramIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className={className}>
+    <rect x="3" y="3" width="18" height="18" rx="5" />
+    <circle cx="12" cy="12" r="4" />
+    <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+  </svg>
+);
+
+const LinkedinIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
+    <path d="M6.94 6.5A1.94 1.94 0 1 1 3.06 6.5a1.94 1.94 0 0 1 3.88 0ZM3.5 9h3v12h-3V9Zm5 0h2.9v1.6h.1c.4-.8 1.5-1.7 3.1-1.7 3.3 0 3.9 2.2 3.9 5V21h-3v-6.2c0-1.5 0-3.5-2.1-3.5s-2.4 1.6-2.4 3.4V21h-3V9Z" />
+  </svg>
+);
+
+const XIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
+    <path d="M18.9 3H21l-6.9 7.9L22 21h-6.8l-5.3-6.1L4.6 21H2.5l7.4-8.5L2 3h6.9l4.8 5.5L18.9 3Zm-1.2 16h1.9L8.1 4.9H6L17.7 19Z" />
+  </svg>
+);
+
+const YoutubeIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
+    <path d="M21.6 8.2s-.2-1.4-.8-2c-.8-.8-1.7-.8-2.1-.9C16 5 12 5 12 5h0s-4 0-6.7.3c-.4 0-1.3.1-2.1.9-.6.6-.8 2-.8 2S2 9.8 2 11.3v1.4C2 14.2 2.4 15.6 2.4 15.6s.2 1.4.8 2c.8.8 1.8.8 2.2.9 1.6.1 6.6.2 6.6.2s4 0 6.7-.3c.4 0 1.3-.1 2.1-.9.6-.6.8-2 .8-2s.4-1.4.4-2.9v-1.4c0-1.5-.4-2.9-.4-2.9ZM10 15V9l5.2 3-5.2 3Z" />
+  </svg>
+);
+
+const GithubIcon = ({ className }: { className?: string }) => (
+  <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
+    <path d="M12 .8A11.2 11.2 0 0 0 8.5 22.6c.5.1.7-.2.7-.5v-1.9c-2.8.6-3.4-1.2-3.4-1.2-.4-1-.9-1.3-.9-1.3-.7-.5.1-.5.1-.5.8.1 1.3.8 1.3.8.7 1.3 1.9.9 2.4.7.1-.6.3-.9.5-1.1-2.2-.3-4.6-1.1-4.6-5a3.9 3.9 0 0 1 1-2.7 3.6 3.6 0 0 1 .1-2.6s.8-.2 2.7 1a9.2 9.2 0 0 1 5 0c1.9-1.2 2.7-1 2.7-1a3.6 3.6 0 0 1 .1 2.6 3.9 3.9 0 0 1 1 2.7c0 3.9-2.4 4.7-4.6 5 .3.3.6.8.6 1.6v2.4c0 .3.2.6.7.5A11.2 11.2 0 0 0 12 .8Z" />
+  </svg>
+);
 
 const QcuLogo = () => (
   <div className="flex items-center gap-3 group cursor-pointer">
@@ -1474,6 +1526,46 @@ const Footer = () => {
   const contactSubject = 'Message for QCU Robotics Team';
   const contactBody = 'Hello QCU Robotics Team, I would like to inquire about...';
   const gmailComposeUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(contactEmail)}&su=${encodeURIComponent(contactSubject)}&body=${encodeURIComponent(contactBody)}`;
+  const [socials, setSocials] = useState<Array<{ platform: string; url: string | null }>>([]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchSocials = async () => {
+      try {
+        const cachedSocials = getCachedData('footer-socials');
+        if (cachedSocials) {
+          if (isMounted) setSocials(cachedSocials);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('socials')
+          .select('platform, url')
+          .order('id', { ascending: true });
+
+        if (error) {
+          console.error('[Footer] Socials error:', error.message);
+          return;
+        }
+
+        const socialRows = data ?? [];
+        setCachedData('footer-socials', socialRows);
+
+        if (isMounted) {
+          setSocials(socialRows);
+        }
+      } catch (error) {
+        console.error('[Footer] Socials exception:', error);
+      }
+    };
+
+    fetchSocials();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   return (
     <footer className="relative z-10 border-t border-slate-800 bg-slate-950/80 backdrop-blur-lg pt-16 pb-8">
@@ -1488,15 +1580,27 @@ const Footer = () => {
               Competing at the highest level. QCU Robotics Team brings innovation, teamwork, and technical excellence to every event.
             </p>
             <div className="flex items-center gap-4">
-              <a href="#" className="text-slate-400 hover:text-white transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z" /></svg>
-              </a>
-              <a href="#" className="text-slate-400 hover:text-white transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" /><path d="M9 18c-4.51 2-5-2-7-2" /></svg>
-              </a>
-              <a href="#" className="text-slate-400 hover:text-white transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4v-7a6 6 0 0 1 6-6z" /><rect width="4" height="12" x="2" y="9" /><circle cx="4" cy="4" r="2" /></svg>
-              </a>
+              {socials.length > 0 ? (
+                socials.map((social) => {
+                  const Icon = getSocialIcon(social.platform);
+                  const href = social.url?.trim() || '#';
+
+                  return (
+                    <a
+                      key={`${social.platform}-${href}`}
+                      href={href}
+                      target={href !== '#' ? '_blank' : undefined}
+                      rel={href !== '#' ? 'noreferrer' : undefined}
+                      aria-label={social.platform}
+                      className="text-slate-400 hover:text-white transition-colors"
+                    >
+                      <Icon className="h-5 w-5" />
+                    </a>
+                  );
+                })
+              ) : (
+                <p className="text-slate-500 text-sm">No social links available.</p>
+              )}
             </div>
           </div>
 
@@ -1526,10 +1630,6 @@ const Footer = () => {
 
         <div className="pt-8 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-slate-500 text-sm">© 2026 QCU Robotics. All rights reserved.</p>
-          <div className="flex gap-6">
-            <a href="#" className="text-slate-500 hover:text-white text-sm transition-colors">Privacy Policy</a>
-            <a href="#" className="text-slate-500 hover:text-white text-sm transition-colors">Terms of Service</a>
-          </div>
         </div>
       </div>
     </footer>
