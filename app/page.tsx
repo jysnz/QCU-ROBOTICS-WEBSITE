@@ -19,6 +19,7 @@ import {
   ArrowUpRight,
   Globe,
 } from 'lucide-react';
+import DynamicRegistrationForm from './components/registration/DynamicRegistrationForm';
 
 // ─── Supabase Client ──────────────────────────────────────────────────────────
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
@@ -136,7 +137,7 @@ const AmbientBackground = () => (
 );
 
 // ─── Navbar ───────────────────────────────────────────────────────────────────
-const Navbar = () => {
+const Navbar = ({ onJoinTeam }: { onJoinTeam: () => void }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [activeLink, setActiveLink] = useState('');
@@ -212,7 +213,11 @@ const Navbar = () => {
 
           {/* CTA */}
           <div className="hidden md:flex items-center justify-end justify-self-end gap-4">
-            <button className="group relative px-6 py-2.5 rounded-lg font-medium text-white text-sm overflow-hidden">
+            <button
+              type="button"
+              onClick={onJoinTeam}
+              className="group relative px-6 py-2.5 rounded-lg font-medium text-white text-sm overflow-hidden"
+            >
               <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-red-700 rounded-lg transition-all duration-300 group-hover:shadow-lg group-hover:shadow-red-500/50" />
               <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-yellow-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
               <span className="relative flex items-center gap-2">
@@ -261,7 +266,14 @@ const Navbar = () => {
                   </Link>
                 )
               ))}
-              <button className="w-full mt-2 px-5 py-3 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/50 transition-all duration-300 flex items-center justify-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  onJoinTeam();
+                  setIsOpen(false);
+                }}
+                className="w-full mt-2 px-5 py-3 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/50 transition-all duration-300 flex items-center justify-center gap-2"
+              >
                 Join Team <ChevronRight className="w-4 h-4" />
               </button>
             </div>
@@ -298,7 +310,7 @@ const FALLBACK_IMAGES = [
 ];
 
 // ─── Hero ─────────────────────────────────────────────────────────────────────
-const Hero = () => {
+const Hero = ({ onJoinTeam }: { onJoinTeam: () => void }) => {
   const [currentImage, setCurrentImage] = useState(0);
   const [stats, setStats] = useState({
     competitions: 0,
@@ -450,7 +462,7 @@ const Hero = () => {
           <div className="flex flex-col sm:flex-row justify-center gap-4 pointer-events-auto mb-8">
             <button
               type="button"
-              onClick={() => scrollToSection('members')}
+              onClick={onJoinTeam}
               className="px-8 py-4 rounded-xl bg-white text-slate-950 font-semibold hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(255,255,255,0.2)]"
             >
               Join Team <ChevronRight className="w-5 h-5" />
@@ -1932,12 +1944,14 @@ const Footer = () => {
 
 // ─── Page Root ────────────────────────────────────────────────────────────────
 export default function App() {
+  const [registrationOpen, setRegistrationOpen] = useState(false);
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-red-500/30">
       <AmbientBackground />
-      <Navbar />
+      <Navbar onJoinTeam={() => setRegistrationOpen(true)} />
       <main>
-        <Hero />
+        <Hero onJoinTeam={() => setRegistrationOpen(true)} />
         <CompetitionsSection />
         <AboutSection />
         <TeamMembersSection />
@@ -1946,6 +1960,11 @@ export default function App() {
         <CoachesSection />
         <SponsorSection />
       </main>
+      <DynamicRegistrationForm
+        open={registrationOpen}
+        onClose={() => setRegistrationOpen(false)}
+        teamSlug="qcu-robotics"
+      />
       <Footer />
     </div>
   );
