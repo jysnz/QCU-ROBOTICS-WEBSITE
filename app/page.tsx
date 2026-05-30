@@ -316,10 +316,19 @@ const Hero = () => {
   useEffect(() => {
     const fetchHeroStats = async () => {
       try {
-        const [competitionsResult, internationalAwardsResult, teamMembersResult, nationalAwardsResult] = await Promise.all([
+        const [
+          competitionsResult,
+          internationalAwardsResult,
+          teamPlayersResult,
+          membersResult,
+          mediaTeamResult,
+          nationalAwardsResult,
+        ] = await Promise.all([
           supabase.from('competitions').select('id', { count: 'exact', head: true }),
           supabase.from('Achievements').select('achievement_id', { count: 'exact', head: true }).eq('international_award', true),
           supabase.from('team_members').select('id', { count: 'exact', head: true }),
+          supabase.from('members').select('id', { count: 'exact', head: true }),
+          supabase.from('media_team').select('id', { count: 'exact', head: true }),
           supabase.from('Achievements').select('achievement_id', { count: 'exact', head: true }).eq('national_award', true),
         ]);
 
@@ -329,24 +338,35 @@ const Hero = () => {
         if (internationalAwardsResult.error) {
           console.error('[Hero Stats] International awards error:', internationalAwardsResult.error.message);
         }
-        if (teamMembersResult.error) {
-          console.error('[Hero Stats] Team members error:', teamMembersResult.error.message);
+        if (teamPlayersResult.error) {
+          console.error('[Hero Stats] Team players error:', teamPlayersResult.error.message);
+        }
+        if (membersResult.error) {
+          console.error('[Hero Stats] Members error:', membersResult.error.message);
+        }
+        if (mediaTeamResult.error) {
+          console.error('[Hero Stats] Media team error:', mediaTeamResult.error.message);
         }
         if (nationalAwardsResult.error) {
           console.error('[Hero Stats] National awards error:', nationalAwardsResult.error.message);
         }
 
+        const totalMembers =
+          (teamPlayersResult.count ?? 0) +
+          (membersResult.count ?? 0) +
+          (mediaTeamResult.count ?? 0);
+
         setStats({
           competitions: competitionsResult.count ?? 0,
           internationalAwards: internationalAwardsResult.count ?? 0,
-          teamMembers: teamMembersResult.count ?? 0,
+          teamMembers: totalMembers,
           nationalAwards: nationalAwardsResult.count ?? 0,
         });
 
         console.log('[Hero Stats] Loaded counts:', {
           competitions: competitionsResult.count ?? 0,
           internationalAwards: internationalAwardsResult.count ?? 0,
-          teamMembers: teamMembersResult.count ?? 0,
+          teamMembers: totalMembers,
           nationalAwards: nationalAwardsResult.count ?? 0,
         });
       } catch (err: any) {
@@ -362,7 +382,7 @@ const Hero = () => {
     ...(stats.internationalAwards > 0
       ? [{ label: 'International Awards', value: stats.internationalAwards }]
       : []),
-    { label: 'Team Members', value: stats.teamMembers },
+    { label: 'Members', value: stats.teamMembers },
     { label: 'National Awards', value: stats.nationalAwards },
   ];
 
@@ -821,24 +841,37 @@ const AboutSection = () => {
   useEffect(() => {
     const fetchAboutStats = async () => {
       try {
-        const [teamsResult, membersResult] = await Promise.all([
+        const [teamsResult, activeTeamPlayersResult, activeMembersResult, activeMediaTeamResult] = await Promise.all([
           supabase.from('teams').select('id', { count: 'exact', head: true }).eq('is_active', true),
           supabase.from('team_members').select('id', { count: 'exact', head: true }).eq('is_active', true),
+          supabase.from('members').select('id', { count: 'exact', head: true }).eq('is_active', true),
+          supabase.from('media_team').select('id', { count: 'exact', head: true }).eq('is_active', true),
         ]);
 
         if (teamsResult.error) {
           console.error('[About Stats] Teams error:', teamsResult.error.message);
         }
-        if (membersResult.error) {
-          console.error('[About Stats] Members error:', membersResult.error.message);
+        if (activeTeamPlayersResult.error) {
+          console.error('[About Stats] Team players error:', activeTeamPlayersResult.error.message);
+        }
+        if (activeMembersResult.error) {
+          console.error('[About Stats] Members error:', activeMembersResult.error.message);
+        }
+        if (activeMediaTeamResult.error) {
+          console.error('[About Stats] Media team error:', activeMediaTeamResult.error.message);
         }
 
+        const totalActiveMembers =
+          (activeTeamPlayersResult.count ?? 0) +
+          (activeMembersResult.count ?? 0) +
+          (activeMediaTeamResult.count ?? 0);
+
         setActiveTeamCount(teamsResult.count ?? 0);
-        setActiveMemberCount(membersResult.count ?? 0);
+        setActiveMemberCount(totalActiveMembers);
 
         console.log('[About Stats] Loaded counts:', {
           activeTeams: teamsResult.count ?? 0,
-          activeMembers: membersResult.count ?? 0,
+          activeMembers: totalActiveMembers,
         });
       } catch (err: any) {
         console.error('[About Stats] Exception:', err?.message || err);
