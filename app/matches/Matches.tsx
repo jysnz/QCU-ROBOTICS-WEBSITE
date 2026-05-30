@@ -1,11 +1,11 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useId, useRef } from 'react';
 import Hls from 'hls.js';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { LoadingSpinner, SkeletonMatchCard } from '../components/LoadingSpinner';
-import { ChevronLeft, ChevronDown, Check, Trophy } from 'lucide-react';
+import { ChevronLeft, ChevronDown, Check, Settings, Trophy } from 'lucide-react';
 import Link from 'next/link';
 
 
@@ -29,15 +29,58 @@ const setCachedData = (key: string, data: any) => {
   dataCache.set(key, { data, timestamp: Date.now() });
 };
 
+type QualityOption = {
+  value: string;
+  label: string;
+};
+
+const buildQualityOptions = (levels: any[]): QualityOption[] => {
+  const options = levels.map((level, index) => {
+    const heightLabel = level?.height ? `${level.height}p` : '';
+    const fallbackLabel = level?.name || `Level ${index + 1}`;
+    const label = heightLabel || fallbackLabel;
+
+    return {
+      value: String(index),
+      label,
+    };
+  });
+
+  return [{ value: 'auto', label: 'Auto' }, ...options.filter((option) => Boolean(option.label))];
+};
+
 const HLSVideo = ({ url }: { url: string }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const hasPrefetchedFirstSegmentRef = useRef(false);
   const isLoadActiveRef = useRef(false);
+  const qualityControlId = useId();
+  const [qualityOptions, setQualityOptions] = useState<QualityOption[]>([{ value: 'auto', label: 'Auto' }]);
+  const [selectedQuality, setSelectedQuality] = useState('auto');
+
+  useEffect(() => {
+    const hls = hlsRef.current;
+    if (!hls || !hls.levels.length) return;
+
+    if (selectedQuality === 'auto') {
+      hls.currentLevel = -1;
+      return;
+    }
+
+    const selectedLevel = Number(selectedQuality);
+    if (!Number.isNaN(selectedLevel) && selectedLevel >= 0 && selectedLevel < hls.levels.length) {
+      hls.currentLevel = selectedLevel;
+    } else {
+      hls.currentLevel = -1;
+    }
+  }, [qualityOptions, selectedQuality]);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+
+    setQualityOptions([{ value: 'auto', label: 'Auto' }]);
+    setSelectedQuality('auto');
 
     const handlePlay = () => {
       if (hlsRef.current && !isLoadActiveRef.current) {
@@ -88,20 +131,13 @@ const HLSVideo = ({ url }: { url: string }) => {
 
     let hls: Hls | null = null;
 
-    // ❗ FORCE hls.js for ALL non-Safari browsers
-    const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-
-    console.log('[HLS DEBUG] Is Safari?', isSafari);
-
-    if (isSafari) {
-      console.log('[HLS DEBUG] Using native HLS');
-      video.src = url;
-      return;
-    }
-
     if (!Hls.isSupported()) {
-      console.warn('[HLS DEBUG] hls.js NOT supported');
-      return;
+      console.warn('[HLS DEBUG] hls.js NOT supported, falling back to native playback');
+      video.src = url;
+      return () => {
+        video.removeAttribute('src');
+        video.load();
+      };
     }
 
     console.log('[HLS DEBUG] Using hls.js');
@@ -110,21 +146,28 @@ const HLSVideo = ({ url }: { url: string }) => {
       enableWorker: true,
       lowLatencyMode: true,
       autoStartLoad: false,
-      startLevel: 0,
+      startLevel: -1,
       maxBufferLength: 8,
       maxMaxBufferLength: 16,
     });
 
     hlsRef.current = hls;
 
+    const syncQualityOptions = () => {
+      setQualityOptions(buildQualityOptions(hls?.levels ?? []));
+    };
+
     hls.loadSource(url);
     hls.attachMedia(video);
 
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
       console.log('[HLS DEBUG] Manifest loaded. Preloading first segment only...');
+      syncQualityOptions();
       hls?.startLoad(0);
       isLoadActiveRef.current = true;
     });
+
+    hls.on(Hls.Events.LEVELS_UPDATED, syncQualityOptions);
 
     hls.on(Hls.Events.FRAG_BUFFERED, () => {
       if (hasPrefetchedFirstSegmentRef.current) return;
@@ -146,6 +189,8 @@ const HLSVideo = ({ url }: { url: string }) => {
     });
 
     return () => {
+      video.removeAttribute('src');
+      video.load();
       if (hls) hls.destroy();
       hlsRef.current = null;
       hasPrefetchedFirstSegmentRef.current = false;
@@ -153,14 +198,68 @@ const HLSVideo = ({ url }: { url: string }) => {
     };
   }, [url]);
 
+  const canChooseQuality = qualityOptions.length > 1;
+
+  const handleQualityChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const nextQuality = event.target.value;
+    setSelectedQuality(nextQuality);
+
+    const hls = hlsRef.current;
+    if (!hls || !hls.levels.length) return;
+
+    if (nextQuality === 'auto') {
+      hls.currentLevel = -1;
+      return;
+    }
+
+    const selectedLevel = Number(nextQuality);
+    if (!Number.isNaN(selectedLevel) && selectedLevel >= 0 && selectedLevel < hls.levels.length) {
+      hls.currentLevel = selectedLevel;
+    } else {
+      hls.currentLevel = -1;
+    }
+  };
+
   return (
-    <video
-      ref={videoRef}
-      controls
-      preload="metadata"
-      playsInline
-      className="w-full max-h-48 object-cover bg-black"
-    />
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-3 rounded-xl border border-slate-700/50 bg-slate-950/60 px-3 py-2">
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
+          <Settings className="h-4 w-4" />
+          <span>Resolution</span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label className="sr-only" htmlFor={`quality-${qualityControlId}`}>Select video resolution</label>
+          <select
+            id={`quality-${qualityControlId}`}
+            value={selectedQuality}
+            onChange={handleQualityChange}
+            disabled={!canChooseQuality}
+            className="min-w-40 rounded-lg border border-slate-700/60 bg-slate-900/90 px-3 py-2 text-sm text-white outline-none transition-colors focus:border-blue-500/70 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {qualityOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <video
+        ref={videoRef}
+        controls
+        preload="metadata"
+        playsInline
+        className="w-full max-h-48 object-cover bg-black"
+      />
+
+      {!canChooseQuality && (
+        <p className="text-xs text-slate-500">
+          This stream only exposes one available quality level. If 1080p is missing, the HLS source does not provide a 1080p rendition.
+        </p>
+      )}
+    </div>
   );
 };
 
@@ -188,6 +287,20 @@ const MatchesSection = () => {
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+
+    const registerMatchesVideoCache = async () => {
+      try {
+        await navigator.serviceWorker.register('/matches-video-sw.js', { scope: '/' });
+      } catch (error) {
+        console.warn('[Matches] Service worker registration failed:', error);
+      }
+    };
+
+    registerMatchesVideoCache();
   }, []);
 
   useEffect(() => {
