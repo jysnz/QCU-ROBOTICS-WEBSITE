@@ -270,12 +270,6 @@ const HLSVideo = ({ url, thumbnailUrl }: { url: string; thumbnailUrl?: string | 
 
         
       </div>
-
-      {isActivated && !canChooseQuality && (
-        <p className="text-xs text-slate-500">
-          This stream only exposes one available quality level. If 1080p is missing, the HLS source does not provide a 1080p rendition.
-        </p>
-      )}
     </div>
   );
 };
