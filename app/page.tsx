@@ -37,6 +37,21 @@ const redirectToJoinTeamForm = () => {
   window.location.href = JOIN_TEAM_FORM_URL;
 };
 
+const getSafeExternalUrl = (value: string | null | undefined) => {
+  if (!value) return null;
+
+  try {
+    const parsedUrl = new URL(value);
+    if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+      return null;
+    }
+
+    return parsedUrl.toString();
+  } catch {
+    return null;
+  }
+};
+
 // ─── Data Cache System ────────────────────────────────────────────────────────
 const CACHE_DURATION = 5 * 60 * 1000;
 const dataCache = new Map<string, { data: any; timestamp: number }>();
@@ -1890,7 +1905,7 @@ const Footer = () => {
               {socials.length > 0 ? (
                 socials.map((social) => {
                   const Icon = getSocialIcon(social.platform);
-                  const href = social.url?.trim() || '#';
+                  const href = getSafeExternalUrl(social.url) || '#';
 
                   return (
                     <a
