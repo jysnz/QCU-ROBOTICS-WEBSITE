@@ -49,14 +49,14 @@ const buildQualityOptions = (levels: any[]): QualityOption[] => {
   return [{ value: 'auto', label: 'Auto' }, ...options.filter((option) => Boolean(option.label))];
 };
 
-const HLSVideo = ({ url }: { url: string }) => {
+const HLSVideo = ({ url, thumbnailUrl }: { url: string; thumbnailUrl?: string | null }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
-  const hasPrefetchedFirstSegmentRef = useRef(false);
-  const isLoadActiveRef = useRef(false);
+  const hasInitializedRef = useRef(false);
   const qualityControlId = useId();
   const [qualityOptions, setQualityOptions] = useState<QualityOption[]>([{ value: 'auto', label: 'Auto' }]);
   const [selectedQuality, setSelectedQuality] = useState('auto');
+  const [isActivated, setIsActivated] = useState(false);
 
   useEffect(() => {
     const hls = hlsRef.current;
@@ -76,6 +76,8 @@ const HLSVideo = ({ url }: { url: string }) => {
   }, [qualityOptions, selectedQuality]);
 
   useEffect(() => {
+    if (!isActivated) return;
+
     const video = videoRef.current;
     if (!video) return;
 
@@ -83,12 +85,6 @@ const HLSVideo = ({ url }: { url: string }) => {
     setSelectedQuality('auto');
 
     const handlePlay = () => {
-      if (hlsRef.current && !isLoadActiveRef.current) {
-        hlsRef.current.startLoad(video.currentTime || 0);
-        isLoadActiveRef.current = true;
-        console.log('[HLS DEBUG] Resumed segment loading after user play');
-      }
-
       if (activeVideoElement && activeVideoElement !== video) {
         activeVideoElement.pause();
       }
@@ -113,34 +109,39 @@ const HLSVideo = ({ url }: { url: string }) => {
         activeVideoElement = null;
       }
     };
-  }, []);
+  }, [isActivated]);
 
   useEffect(() => {
-    console.log('==============================');
-    console.log('[HLS DEBUG] URL:', url);
-
-    if (!videoRef.current || !url) {
-      console.warn('[HLS DEBUG] Missing video or URL');
-      return;
-    }
+    if (!isActivated) return;
 
     const video = videoRef.current;
-    hasPrefetchedFirstSegmentRef.current = false;
-    isLoadActiveRef.current = false;
-    hlsRef.current = null;
+    if (!video || !url || hasInitializedRef.current || hlsRef.current) return;
 
+    hasInitializedRef.current = true;
     let hls: Hls | null = null;
+
+    const syncQualityOptions = () => {
+      setQualityOptions(buildQualityOptions(hls?.levels ?? []));
+    };
+
+    const startPlayback = async () => {
+      try {
+        await video.play();
+      } catch (error) {
+        console.warn('[HLS DEBUG] Autoplay after activation was blocked:', error);
+      }
+    };
 
     if (!Hls.isSupported()) {
       console.warn('[HLS DEBUG] hls.js NOT supported, falling back to native playback');
       video.src = url;
+      void startPlayback();
+
       return () => {
         video.removeAttribute('src');
         video.load();
       };
     }
-
-    console.log('[HLS DEBUG] Using hls.js');
 
     hls = new Hls({
       enableWorker: true,
@@ -152,37 +153,16 @@ const HLSVideo = ({ url }: { url: string }) => {
     });
 
     hlsRef.current = hls;
-
-    const syncQualityOptions = () => {
-      setQualityOptions(buildQualityOptions(hls?.levels ?? []));
-    };
-
-    hls.loadSource(url);
     hls.attachMedia(video);
+    hls.loadSource(url);
 
     hls.on(Hls.Events.MANIFEST_PARSED, () => {
-      console.log('[HLS DEBUG] Manifest loaded. Preloading first segment only...');
       syncQualityOptions();
       hls?.startLoad(0);
-      isLoadActiveRef.current = true;
+      void startPlayback();
     });
 
     hls.on(Hls.Events.LEVELS_UPDATED, syncQualityOptions);
-
-    hls.on(Hls.Events.FRAG_BUFFERED, () => {
-      if (hasPrefetchedFirstSegmentRef.current) return;
-
-      hasPrefetchedFirstSegmentRef.current = true;
-
-      // If user has not started playback yet, stop network loading after first segment.
-      if (video.paused) {
-        hls?.stopLoad();
-        isLoadActiveRef.current = false;
-        console.log('[HLS DEBUG] First segment prefetched. Further loading paused until play.');
-      } else {
-        console.log('[HLS DEBUG] First segment buffered during playback. Continue loading.');
-      }
-    });
 
     hls.on(Hls.Events.ERROR, (_, data) => {
       console.warn('[HLS DEBUG] HLS ERROR:', data);
@@ -193,9 +173,14 @@ const HLSVideo = ({ url }: { url: string }) => {
       video.load();
       if (hls) hls.destroy();
       hlsRef.current = null;
-      hasPrefetchedFirstSegmentRef.current = false;
-      isLoadActiveRef.current = false;
     };
+  }, [isActivated, url]);
+
+  useEffect(() => {
+    setIsActivated(false);
+    hasInitializedRef.current = false;
+    setQualityOptions([{ value: 'auto', label: 'Auto' }]);
+    setSelectedQuality('auto');
   }, [url]);
 
   const canChooseQuality = qualityOptions.length > 1;
@@ -234,7 +219,7 @@ const HLSVideo = ({ url }: { url: string }) => {
             id={`quality-${qualityControlId}`}
             value={selectedQuality}
             onChange={handleQualityChange}
-            disabled={!canChooseQuality}
+            disabled={!isActivated || !canChooseQuality}
             className="min-w-40 rounded-lg border border-slate-700/60 bg-slate-900/90 px-3 py-2 text-sm text-white outline-none transition-colors focus:border-blue-500/70 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {qualityOptions.map((option) => (
@@ -246,15 +231,41 @@ const HLSVideo = ({ url }: { url: string }) => {
         </div>
       </div>
 
-      <video
-        ref={videoRef}
-        controls
-        preload="metadata"
-        playsInline
-        className="w-full max-h-48 object-cover bg-black"
-      />
+      {!isActivated ? (
+        <button
+          type="button"
+          onClick={() => setIsActivated(true)}
+          className="group relative flex w-full items-center justify-center overflow-hidden bg-black"
+          aria-label="Play match video"
+        >
+          {thumbnailUrl ? (
+            <img
+              src={thumbnailUrl}
+              alt="Match video preview"
+              loading="lazy"
+              className="h-48 w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+            />
+          ) : (
+            <div className="flex h-48 w-full items-center justify-center bg-slate-900 text-sm text-slate-300">
+              Tap to load match video
+            </div>
+          )}
+          <span className="absolute inline-flex h-14 w-14 items-center justify-center rounded-full border border-white/40 bg-black/55 text-white backdrop-blur-sm transition-colors group-hover:bg-black/70">
+            ▶
+          </span>
+        </button>
+      ) : (
+        <video
+          ref={videoRef}
+          controls
+          preload="none"
+          playsInline
+          poster={thumbnailUrl || undefined}
+          className="w-full max-h-48 object-cover bg-black"
+        />
+      )}
 
-      {!canChooseQuality && (
+      {isActivated && !canChooseQuality && (
         <p className="text-xs text-slate-500">
           This stream only exposes one available quality level. If 1080p is missing, the HLS source does not provide a 1080p rendition.
         </p>
@@ -565,7 +576,7 @@ const MatchesSection = () => {
 
                 {match.video_url && (
                   <div className="rounded-xl overflow-hidden border border-slate-700/50">
-                    <HLSVideo url={match.video_url} />
+                    <HLSVideo url={match.video_url} thumbnailUrl={match.thumbnail_url ?? match.thumbnail ?? null} />
                   </div>
                 )}
               </div>
