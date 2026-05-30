@@ -160,7 +160,7 @@ const Navbar = () => {
     { label: 'Competitions', sectionId: 'competitions' },
     { label: 'Matches', href: '/matches' },
     { label: 'About Us', sectionId: 'about-us' },
-    { label: 'Teams', sectionId: 'members' },
+    { label: 'Teams', sectionId: 'team-members' },
   ];
 
   return (
@@ -427,7 +427,7 @@ const Hero = () => {
             </button>
             <button
               type="button"
-              onClick={() => scrollToSection('members')}
+              onClick={() => scrollToSection('team-members')}
               className="px-8 py-4 rounded-xl bg-slate-800/40 backdrop-blur-md border border-slate-600/50 text-white font-medium hover:bg-slate-800/60 transition-all flex items-center justify-center gap-2"
             >
               Meet Our Teams
