@@ -1470,7 +1470,10 @@ const CoachesSection = () => {
 
 // ─── Footer ───────────────────────────────────────────────────────────────────
 const Footer = () => {
-  const contactEmail = 'qcu.robotics.team@gmail.com';
+  const contactEmail = 'qcurobotics@email.com';
+  const contactSubject = 'Message for QCU Robotics Team';
+  const contactBody = 'Hello QCU Robotics Team, I would like to inquire about...';
+  const gmailComposeUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(contactEmail)}&su=${encodeURIComponent(contactSubject)}&body=${encodeURIComponent(contactBody)}`;
 
   return (
     <footer className="relative z-10 border-t border-slate-800 bg-slate-950/80 backdrop-blur-lg pt-16 pb-8">
@@ -1506,7 +1509,9 @@ const Footer = () => {
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
               <a
-                href={`mailto:${contactEmail}?subject=${encodeURIComponent('Message for QCU Robotics Team')}`}
+                href={gmailComposeUrl}
+                target="_blank"
+                rel="noreferrer"
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600/80 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-500"
               >
                 Send a Message
