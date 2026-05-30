@@ -1890,11 +1890,11 @@ export default function App() {
         <Hero />
         <CompetitionsSection />
         <AboutSection />
-        <SponsorSection />
         <TeamMembersSection />
         <MediaTeamSection />
         <MembersSection />
         <CoachesSection />
+        <SponsorSection />
       </main>
       <Footer />
     </div>
