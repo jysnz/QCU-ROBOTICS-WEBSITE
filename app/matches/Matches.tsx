@@ -5,7 +5,7 @@ import Hls from 'hls.js';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { LoadingSpinner, SkeletonMatchCard } from '../components/LoadingSpinner';
-import { ChevronLeft, ChevronDown, Check, Maximize2, Settings, Trophy } from 'lucide-react';
+import { ChevronLeft, ChevronDown, Check, Settings, Trophy } from 'lucide-react';
 import Link from 'next/link';
 
 
@@ -51,7 +51,6 @@ const buildQualityOptions = (levels: any[]): QualityOption[] => {
 
 const HLSVideo = ({ url, thumbnailUrl }: { url: string; thumbnailUrl?: string | null }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const playerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const hasInitializedRef = useRef(false);
   const qualityControlId = useId();
@@ -206,27 +205,7 @@ const HLSVideo = ({ url, thumbnailUrl }: { url: string; thumbnailUrl?: string | 
     }
   };
 
-  const handleExpandVideo = async () => {
-    const video = videoRef.current;
-    const player = playerRef.current;
-
-    try {
-      if (player?.requestFullscreen) {
-        await player.requestFullscreen();
-      } else if (video && 'webkitEnterFullscreen' in video) {
-        await (video as HTMLVideoElement & { webkitEnterFullscreen?: () => void }).webkitEnterFullscreen?.();
-      }
-
-      const orientation = screen.orientation as ScreenOrientation & {
-        lock?: (orientation: string) => Promise<void>;
-      };
-      if (orientation?.lock) {
-        await orientation.lock('landscape');
-      }
-    } catch (error) {
-      console.warn('[HLS DEBUG] Fullscreen/orientation request failed:', error);
-    }
-  };
+  
 
   return (
     <div className="space-y-3">
@@ -254,7 +233,7 @@ const HLSVideo = ({ url, thumbnailUrl }: { url: string; thumbnailUrl?: string | 
         </div>
       </div>
 
-      <div ref={playerRef} className="relative overflow-hidden rounded-xl bg-black">
+      <div className="relative overflow-hidden rounded-xl bg-black">
         {!isActivated ? (
           <button
             type="button"
@@ -267,10 +246,10 @@ const HLSVideo = ({ url, thumbnailUrl }: { url: string; thumbnailUrl?: string | 
                 src={thumbnailUrl}
                 alt="Match video preview"
                 loading="lazy"
-                className="h-48 w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                className="h-64 w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
               />
             ) : (
-              <div className="flex h-48 w-full items-center justify-center bg-slate-900 text-sm text-slate-300">
+              <div className="flex h-64 w-full items-center justify-center bg-slate-900 text-sm text-slate-300">
                 Tap to load match video
               </div>
             )}
@@ -285,21 +264,11 @@ const HLSVideo = ({ url, thumbnailUrl }: { url: string; thumbnailUrl?: string | 
             preload="none"
             playsInline
             poster={thumbnailUrl || undefined}
-            className="w-full max-h-[70vh] object-contain bg-black"
+            className="w-full h-64 object-contain bg-black"
           />
         )}
 
-        {isActivated && (
-          <button
-            type="button"
-            onClick={handleExpandVideo}
-            className="absolute right-3 top-3 inline-flex items-center gap-2 rounded-full border border-white/20 bg-slate-950/75 px-3 py-2 text-xs font-semibold text-white shadow-lg backdrop-blur-sm transition-colors hover:bg-slate-900/90"
-            aria-label="Expand video fullscreen"
-          >
-            <Maximize2 className="h-4 w-4" />
-            Expand
-          </button>
-        )}
+        
       </div>
 
       {isActivated && !canChooseQuality && (
