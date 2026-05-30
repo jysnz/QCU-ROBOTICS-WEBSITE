@@ -147,7 +147,21 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const navItems = ['Competitions', 'Matches', 'About Us', 'Teams', 'Technology'];
+  const scrollToSection = (sectionId: string) => {
+    const target = document.getElementById(sectionId);
+    if (!target) return;
+
+    const top = target.getBoundingClientRect().top + window.scrollY - 96;
+    window.history.replaceState(null, '', `#${sectionId}`);
+    window.scrollTo({ top, behavior: 'smooth' });
+  };
+
+  const navItems = [
+    { label: 'Competitions', sectionId: 'competitions' },
+    { label: 'Matches', href: '/matches' },
+    { label: 'About Us', sectionId: 'about-us' },
+    { label: 'Teams', sectionId: 'members' },
+  ];
 
   return (
     <nav className={`fixed w-full z-50 transition-all duration-300 ${scrolled ? 'py-2' : 'py-4'}`}>
@@ -163,18 +177,34 @@ const Navbar = () => {
           {/* Desktop Links */}
           <div className="hidden md:flex items-center gap-1">
             {navItems.map((item) => (
-              <a
-                key={item}
-                href={item === 'Teams' ? '#members' : `#${item.toLowerCase().replace(' ', '-')}`}
-                onMouseEnter={() => setActiveLink(item)}
-                onMouseLeave={() => setActiveLink('')}
-                className="relative px-3 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors"
-              >
-                {item}
-                <span className={`absolute bottom-0 left-3 right-3 h-0.5 bg-gradient-to-r from-red-500 to-yellow-500 rounded-full transition-all duration-300 ${
-                  activeLink === item ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0'
-                }`} />
-              </a>
+              item.sectionId ? (
+                <button
+                  key={item.label}
+                  type="button"
+                  onClick={() => scrollToSection(item.sectionId)}
+                  onMouseEnter={() => setActiveLink(item.label)}
+                  onMouseLeave={() => setActiveLink('')}
+                  className="relative px-3 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors"
+                >
+                  {item.label}
+                  <span className={`absolute bottom-0 left-3 right-3 h-0.5 bg-gradient-to-r from-red-500 to-yellow-500 rounded-full transition-all duration-300 ${
+                    activeLink === item.label ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0'
+                  }`} />
+                </button>
+              ) : (
+                <Link
+                  key={item.label}
+                  href={item.href ?? '/'}
+                  onMouseEnter={() => setActiveLink(item.label)}
+                  onMouseLeave={() => setActiveLink('')}
+                  className="relative px-3 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors"
+                >
+                  {item.label}
+                  <span className={`absolute bottom-0 left-3 right-3 h-0.5 bg-gradient-to-r from-red-500 to-yellow-500 rounded-full transition-all duration-300 ${
+                    activeLink === item.label ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0'
+                  }`} />
+                </Link>
+              )
             ))}
           </div>
 
@@ -206,14 +236,28 @@ const Navbar = () => {
           <div className="md:hidden mt-3 p-5 rounded-xl bg-slate-950/80 backdrop-blur-xl border border-slate-700/50 shadow-2xl">
             <div className="flex flex-col space-y-3">
               {navItems.map((item) => (
-                <a
-                  key={item}
-                  href={item === 'Teams' ? '#members' : `#${item.toLowerCase().replace(' ', '-')}`}
-                  className="text-slate-300 hover:text-red-400 font-medium px-3 py-2 rounded-lg hover:bg-slate-800/50 transition-all duration-300"
-                  onClick={() => setIsOpen(false)}
-                >
-                  {item}
-                </a>
+                item.sectionId ? (
+                  <button
+                    key={item.label}
+                    type="button"
+                    className="text-left text-slate-300 hover:text-red-400 font-medium px-3 py-2 rounded-lg hover:bg-slate-800/50 transition-all duration-300"
+                    onClick={() => {
+                      scrollToSection(item.sectionId);
+                      setIsOpen(false);
+                    }}
+                  >
+                    {item.label}
+                  </button>
+                ) : (
+                  <Link
+                    key={item.label}
+                    href={item.href ?? '/'}
+                    className="text-slate-300 hover:text-red-400 font-medium px-3 py-2 rounded-lg hover:bg-slate-800/50 transition-all duration-300"
+                    onClick={() => setIsOpen(false)}
+                  >
+                    {item.label}
+                  </Link>
+                )
               ))}
               <button className="w-full mt-2 px-5 py-3 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/50 transition-all duration-300 flex items-center justify-center gap-2">
                 Join Team <ChevronRight className="w-4 h-4" />
@@ -376,10 +420,10 @@ const Hero = () => {
           <div className="flex flex-col sm:flex-row justify-center gap-4 pointer-events-auto mb-8">
             <button
               type="button"
-              onClick={() => scrollToSection('competitions')}
+              onClick={() => scrollToSection('members')}
               className="px-8 py-4 rounded-xl bg-white text-slate-950 font-semibold hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(255,255,255,0.2)]"
             >
-              View Competitions <ChevronRight className="w-5 h-5" />
+              Join Team <ChevronRight className="w-5 h-5" />
             </button>
             <button
               type="button"
