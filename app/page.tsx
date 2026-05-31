@@ -1847,7 +1847,7 @@ const CoachesSection = () => {
 
 // ─── Footer ───────────────────────────────────────────────────────────────────
 const Footer = () => {
-  const contactEmail = 'qcurobotics@email.com';
+  const contactEmail = 'roboticsqcu@gmail.com';
   const contactSubject = 'Message for QCU Robotics Team';
   const contactBody = 'Hello QCU Robotics Team, I would like to inquire about...';
   const gmailComposeUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(contactEmail)}&su=${encodeURIComponent(contactSubject)}&body=${encodeURIComponent(contactBody)}`;
