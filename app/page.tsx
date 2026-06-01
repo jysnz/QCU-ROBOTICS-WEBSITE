@@ -1221,10 +1221,27 @@ const formatSeasonLabel = (season: any): string => {
   return 'Season';
 };
 
-const formatMemberRoles = (memberRoles: any): string[] => {
+const formatMemberRoles = (memberRoles: any, seasonOrderMap?: Map<number, number>, filterSeasonId?: number): string[] => {
   if (!Array.isArray(memberRoles)) return [];
 
-  return memberRoles
+  const roles = filterSeasonId !== undefined
+    ? memberRoles.filter((mr: any) => Number(mr.season_id) === Number(filterSeasonId))
+    : memberRoles;
+
+  const sorted = [...roles].sort((a, b) => {
+    const aSeasonId = Number(a.season_id);
+    const bSeasonId = Number(b.season_id);
+
+    if (seasonOrderMap && seasonOrderMap.size > 0) {
+      const aOrder = seasonOrderMap.get(aSeasonId) ?? 999;
+      const bOrder = seasonOrderMap.get(bSeasonId) ?? 999;
+      return aOrder - bOrder;
+    }
+
+    return bSeasonId - aSeasonId;
+  });
+
+  return sorted
     .map((memberRole) => {
       if (!memberRole) return '';
       const roleName = memberRole.roles?.role_name ?? memberRole.role_name ?? memberRole.name ?? '';
@@ -1271,6 +1288,7 @@ const TeamMembersSection = () => {
               is_active,
               member_roles (
                 role_id,
+                season_id,
                 roles (
                   id,
                   role_name
@@ -1335,8 +1353,11 @@ const TeamMembersSection = () => {
       members: any[];
     }>();
 
+    const seasonOrderMap = new Map(
+      seasonOptions.map((season, index) => [Number(season.id), index])
+    );
+
     members.forEach((member) => {
-      const roleNames = formatMemberRoles(member.member_roles);
       const memberships = Array.isArray(member.member_team_seasons) ? member.member_team_seasons : [];
       const seasonNames = Array.from(new Set(
         memberships
@@ -1344,13 +1365,6 @@ const TeamMembersSection = () => {
           .map((seasonName: any) => String(seasonName).trim())
           .filter(Boolean)
       ));
-
-      const displayMember = {
-        ...member,
-        image_url: member.profile_image_url ?? member.image_url ?? null,
-        position: roleNames.length > 0 ? roleNames.join(' • ') : (member.position ?? 'Team Member'),
-        role: roleNames.length > 0 ? roleNames : member.role,
-      };
 
       const relevantMemberships = memberships.filter((membership: any) => {
         if (selectedSeason === 'all') return true;
@@ -1365,6 +1379,14 @@ const TeamMembersSection = () => {
         const teamId = Number(membership.team_id ?? teamData.id);
         const seasonId = Number(membership.season_id ?? seasonData.id);
         const key = `${seasonId}-${teamId}`;
+
+        const roleNames = formatMemberRoles(member.member_roles, seasonOrderMap, seasonId);
+        const displayMember = {
+          ...member,
+          image_url: member.profile_image_url ?? member.image_url ?? null,
+          position: roleNames.length > 0 ? roleNames.join(' • ') : (member.position ?? 'Team Member'),
+          role: roleNames.length > 0 ? roleNames : member.role,
+        };
 
         if (!groups.has(key)) {
           groups.set(key, {
@@ -1469,7 +1491,7 @@ const TeamMembersSection = () => {
               <div key={`${group.seasonId}-${group.teamId}`}>
                 <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
                   <span className="inline-block w-3 h-3 rounded-full bg-blue-500" />
-                  {group.teamLabel}
+                  {group.teamLabel} ({group.seasonName})
                 </h3>
                 <div className="flex flex-wrap justify-center gap-6">
                   {group.members.map((member) => (
