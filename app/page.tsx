@@ -180,6 +180,7 @@ const Navbar = () => {
     { label: 'Matches', href: '/matches' },
     { label: 'About Us', sectionId: 'about-us' },
     { label: 'Teams', sectionId: 'team-members' },
+    { label: 'Sponsors', sectionId: 'sponsors' },
   ];
 
   return (
