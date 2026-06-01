@@ -1132,7 +1132,7 @@ const SponsorSection = () => {
                   return (
                     <div
                       key={person.id}
-                      className="w-full max-w-[280px] group relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-md border border-slate-700/50 transition-all duration-300 hover:border-amber-500/50 hover:shadow-[0_0_20px_rgba(251,191,36,0.18)]"
+                      className="w-full max-w-sm basis-full sm:basis-[calc(50%-1rem)] lg:basis-[calc(25%-1.5rem)] group relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-md border border-slate-700/50 transition-all duration-300 hover:border-amber-500/50 hover:shadow-[0_0_20px_rgba(251,191,36,0.18)]"
                     >
                       <div className="relative h-64 overflow-hidden bg-slate-950">
                         {person.image_url ? (
