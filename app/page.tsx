@@ -178,6 +178,7 @@ const Navbar = () => {
   const navItems = [
     { label: 'Competitions', sectionId: 'competitions' },
     { label: 'Matches', href: '/matches' },
+    { label: 'Achievements', href: '/achievements' },
     { label: 'About Us', sectionId: 'about-us' },
     { label: 'Teams', sectionId: 'team-members' },
     { label: 'Sponsors', sectionId: 'sponsors' },
@@ -186,7 +187,7 @@ const Navbar = () => {
   return (
     <nav className={`fixed w-full z-50 transition-all duration-300 ${scrolled ? 'py-2' : 'py-4'}`}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className={`grid grid-cols-[1fr_1fr] md:grid-cols-[1fr_auto_1fr] items-center gap-6 px-6 py-3 rounded-xl transition-all duration-300 ${
+        <div className={`grid grid-cols-[1fr_1fr] lg:grid-cols-[1fr_auto_1fr] items-center gap-3 md:gap-6 px-4 md:px-6 py-3 rounded-xl overflow-hidden transition-all duration-300 ${
           scrolled
             ? 'bg-slate-950/70 backdrop-blur-xl border border-slate-700/40 shadow-2xl shadow-slate-900/30'
             : 'bg-slate-950/40 backdrop-blur-lg border border-slate-700/30'
@@ -197,7 +198,7 @@ const Navbar = () => {
           </div>
 
           {/* Desktop Links */}
-          <div className="hidden md:flex items-center justify-center justify-self-center gap-1">
+          <div className="hidden lg:flex items-center justify-center justify-self-center gap-1">
             {navItems.map((item) => (
               item.sectionId ? (
                 <button
@@ -206,7 +207,7 @@ const Navbar = () => {
                   onClick={() => scrollToSection(item.sectionId)}
                   onMouseEnter={() => setActiveLink(item.label)}
                   onMouseLeave={() => setActiveLink('')}
-                  className="relative px-3 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors"
+                  className="relative px-2 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors"
                 >
                   {item.label}
                   <span className={`absolute bottom-0 left-3 right-3 h-0.5 bg-gradient-to-r from-red-500 to-yellow-500 rounded-full transition-all duration-300 ${
@@ -219,7 +220,7 @@ const Navbar = () => {
                   href={item.href ?? '/'}
                   onMouseEnter={() => setActiveLink(item.label)}
                   onMouseLeave={() => setActiveLink('')}
-                  className="relative px-3 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors"
+                  className="relative px-2 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors"
                 >
                   {item.label}
                   <span className={`absolute bottom-0 left-3 right-3 h-0.5 bg-gradient-to-r from-red-500 to-yellow-500 rounded-full transition-all duration-300 ${
@@ -231,11 +232,11 @@ const Navbar = () => {
           </div>
 
           {/* Desktop CTA */}
-          <div className="hidden md:flex items-center justify-end justify-self-end gap-4">
+          <div className="hidden lg:flex items-center justify-end justify-self-end gap-4">
             <button
               type="button"
               onClick={redirectToJoinTeamForm}
-              className="group relative px-6 py-2.5 rounded-lg font-medium text-white text-sm overflow-hidden"
+              className="group relative px-4 md:px-5 py-2.5 rounded-lg font-medium text-white text-sm overflow-hidden"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-red-700 rounded-lg transition-all duration-300 group-hover:shadow-lg group-hover:shadow-red-500/50" />
               <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-yellow-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -247,7 +248,7 @@ const Navbar = () => {
           </div>
 
           {/* Mobile Toggle */}
-          <div className="md:hidden justify-self-end">
+          <div className="lg:hidden justify-self-end">
             <button
               onClick={() => setIsOpen(!isOpen)}
               className="text-slate-300 hover:text-red-400 p-2 rounded-lg hover:bg-slate-800/50 transition-all duration-300"
@@ -259,7 +260,7 @@ const Navbar = () => {
 
         {/* Mobile Menu */}
         {isOpen && (
-          <div className="md:hidden mt-3 p-5 rounded-xl bg-slate-950/80 backdrop-blur-xl border border-slate-700/50 shadow-2xl">
+          <div className="lg:hidden mt-3 p-5 rounded-xl bg-slate-950/80 backdrop-blur-xl border border-slate-700/50 shadow-2xl">
             <div className="flex flex-col space-y-3">
               {navItems.map((item) => (
                 item.sectionId ? (
@@ -1050,7 +1051,7 @@ const SponsorSection = () => {
   const companyById = new Map(sponsorCompanies.map((company) => [Number(company.id), company]));
 
   return (
-    <section id="sponsors" className="py-24 relative z-10 bg-slate-950/50 scroll-mt-28 md:scroll-mt-32">
+    <section id="sponsors" className="py-24 relative z-10 bg-slate-950/50 scroll-mt-28 md:scroll-mt-32 overflow-x-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30">
@@ -2018,7 +2019,7 @@ export default function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-red-500/30">
+    <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-red-500/30 overflow-x-hidden">
       <AmbientBackground />
       <Navbar />
       <main>
