@@ -9,7 +9,9 @@ import { LoadingSpinner } from '../components/LoadingSpinner';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(supabaseUrl, supabaseKey, {
+  db: { schema: 'website' },
+});
 
 const CACHE_DURATION = 5 * 60 * 1000;
 const dataCache = new Map<string, { data: any; timestamp: number }>();

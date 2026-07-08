@@ -23,7 +23,9 @@ import {
 // ─── Supabase Client ──────────────────────────────────────────────────────────
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(supabaseUrl, supabaseKey, {
+  db: { schema: 'website' },
+});
 const JOIN_TEAM_FORM_URL = 'https://forms.gle/v87Ugf3L7rqRWTNH8';
 
 console.log('[Init] Supabase URL:', supabaseUrl);
