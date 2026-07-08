@@ -3,6 +3,19 @@ import type { NextConfig } from "next";
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
 const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '*.supabase.co',
+        pathname: '/storage/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+    ],
+  },
   async headers() {
     const scriptSrc = isDevelopment
       ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"

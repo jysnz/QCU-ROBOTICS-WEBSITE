@@ -12,11 +12,45 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://qcu-robotics.vercel.app';
+
 export const metadata: Metadata = {
-  title: "QCU Robotics",
-  description: "Official website of QCU Robotics.",
+  title: {
+    default: "QCU Robotics",
+    template: "%s | QCU Robotics",
+  },
+  description:
+    "Official website of QCU Robotics — the robotics team of Quezon City University. Competitions, achievements, team members, and more.",
+  metadataBase: new URL(BASE_URL),
+  keywords: [
+    "QCU Robotics",
+    "Quezon City University",
+    "robotics team",
+    "robotics competitions",
+    "Philippines robotics",
+  ],
+  authors: [{ name: "QCU Robotics" }],
+  openGraph: {
+    type: "website",
+    locale: "en_PH",
+    url: BASE_URL,
+    siteName: "QCU Robotics",
+    title: "QCU Robotics",
+    description:
+      "Official website of QCU Robotics — the robotics team of Quezon City University.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "QCU Robotics",
+    description:
+      "Official website of QCU Robotics — the robotics team of Quezon City University.",
+  },
   icons: {
     icon: "/logo1.svg",
+  },
+  robots: {
+    index: true,
+    follow: true,
   },
 };
 
