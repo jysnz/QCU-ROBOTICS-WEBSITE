@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@supabase/supabase-js';
@@ -1049,10 +1049,20 @@ const RemoteImage = ({
   fallback: React.ReactNode;
 }) => {
   const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const imgRef = useRef<HTMLImageElement>(null);
+
+  // The card is server-rendered, so a fast failure (e.g. a host that no longer
+  // resolves) can fire before React hydrates and attaches `onError`. Re-check
+  // the element's state after mount so those failures still get the fallback.
+  useEffect(() => {
+    const img = imgRef.current;
+    if (src && img && img.complete && img.naturalWidth === 0) setFailedSrc(src);
+  }, [src]);
 
   if (!src || failedSrc === src) return <>{fallback}</>;
   return (
     <img
+      ref={imgRef}
       src={src}
       alt={alt}
       loading="lazy"
@@ -1062,6 +1072,65 @@ const RemoteImage = ({
     />
   );
 };
+
+// ─── Avatar Fallback ──────────────────────────────────────────────────────────
+// Used when a person has no photo (or the photo fails to load). Initials on a
+// gradient derived from the name so a roster without photos still looks varied.
+const AVATAR_GRADIENTS = [
+  'from-blue-500/40 via-cyan-500/20 to-slate-900',
+  'from-violet-500/40 via-fuchsia-500/20 to-slate-900',
+  'from-emerald-500/40 via-teal-500/20 to-slate-900',
+  'from-amber-500/40 via-orange-500/20 to-slate-900',
+  'from-rose-500/40 via-pink-500/20 to-slate-900',
+  'from-sky-500/40 via-indigo-500/20 to-slate-900',
+];
+
+const getInitials = (name?: string | null): string => {
+  const parts = (name ?? '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  const first = parts[0][0] ?? '';
+  const last = parts.length > 1 ? parts[parts.length - 1][0] ?? '' : '';
+  return (first + last).toUpperCase();
+};
+
+const getAvatarGradient = (name?: string | null): string => {
+  let hash = 0;
+  for (const ch of name ?? '') hash = (hash * 31 + ch.charCodeAt(0)) | 0;
+  return AVATAR_GRADIENTS[Math.abs(hash) % AVATAR_GRADIENTS.length];
+};
+
+// Small round avatar (roster cards).
+const AvatarFallback = ({ name, ringClass = 'border-slate-600' }: { name?: string | null; ringClass?: string }) => (
+  <div
+    aria-hidden="true"
+    className={`relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-2 bg-gradient-to-br shadow-lg ${ringClass} ${getAvatarGradient(name)}`}
+  >
+    <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_25%,rgba(255,255,255,0.18),transparent_55%)]" />
+    <span className="relative text-2xl font-bold tracking-wide text-white drop-shadow">{getInitials(name)}</span>
+  </div>
+);
+
+// Full-bleed placeholder for tall photo cards (coaches, sponsor people).
+const PortraitFallback = ({ name, label, accentText = 'text-slate-300' }: { name?: string | null; label: string; accentText?: string }) => (
+  <div
+    aria-hidden="true"
+    className={`relative flex h-full w-full flex-col items-center justify-center gap-4 bg-gradient-to-br ${getAvatarGradient(name)}`}
+  >
+    <div
+      className="absolute inset-0 opacity-40"
+      style={{
+        backgroundImage:
+          'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)',
+        backgroundSize: '22px 22px',
+      }}
+    />
+    <div className="absolute -bottom-16 left-1/2 h-48 w-48 -translate-x-1/2 rounded-full bg-white/5 blur-2xl" />
+    <div className="relative flex h-24 w-24 items-center justify-center rounded-full border border-white/20 bg-white/10 shadow-xl backdrop-blur-sm">
+      <span className="text-3xl font-bold tracking-wide text-white drop-shadow">{getInitials(name)}</span>
+    </div>
+    <span className={`relative text-[11px] font-semibold uppercase tracking-[0.3em] ${accentText}`}>{label}</span>
+  </div>
+);
 
 const SponsorSection = ({ initialSponsors }: { initialSponsors?: SponsorCompany[] }) => {
   const [sponsorCompanies, setSponsorCompanies] = useState<any[]>(initialSponsors ?? []);
@@ -1205,14 +1274,7 @@ const SponsorSection = ({ initialSponsors }: { initialSponsors?: SponsorCompany[
                           src={person.image_url}
                           alt={person.name}
                           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                          fallback={
-                            <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 px-6 text-center">
-                              <div className="flex h-16 w-16 items-center justify-center rounded-full border border-amber-400/20 bg-amber-500/10">
-                                <span className="text-4xl font-bold text-amber-300">{person.name?.charAt(0) || 'S'}</span>
-                              </div>
-                              <p className="mt-4 text-sm text-slate-300">No image available</p>
-                            </div>
-                          }
+                          fallback={<PortraitFallback name={person.name} label={companyName} accentText="text-amber-200/90" />}
                         />
                       </div>
                       <div className="p-6">
@@ -1622,17 +1684,12 @@ const MemberCard = ({ member, label }: { member: any; label: string }) => {
 
       <div className="relative z-10 flex flex-col items-center">
         <div className="relative w-24 h-24 mx-auto mb-6">
-          {avatarUrl ? (
-            <img
-              src={avatarUrl}
-              alt={member.name}
-              className="w-24 h-24 rounded-full object-cover border-2 border-slate-600 shadow-lg"
-            />
-          ) : (
-            <div className={`w-24 h-24 rounded-full flex items-center justify-center border-2 ${accentBg} ${accentBorder}`}>
-              <span className={`text-4xl font-bold ${accentText}`}>{member.name?.charAt(0) || 'M'}</span>
-            </div>
-          )}
+          <RemoteImage
+            src={avatarUrl}
+            alt={member.name}
+            className="w-24 h-24 rounded-full object-cover border-2 border-slate-600 shadow-lg"
+            fallback={<AvatarFallback name={member.name} ringClass={accentBorder} />}
+          />
         </div>
 
         <h4 className="text-lg font-bold text-white text-center mb-2 group-hover:text-slate-100 transition-colors">
@@ -1918,17 +1975,12 @@ const CoachesSection = ({ initialCoaches }: { initialCoaches?: Coach[] }) => {
                 className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-md border border-slate-700/50 transition-all duration-300 hover:border-purple-500/50 hover:shadow-[0_0_20px_rgba(168,85,247,0.2)]"
               >
                 <div className="relative h-64 overflow-hidden bg-slate-950">
-                  {coach.image_url ? (
-                    <img
-                      src={coach.image_url}
-                      alt={coach.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
-                      <Cpu className="w-16 h-16 text-slate-700" />
-                    </div>
-                  )}
+                  <RemoteImage
+                    src={coach.image_url}
+                    alt={coach.name}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    fallback={<PortraitFallback name={coach.name} label="Team Coach" accentText="text-purple-200/90" />}
+                  />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                 </div>
                 <div className="p-6">
