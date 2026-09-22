@@ -39,6 +39,17 @@ export type TeamMember = {
   profile_image_url: string | null;
   is_graduated: boolean;
   is_active: boolean;
+  member_roles: {
+    role_id: number;
+    season_id: number;
+    roles: { id: number; role_name: string } | null;
+  }[];
+  member_team_seasons: {
+    team_id: number;
+    season_id: number;
+    teams: { id: number; team_name: string; team_number: number; team_code: string | null; is_active: boolean } | null;
+    seasons: { id: number; season_name: string } | null;
+  }[];
 };
 
 export type MediaMember = {
@@ -142,16 +153,47 @@ export const getCompetitions = cache(async (): Promise<Competition[]> => {
  * Fetch team members - cached per render pass
  */
 export const getTeamMembers = cache(async (): Promise<TeamMember[]> => {
+  // Must include the membership relations: the client groups members by
+  // team/season and renders nothing for rows without `member_team_seasons`.
   const { data, error } = await supabase
     .from('team_members')
-    .select('*')
-    .order('id', { ascending: true });
+    .select(`
+      id,
+      name,
+      profile_image_url,
+      is_graduated,
+      is_active,
+      member_roles (
+        role_id,
+        season_id,
+        roles (
+          id,
+          role_name
+        )
+      ),
+      member_team_seasons (
+        team_id,
+        season_id,
+        teams (
+          id,
+          team_name,
+          team_number,
+          team_code,
+          is_active
+        ),
+        seasons (
+          id,
+          season_name
+        )
+      )
+    `)
+    .order('name', { ascending: true });
 
   if (error) {
     console.error('[Data] Team members error:', error.message);
     return [];
   }
-  return (data ?? []) as TeamMember[];
+  return (data ?? []) as unknown as TeamMember[];
 });
 
 /**
