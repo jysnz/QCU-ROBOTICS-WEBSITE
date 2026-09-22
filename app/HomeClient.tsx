@@ -1035,6 +1035,34 @@ const AboutSection = () => {
   );
 };
 
+// Renders `fallback` if the remote image fails to load (dead host, deleted
+// object, etc.) instead of leaving a broken image icon in the card.
+const RemoteImage = ({
+  src,
+  alt,
+  className,
+  fallback,
+}: {
+  src: string | null | undefined;
+  alt: string;
+  className?: string;
+  fallback: React.ReactNode;
+}) => {
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+
+  if (!src || failedSrc === src) return <>{fallback}</>;
+  return (
+    <img
+      src={src}
+      alt={alt}
+      loading="lazy"
+      decoding="async"
+      className={className}
+      onError={() => setFailedSrc(src)}
+    />
+  );
+};
+
 const SponsorSection = ({ initialSponsors }: { initialSponsors?: SponsorCompany[] }) => {
   const [sponsorCompanies, setSponsorCompanies] = useState<any[]>(initialSponsors ?? []);
   const [sponsors, setSponsors] = useState<any[]>([]);
@@ -1122,23 +1150,22 @@ const SponsorSection = ({ initialSponsors }: { initialSponsors?: SponsorCompany[
                 {sponsorCompanies.map((company) => (
                   <div key={company.id} className="group w-full max-w-sm basis-full sm:basis-[calc(50%-0.75rem)] lg:basis-[calc(33.333%-1rem)] overflow-hidden rounded-3xl border border-slate-700/50 bg-slate-900/40 backdrop-blur-sm transition-all duration-300 hover:border-amber-500/40 hover:bg-slate-800/50">
                     <div className="aspect-[4/3] bg-slate-950/60 overflow-hidden flex items-center justify-center">
-                      {company.image_url ? (
-                        <img
-                          src={company.image_url}
-                          alt={company.company_name || 'Sponsor company'}
-                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        />
-                      ) : (
-                        <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-gradient-to-br from-amber-500/10 via-slate-900/40 to-red-500/10 px-6 text-center">
-                          <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-400/30 bg-amber-500/10">
-                            <Shield className="h-8 w-8 text-amber-300/80" />
+                      <RemoteImage
+                        src={company.image_url}
+                        alt={company.company_name || 'Sponsor company'}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        fallback={
+                          <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-gradient-to-br from-amber-500/10 via-slate-900/40 to-red-500/10 px-6 text-center">
+                            <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-400/30 bg-amber-500/10">
+                              <Shield className="h-8 w-8 text-amber-300/80" />
+                            </div>
+                            <div>
+                              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300/70">Sponsor</p>
+                              <p className="mt-2 text-lg font-bold text-white">{company.company_name || 'Sponsor Company'}</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300/70">Sponsor</p>
-                            <p className="mt-2 text-lg font-bold text-white">{company.company_name || 'Sponsor Company'}</p>
-                          </div>
-                        </div>
-                      )}
+                        }
+                      />
                     </div>
                     <div className="p-5 text-center">
                       <h4 className="text-lg font-bold text-white">{company.company_name || 'Sponsor Company'}</h4>
@@ -1174,20 +1201,19 @@ const SponsorSection = ({ initialSponsors }: { initialSponsors?: SponsorCompany[
                       className="w-full max-w-sm basis-full sm:basis-[calc(50%-1rem)] lg:basis-[calc(25%-1.5rem)] group relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-md border border-slate-700/50 transition-all duration-300 hover:border-amber-500/50 hover:shadow-[0_0_20px_rgba(251,191,36,0.18)]"
                     >
                       <div className="relative h-64 overflow-hidden bg-slate-950">
-                        {person.image_url ? (
-                          <img
-                            src={person.image_url}
-                            alt={person.name}
-                            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                          />
-                        ) : (
-                          <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 px-6 text-center">
-                            <div className="flex h-16 w-16 items-center justify-center rounded-full border border-amber-400/20 bg-amber-500/10">
-                              <span className="text-4xl font-bold text-amber-300">{person.name?.charAt(0) || 'S'}</span>
+                        <RemoteImage
+                          src={person.image_url}
+                          alt={person.name}
+                          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          fallback={
+                            <div className="flex h-full w-full flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 px-6 text-center">
+                              <div className="flex h-16 w-16 items-center justify-center rounded-full border border-amber-400/20 bg-amber-500/10">
+                                <span className="text-4xl font-bold text-amber-300">{person.name?.charAt(0) || 'S'}</span>
+                              </div>
+                              <p className="mt-4 text-sm text-slate-300">No image available</p>
                             </div>
-                            <p className="mt-4 text-sm text-slate-300">No image available</p>
-                          </div>
-                        )}
+                          }
+                        />
                       </div>
                       <div className="p-6">
                         <h4 className="text-lg font-bold text-white">{person.name}</h4>

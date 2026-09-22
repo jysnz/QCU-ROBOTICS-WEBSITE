@@ -14,7 +14,15 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'images.unsplash.com',
       },
+      {
+        // Match videos + thumbnails live in a Cloudflare R2 public bucket.
+        protocol: 'https',
+        hostname: '*.r2.dev',
+      },
     ],
+    // r2.dev public URLs are rate-limited by Cloudflare and stall under bursts,
+    // so route thumbnails through the image optimizer and cache them for 31 days.
+    minimumCacheTTL: 2678400,
   },
   async headers() {
     const scriptSrc = isDevelopment

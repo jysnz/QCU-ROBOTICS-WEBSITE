@@ -7,6 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 import { LoadingSpinner, SkeletonMatchCard } from '../components/LoadingSpinner';
 import { ChevronLeft, ChevronDown, Check, Settings, Trophy, Download, Loader2, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { convertHlsToMp4, triggerBlobDownload } from './hlsToMp4';
 
 
@@ -52,6 +53,11 @@ const buildQualityOptions = (levels: any[]): QualityOption[] => {
   return [{ value: 'auto', label: 'Auto' }, ...options.filter((option) => Boolean(option.label))];
 };
 
+// <video poster> is fetched directly by the browser, so point it at the same
+// optimizer endpoint next/image uses instead of the rate-limited R2 origin.
+const getOptimizedImageUrl = (src: string, width = 1200) =>
+  `/_next/image?url=${encodeURIComponent(src)}&w=${width}&q=75`;
+
 const HLSVideo = ({ url, thumbnailUrl }: { url: string; thumbnailUrl?: string | null }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
@@ -60,6 +66,8 @@ const HLSVideo = ({ url, thumbnailUrl }: { url: string; thumbnailUrl?: string | 
   const [qualityOptions, setQualityOptions] = useState<QualityOption[]>([{ value: 'auto', label: 'Auto' }]);
   const [selectedQuality, setSelectedQuality] = useState('auto');
   const [isActivated, setIsActivated] = useState(false);
+  const [thumbnailFailed, setThumbnailFailed] = useState(false);
+  const showThumbnail = Boolean(thumbnailUrl) && !thumbnailFailed;
 
   useEffect(() => {
     const hls = hlsRef.current;
@@ -244,13 +252,17 @@ const HLSVideo = ({ url, thumbnailUrl }: { url: string; thumbnailUrl?: string | 
             className="group relative flex w-full items-center justify-center overflow-hidden bg-black"
             aria-label="Play match video"
           >
-            {thumbnailUrl ? (
-              <img
-                src={thumbnailUrl}
-                alt="Match video preview"
-                loading="lazy"
-                className="h-64 w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-              />
+            {showThumbnail ? (
+              <div className="relative h-64 w-full overflow-hidden">
+                <Image
+                  src={thumbnailUrl as string}
+                  alt="Match video preview"
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 33vw"
+                  className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+                  onError={() => setThumbnailFailed(true)}
+                />
+              </div>
             ) : (
               <div className="flex h-64 w-full items-center justify-center bg-slate-900 text-sm text-slate-300">
                 Tap to load match video
@@ -266,7 +278,7 @@ const HLSVideo = ({ url, thumbnailUrl }: { url: string; thumbnailUrl?: string | 
             controls
             preload="none"
             playsInline
-            poster={thumbnailUrl || undefined}
+            poster={showThumbnail ? getOptimizedImageUrl(thumbnailUrl as string) : undefined}
             className="w-full h-64 object-contain bg-black"
           />
         )}
