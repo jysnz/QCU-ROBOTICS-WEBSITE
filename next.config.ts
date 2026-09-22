@@ -18,8 +18,8 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     const scriptSrc = isDevelopment
-      ? "script-src 'self' 'unsafe-inline' 'unsafe-eval'"
-      : "script-src 'self' 'unsafe-inline'";
+      ? "script-src 'self' 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval'"
+      : "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'";
 
     return [
       {
@@ -65,7 +65,8 @@ const nextConfig: NextConfig = {
               "img-src 'self' https: data: blob:",
               "media-src 'self' https: blob:",
               "font-src 'self' data:",
-              "connect-src 'self' https:",
+              "connect-src 'self' https: blob:",
+              "worker-src 'self' blob:",
               "form-action 'self' https://forms.gle",
             ].join('; '),
           },

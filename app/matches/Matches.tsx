@@ -5,8 +5,9 @@ import Hls from 'hls.js';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { LoadingSpinner, SkeletonMatchCard } from '../components/LoadingSpinner';
-import { ChevronLeft, ChevronDown, Check, Settings, Trophy } from 'lucide-react';
+import { ChevronLeft, ChevronDown, Check, Settings, Trophy, Download, Loader2, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
+import { convertHlsToMp4, triggerBlobDownload } from './hlsToMp4';
 
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
@@ -273,6 +274,73 @@ const HLSVideo = ({ url, thumbnailUrl }: { url: string; thumbnailUrl?: string | 
         
       </div>
     </div>
+  );
+};
+
+type DownloadStatus = 'idle' | 'downloading' | 'converting' | 'error';
+
+const DownloadMp4Button = ({ url, matchName }: { url: string; matchName: string }) => {
+  const [status, setStatus] = useState<DownloadStatus>('idle');
+  const [progress, setProgress] = useState(0);
+
+  const handleDownload = async () => {
+    if (status === 'downloading' || status === 'converting') return;
+
+    setStatus('downloading');
+    setProgress(0);
+
+    try {
+      const blob = await convertHlsToMp4(url, (update) => {
+        if (update.stage === 'downloading') {
+          setProgress(update.total > 0 ? Math.round((update.loaded / update.total) * 100) : 0);
+        } else {
+          setStatus('converting');
+        }
+      });
+
+      const filename = `${matchName?.replace(/[^a-z0-9-_]+/gi, '_') || 'match'}.mp4`;
+      triggerBlobDownload(blob, filename);
+      setStatus('idle');
+    } catch (error) {
+      console.error('[Matches] MP4 conversion failed:', error);
+      setStatus('error');
+    }
+  };
+
+  const isBusy = status === 'downloading' || status === 'converting';
+
+  return (
+    <button
+      type="button"
+      onClick={handleDownload}
+      disabled={isBusy}
+      className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-700/60 bg-slate-900/70 px-3 py-2 text-xs font-semibold text-slate-200 transition-colors hover:border-blue-500/60 hover:text-white disabled:cursor-not-allowed disabled:opacity-80"
+    >
+      {status === 'idle' && (
+        <>
+          <Download className="h-3.5 w-3.5" />
+          Download MP4
+        </>
+      )}
+      {status === 'downloading' && (
+        <>
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Downloading video… {progress}%
+        </>
+      )}
+      {status === 'converting' && (
+        <>
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Converting to MP4…
+        </>
+      )}
+      {status === 'error' && (
+        <>
+          <AlertTriangle className="h-3.5 w-3.5 text-red-400" />
+          Download failed — retry
+        </>
+      )}
+    </button>
   );
 };
 
@@ -577,8 +645,11 @@ const MatchesSection = () => {
                 </div>
 
                 {match.video_url && (
-                  <div className="rounded-xl overflow-hidden border border-slate-700/50">
-                    <HLSVideo url={match.video_url} thumbnailUrl={match.thumbnail_url ?? match.thumbnail ?? null} />
+                  <div className="space-y-2">
+                    <div className="rounded-xl overflow-hidden border border-slate-700/50">
+                      <HLSVideo url={match.video_url} thumbnailUrl={match.thumbnail_url ?? match.thumbnail ?? null} />
+                    </div>
+                    <DownloadMp4Button url={match.video_url} matchName={match.name} />
                   </div>
                 )}
               </div>
