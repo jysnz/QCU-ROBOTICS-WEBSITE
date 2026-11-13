@@ -1,83 +1,262 @@
 @import "tailwindcss";
 
+/* Design tokens shared with /member-reg.
+   The default Tailwind palette is re-pointed at them, so existing utility classes
+   (slate-*, red-*, blue-* ...) pick up the new look without per-class edits. */
+@theme {
+  --font-sans: var(--font-body), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-display), var(--font-body), system-ui, sans-serif;
+
+  --color-accent: #c8f560;
+  --color-accent-hi: #d8ff7a;
+  --color-accent-ink: #10140a;
+  --color-violet: #8b7cff;
+
+  /* neutrals */
+  --color-slate-50: #f2f4f8;
+  --color-slate-100: #eef0f6;
+  --color-slate-200: #dfe3ee;
+  --color-slate-300: #c9cee0;
+  --color-slate-400: #a0a7bb;
+  --color-slate-500: #6f7690;
+  --color-slate-600: #33384a;
+  --color-slate-700: #242836;
+  --color-slate-800: #191c26;
+  --color-slate-900: #12141b;
+  --color-slate-950: #0a0b0f;
+
+  /* warm accents (old red / gold) -> lime */
+  --color-red-300: #e6ffa8;
+  --color-red-400: #d8ff7a;
+  --color-red-500: #c8f560;
+  --color-red-600: #b4e04a;
+  --color-red-700: #8fb82e;
+  --color-red-800: #5f7a1c;
+  --color-red-900: #3a4a12;
+  --color-red-950: #1f2a08;
+  --color-yellow-200: #eeffc2; --color-yellow-300: #e6ffa8; --color-yellow-400: #d8ff7a; --color-yellow-500: #c8f560; --color-yellow-600: #b4e04a;
+  --color-amber-200: #eeffc2; --color-amber-300: #e6ffa8; --color-amber-400: #d8ff7a; --color-amber-500: #c8f560; --color-amber-600: #b4e04a;
+  --color-orange-400: #d8ff7a; --color-orange-500: #c8f560; --color-orange-600: #b4e04a;
+
+  /* cool accents -> violet */
+  --color-blue-300: #c3baff; --color-blue-400: #a597ff; --color-blue-500: #8b7cff; --color-blue-600: #7261e6;
+  --color-cyan-300: #c3baff; --color-cyan-400: #a597ff; --color-cyan-500: #8b7cff;
+  --color-purple-300: #c3baff; --color-purple-400: #a597ff; --color-purple-500: #8b7cff; --color-purple-600: #7261e6;
+  --color-indigo-300: #c3baff; --color-indigo-400: #a597ff; --color-indigo-500: #8b7cff;
+  --color-sky-300: #c3baff; --color-sky-400: #a597ff; --color-sky-500: #8b7cff;
+
+  --ease-out-quint: cubic-bezier(.2, 0, 0, 1);
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #0a0b0f;
+  --fg: #f2f4f8;
+  --ease: cubic-bezier(.2, 0, 0, 1);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-body), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+h1, h2, h3, h4 { font-family: var(--font-display), var(--font-body), sans-serif; letter-spacing: -0.02em; }
+::selection { background: rgba(200, 245, 96, .28); }
+:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 3px; border-radius: 6px; }
+
+/* quiet two-tone backdrop (same as member-reg) */
+.site-bg {
+  position: fixed; inset: 0; z-index: -1;
+  background:
+    radial-gradient(700px 500px at 88% 8%, rgba(139, 124, 255, .14), transparent 65%),
+    radial-gradient(600px 420px at 8% 92%, rgba(200, 245, 96, .06), transparent 65%),
+    var(--bg);
 }
 
-/* Smooth loading animations */
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* ---------- shared pieces ---------- */
+.kicker { font: 600 .78rem var(--font-body), sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--color-accent); }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 48px; padding: 0 24px; border-radius: 12px; border: 1px solid transparent;
+  font: 600 .95rem var(--font-body), sans-serif; cursor: pointer; white-space: nowrap;
+  transition: background-color .15s var(--ease), border-color .15s var(--ease), color .15s var(--ease), transform .12s var(--ease);
+}
+.btn:active { transform: scale(.98); }
+.btn-primary { background: var(--color-accent); color: var(--color-accent-ink); }
+.btn-primary:hover { background: var(--color-accent-hi); }
+.btn-ghost { background: transparent; color: var(--fg); border-color: #33384a; }
+.btn-ghost:hover { border-color: #4a516a; background: rgba(255, 255, 255, .03); }
+.btn-sm { min-height: 40px; padding: 0 18px; font-size: .88rem; border-radius: 10px; }
+
+/* ---------- intro splash (same sequence as /member-reg) ---------- */
+.splash { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; overflow: hidden; cursor: pointer;
+  animation: splash-failsafe 0s 7s forwards; }
+.splash-bg { position: absolute; inset: 0; transition: opacity .65s var(--ease);
+  background: radial-gradient(560px 440px at 50% 46%, rgba(139, 124, 255, .24), transparent 70%), radial-gradient(460px 340px at 50% 62%, rgba(216, 181, 58, .09), transparent 70%), #0a0b0f; }
+.splash-in { position: relative; display: flex; flex-direction: column; align-items: center; gap: 30px; }
+.splash-logo { position: relative; width: min(46vmin, 320px); aspect-ratio: 1; animation: splash-in .95s cubic-bezier(.2, .7, .2, 1) backwards; }
+.splash-logo img { width: 100%; height: 100%; display: block; filter: drop-shadow(0 20px 50px rgba(0, 0, 0, .65)); }
+.splash-logo::before { content: ""; position: absolute; inset: -18%; z-index: -1; border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(216, 181, 58, .22), rgba(139, 124, 255, .12) 60%, transparent); animation: splash-glow 2.4s ease-in-out infinite; }
+.splash-logo::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  -webkit-mask: url(/logo.png) center/contain no-repeat; mask: url(/logo.png) center/contain no-repeat;
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, .8) 50%, transparent 62%) 170% 0/260% 100% no-repeat;
+  animation: splash-shine 1.1s 1s cubic-bezier(.4, 0, .2, 1) both; }
+.splash-cap { font: 600 .72rem var(--font-body), sans-serif; letter-spacing: .34em; text-transform: uppercase; color: #a0a7bb; padding-left: .34em; animation: splash-cap .7s 1.25s cubic-bezier(.2, .7, .2, 1) both; }
+.splash-traces { position: absolute; left: 0; top: calc(50% - 20px); width: 100%; height: min(40vmin, 300px); transform: translateY(-50%); pointer-events: none; transition: opacity .3s var(--ease); }
+.splash-traces path { stroke: #d8b53a; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; stroke-dashoffset: 1; opacity: .9; animation: splash-draw 1s cubic-bezier(.4, 0, .2, 1) forwards; }
+.splash-traces circle { fill: #d8b53a; transform-box: fill-box; transform-origin: center; transform: scale(0); animation: splash-dot .4s cubic-bezier(.3, 1.6, .5, 1) forwards; }
+.tr path:nth-of-type(1) { animation-delay: .55s } .tr circle:nth-of-type(1) { animation-delay: 1.45s }
+.tr path:nth-of-type(2) { animation-delay: .7s }  .tr circle:nth-of-type(2) { animation-delay: 1.6s }
+.tr path:nth-of-type(3) { animation-delay: .85s } .tr circle:nth-of-type(3) { animation-delay: 1.75s }
+.splash.leaving { pointer-events: none; }
+.splash.leaving .splash-bg { opacity: 0; }
+.splash.leaving .splash-traces, .splash.leaving .splash-cap { opacity: 0; transition: opacity .25s var(--ease); }
+.splash.leaving .splash-cap { animation: none; }
+.splash.leaving .splash-logo::before, .splash.leaving .splash-logo::after { opacity: 0; transition: opacity .2s; }
+.splash.leaving .splash-logo img { filter: none; transition: filter .3s; }
+
+/* page reveal + header logo hand-off (failsafes un-hide everything if JS never runs) */
+#site { transition: opacity .6s .15s var(--ease); }
+html.intro #site { opacity: 0; animation: show-failsafe 0s 7s forwards; }
+html.flying .site-logo { opacity: 0; animation: show-failsafe 0s 7s forwards; }
+
+@keyframes splash-in { from { opacity: 0; transform: scale(.78) translateY(14px); filter: blur(12px) } to { opacity: 1; transform: none; filter: blur(0) } }
+@keyframes splash-glow { 0%, 100% { opacity: .7; transform: scale(.96) } 50% { opacity: 1; transform: scale(1.04) } }
+@keyframes splash-shine { from { background-position: 170% 0 } to { background-position: -70% 0 } }
+@keyframes splash-cap { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
+@keyframes splash-draw { to { stroke-dashoffset: 0 } }
+@keyframes splash-dot { to { transform: scale(1) } }
+@keyframes splash-failsafe { to { opacity: 0; visibility: hidden; pointer-events: none } }
+@keyframes show-failsafe { to { opacity: 1 } }
+
+/* ---------- route + scroll transitions ---------- */
+@keyframes page-in { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
+.page-in { animation: page-in .35s var(--ease) both; }
+
+/* Sections/cards start hidden once JS is running; SiteEffects animates them in (Web Animations API,
+   fill: forwards), so no attribute on the React-owned element ever changes. */
+html.reveal-ready [data-reveal] { opacity: 0; }
+
+/* subtle card lift */
+.lift { transition: transform .25s var(--ease), border-color .25s var(--ease), background-color .25s var(--ease); }
+@media (hover: hover) { .lift:hover { transform: translateY(-3px); border-color: #3d4359; } }
+
+/* hero image crossfade */
+.xfade { opacity: 0; transition: opacity 1s var(--ease); }
+.xfade.is-on { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .splash-traces, .splash-logo::after { display: none; }
+  #site { transition-duration: .2s; }
+  html.reveal-ready [data-reveal] { opacity: 1; }
+  .page-in { animation: none; }
+  .lift:hover { transform: none; }
 }
 
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateX(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+/* legacy helpers still referenced by a few components */
+.animate-fadeIn { animation: page-in .5s var(--ease) forwards; }
+.animate-slideIn { animation: page-in .5s var(--ease) forwards; }
+.animate-shimmer { animation: shimmer 2s ease-in-out infinite; }
+@keyframes shimmer { 0%, 100% { opacity: 1 } 50% { opacity: .5 } }
+.animate-stagger > * { animation: page-in .5s var(--ease) both; }
+.animate-stagger > :nth-child(2) { animation-delay: 80ms; }
+.animate-stagger > :nth-child(3) { animation-delay: 160ms; }
+.animate-stagger > :nth-child(4) { animation-delay: 240ms; }
+.animate-stagger > :nth-child(5) { animation-delay: 320ms; }
+.animate-stagger > :nth-child(6) { animation-delay: 400ms; }
+.animate-stagger > :nth-child(n+7) { animation-delay: 480ms; }
+
+/* ---------- hero ---------- */
+@keyframes rise { from { opacity: 0; transform: translateY(16px) } to { opacity: 1; transform: none } }
+@keyframes blink { 0%, 100% { opacity: 1 } 50% { opacity: .25 } }
+@keyframes fill { from { transform: scaleX(0) } to { transform: scaleX(1) } }
+
+/* Everything in the hero waits for the intro splash to hand off before it plays. */
+html.intro .hold, html.intro .hold * { animation-play-state: paused !important; }
+
+.rise { animation: rise .8s var(--ease) both; animation-delay: calc(var(--i, 0) * 90ms + 120ms); }
+
+/* photo crossfade with a slow push-in; the zoom resets only after the fade-out finishes */
+.xfade { transition: opacity 1s var(--ease), transform 0s linear 1s; }
+.xfade.is-on { transform: scale(1.09); transition: opacity 1s var(--ease), transform 9s linear; }
+
+.hud-corner { position: absolute; width: 22px; height: 22px; border-color: rgba(200, 245, 96, .55); animation: rise .8s var(--ease) both; animation-delay: .9s; }
+.blink { animation: blink 1.6s steps(2, jump-none) infinite; }
+.progress-fill { transform-origin: left; animation: fill 4s linear both; }
+
+/* mouse parallax: --mx/--my (-1..1) are set on the hero by a pointer handler, --k is the layer's travel in px */
+.parallax { transform: translate3d(calc(var(--mx, 0) * var(--k, 0) * 1px), calc(var(--my, 0) * var(--k, 0) * .7px), 0); transition: transform .5s var(--ease); will-change: transform; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rise, .hud-corner, .blink, .progress-fill { animation: none; }
+  .xfade, .xfade.is-on { transform: none; transition: opacity .4s; }
+  .parallax { transform: none; transition: none; }
 }
 
-@keyframes shimmer {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
+/* ───────── Admin sign-in ───────── */
+.auth-grid {
+  position: absolute; inset: -40px; pointer-events: none;
+  background-image: linear-gradient(rgba(148, 163, 184, .08) 1px, transparent 1px), linear-gradient(90deg, rgba(148, 163, 184, .08) 1px, transparent 1px);
+  background-size: 40px 40px;
+  -webkit-mask-image: radial-gradient(ellipse at 30% 35%, #000 15%, transparent 72%);
+  mask-image: radial-gradient(ellipse at 30% 35%, #000 15%, transparent 72%);
+  animation: auth-drift 28s linear infinite;
 }
+@keyframes auth-drift { to { transform: translate(40px, 40px); } }
+.auth-orb { position: absolute; border-radius: 9999px; filter: blur(80px); pointer-events: none; animation: auth-float 16s ease-in-out infinite alternate; }
+@keyframes auth-float { to { transform: translate(48px, -36px) scale(1.15); } }
 
-.animate-fadeIn {
-  animation: fadeIn 0.5s ease-out forwards;
+.auth-trace path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: splash-draw 2.2s var(--ease) forwards; animation-delay: calc(var(--d, 0) * 450ms + 400ms); }
+.auth-trace .auth-run { stroke-dasharray: .06 .94; stroke-dashoffset: 0; opacity: 0; animation: auth-run 4.5s linear infinite; animation-delay: calc(var(--d, 0) * 900ms + 3s); }
+@keyframes auth-run { 0% { stroke-dashoffset: 0; opacity: 1; } 100% { stroke-dashoffset: -1; opacity: 1; } }
+.auth-node { transform-box: fill-box; transform-origin: center; opacity: 0; animation: auth-pop .5s var(--ease) forwards, auth-pulse 3s ease-in-out infinite; animation-delay: calc(var(--d, 0) * 450ms + 2.2s), calc(var(--d, 0) * 450ms + 3s); }
+@keyframes auth-pop { to { opacity: 1; } }
+@keyframes auth-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.7); } }
+
+.auth-card { position: relative; animation: rise .8s var(--ease) both; animation-delay: .15s; }
+.auth-card::before {
+  content: ""; position: absolute; left: 12%; right: 12%; top: -1px; height: 1px; pointer-events: none;
+  background: linear-gradient(90deg, transparent, rgba(34, 197, 94, .9), transparent);
+  background-size: 200% 100%; animation: auth-sheen 5s ease-in-out infinite;
 }
+@keyframes auth-sheen { 0%, 100% { background-position: 100% 0; opacity: .3; } 50% { background-position: 0 0; opacity: 1; } }
 
-.animate-slideIn {
-  animation: slideIn 0.5s ease-out forwards;
-}
+.auth-swap { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .35s var(--ease), opacity .3s var(--ease); }
+.auth-swap > div { min-height: 0; overflow: hidden; }
+.auth-swap.is-open { grid-template-rows: 1fr; opacity: 1; }
 
-.animate-shimmer {
-  animation: shimmer 2s ease-in-out infinite;
-}
+.auth-btn { position: relative; overflow: hidden; }
+.auth-btn::after { content: ""; position: absolute; inset: 0; transform: translateX(-120%); background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, .35) 50%, transparent 70%); transition: transform .7s var(--ease); }
+.auth-btn:hover:not(:disabled)::after { transform: translateX(120%); }
 
-/* Stagger animations for list items */
-.animate-stagger > * {
-  animation: fadeIn 0.5s ease-out forwards;
-}
+.auth-feature .auth-ico { transition: border-color .25s var(--ease), color .25s var(--ease), transform .25s var(--ease); }
+.auth-feature:hover .auth-ico { border-color: rgba(34, 197, 94, .7); color: #4ade80; transform: translateY(-2px); }
 
-.animate-stagger > :nth-child(1) { animation-delay: 0ms; }
-.animate-stagger > :nth-child(2) { animation-delay: 100ms; }
-.animate-stagger > :nth-child(3) { animation-delay: 200ms; }
-.animate-stagger > :nth-child(4) { animation-delay: 300ms; }
-.animate-stagger > :nth-child(5) { animation-delay: 400ms; }
-.animate-stagger > :nth-child(6) { animation-delay: 500ms; }
-.animate-stagger > :nth-child(n+7) { animation-delay: 600ms; }
+/* Turnstile card (admin sign-in) */
+.ts-check path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: splash-draw .45s .1s var(--ease) forwards; }
+.ts-pop { animation: ts-pop .5s var(--ease) both; }
+@keyframes ts-pop { 0% { transform: scale(.5); opacity: 0; } 60% { transform: scale(1.12); opacity: 1; } 100% { transform: scale(1); } }
+.ts-ping { animation: ts-ping 1.4s ease-in-out infinite; }
+@keyframes ts-ping { 0%, 100% { transform: scale(.6); opacity: .6; } 50% { transform: scale(1.1); opacity: 1; } }
+.ts-scan { background: linear-gradient(90deg, transparent, #22c55e, transparent); background-size: 40% 100%; background-repeat: no-repeat; animation: ts-scan 1.6s ease-in-out infinite; }
+@keyframes ts-scan { from { background-position: -50% 0; } to { background-position: 150% 0; } }
+@media (prefers-reduced-motion: reduce) { .ts-scan, .ts-ping, .ts-pop { animation: none; } }
+
+/* Data lanes (admin sign-in brand panel) */
+.auth-lanes { -webkit-mask-image: linear-gradient(90deg, transparent 8%, #000 55%); mask-image: linear-gradient(90deg, transparent 8%, #000 55%); }
+.auth-bus { position: absolute; top: 0; bottom: 0; right: 20px; width: 1px; background: rgba(34, 197, 94, .18); }
+.auth-bus::after { content: ""; position: absolute; left: 0; right: 0; top: 0; bottom: 0; background: linear-gradient(180deg, transparent, #4ade80, transparent) 0 -30% / 100% 24% no-repeat; animation: auth-bus-run 7s ease-in-out infinite; }
+@keyframes auth-bus-run { from { background-position: 0 -30%; } to { background-position: 0 130%; } }
+
+.auth-lane { position: absolute; right: 20px; height: 1px; background: rgba(34, 197, 94, .22); clip-path: inset(0 100% 0 0); animation: auth-lane-in 1.3s var(--ease) forwards; animation-delay: calc(var(--delay) * .35 + .3s); }
+.auth-lane::before { content: ""; position: absolute; left: -2px; top: -2px; width: 5px; height: 5px; border-radius: 9999px; border: 1px solid rgba(34, 197, 94, .6); background: #020617; }
+.auth-lane::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, #4ade80, transparent) -30% 0 / 22% 100% no-repeat; animation: auth-lane-run var(--dur) linear infinite; animation-delay: calc(var(--delay) + 1.8s); opacity: 0; }
+.auth-lane i { position: absolute; right: -3px; top: -3px; width: 7px; height: 7px; border-radius: 9999px; background: #22c55e; opacity: 0; animation: auth-lane-blink var(--dur) ease-out infinite; animation-delay: calc(var(--delay) + 1.8s); }
+@keyframes auth-lane-in { to { clip-path: inset(0 0 0 0); } }
+@keyframes auth-lane-run { 0% { background-position: -30% 0; opacity: 1; } 78% { background-position: 130% 0; opacity: 1; } 100% { background-position: 130% 0; opacity: 0; } }
+@keyframes auth-lane-blink { 0%, 72% { opacity: 0; transform: scale(.6); } 80% { opacity: 1; transform: scale(1.5); box-shadow: 0 0 12px #22c55e; } 100% { opacity: .35; transform: scale(1); box-shadow: none; } }
+@media (prefers-reduced-motion: reduce) { .auth-lane::after, .auth-bus::after { animation: none; } .auth-lane i { animation: none; opacity: .6; } }

@@ -4,22 +4,22 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { createClient } from '@supabase/supabase-js';
-import { LoadingSpinner, SkeletonCompetitionCard, SkeletonTeamMemberCard, SkeletonCoachCard } from './components/LoadingSpinner';
+import { LoadingSpinner, SkeletonCompetitionCard } from './components/LoadingSpinner';
 import {
   Trophy,
   Rocket,
   Activity,
   Zap,
   ChevronRight,
-  ChevronDown,
   Menu,
   X,
-  Bot,
-  Cpu,
   Shield,
   ArrowUpRight,
   Globe,
+  ChevronDown,
+  Search,
 } from 'lucide-react';
+import Dropdown from './components/Dropdown';
 import type { HeroStats, Season, Competition, TeamMember, MediaMember, Member, Coach, SponsorCompany } from './lib/data';
 
 // ─── Props passed from the server component ───────────────────────────────────
@@ -40,7 +40,6 @@ const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-ke
 const supabase = createClient(supabaseUrl, supabaseKey, {
   db: { schema: 'website' },
 });
-const JOIN_TEAM_FORM_URL = 'https://forms.gle/v87Ugf3L7rqRWTNH8';
 
 console.log('[Init] Supabase URL:', supabaseUrl);
 console.log('[Init] Supabase Key valid:', supabaseKey !== 'placeholder-key');
@@ -48,10 +47,6 @@ console.log('[Init] Supabase Key valid:', supabaseKey !== 'placeholder-key');
 if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseKey === 'placeholder-key') {
   console.warn('[Init] ⚠️ SUPABASE CREDENTIALS MISSING - using placeholders');
 }
-
-const redirectToJoinTeamForm = () => {
-  window.location.href = JOIN_TEAM_FORM_URL;
-};
 
 const getSafeExternalUrl = (value: string | null | undefined) => {
   if (!value) return null;
@@ -137,184 +132,40 @@ const GithubIcon = ({ className }: { className?: string }) => (
   </svg>
 );
 
-const QcuLogo = () => (
-  <div className="flex items-center gap-3 group cursor-pointer">
-    <div className="relative">
-      <div className="w-11 h-11 rounded-lg flex items-center justify-center text-white font-bold shadow-lg group-hover:shadow-red-500/50 transition-shadow duration-300 overflow-hidden bg-slate-800 relative">
-        <Image
-          src="/Images/logo1.jpg"
-          alt="QCU Robotics Logo"
-          width={44}
-          height={44}
-          className="object-cover"
-          priority
-        />
-      </div>
-      <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-red-500/20 to-yellow-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-    </div>
-    <span className="text-lg font-bold text-white whitespace-nowrap">QCU ROBOTICS</span>
-  </div>
-);
-
-// ─── Ambient Background ───────────────────────────────────────────────────────
-const AmbientBackground = () => (
-  <div className="fixed inset-0 z-[-1] bg-slate-950 overflow-hidden">
-    <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-red-900/20 blur-[120px] mix-blend-screen" />
-    <div className="absolute bottom-[-10%] right-[-5%] w-[40%] h-[60%] rounded-full bg-yellow-900/20 blur-[100px] mix-blend-screen" />
-    <div className="absolute top-[40%] left-[60%] w-[30%] h-[30%] rounded-full bg-red-800/10 blur-[90px] mix-blend-screen" />
-    <div
-      className="absolute inset-0 opacity-50"
-      style={{
-        backgroundImage: `url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAwIDEwIEwgNDAgMTAgTSAxMCAwIEwgMTAgNDAiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAyKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSJ1cmwoI2dyaWQpIi8+PC9zdmc+")`
-      }}
-    />
-  </div>
-);
-
-const Navbar = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [scrolled, setScrolled] = useState(false);
-  const [activeLink, setActiveLink] = useState('');
-
+// Counts up once when scrolled into view (after the intro). Renders the real value first, so no-JS and SSR stay correct.
+const CountUp = ({ value }: { value: number }) => {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [shown, setShown] = useState(value);
   useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
-
-  const scrollToSection = (sectionId: string) => {
-    const target = document.getElementById(sectionId);
-    if (!target) return;
-
-    const top = target.getBoundingClientRect().top + window.scrollY - 96;
-    window.history.replaceState(null, '', `#${sectionId}`);
-    window.scrollTo({ top, behavior: 'smooth' });
-  };
-
-  const navItems = [
-    { label: 'Competitions', sectionId: 'competitions' },
-    { label: 'Matches', href: '/matches' },
-    { label: 'Achievements', href: '/achievements' },
-    { label: 'About Us', sectionId: 'about-us' },
-    { label: 'Teams', sectionId: 'team-members' },
-    { label: 'Sponsors', sectionId: 'sponsors' },
-  ];
-
-  return (
-    <nav className={`fixed w-full z-50 transition-all duration-300 ${scrolled ? 'py-2' : 'py-4'}`}>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className={`grid grid-cols-[1fr_1fr] lg:grid-cols-[1fr_auto_1fr] items-center gap-3 md:gap-6 px-4 md:px-6 py-3 rounded-xl overflow-hidden transition-all duration-300 ${
-          scrolled
-            ? 'bg-slate-950/70 backdrop-blur-xl border border-slate-700/40 shadow-2xl shadow-slate-900/30'
-            : 'bg-slate-950/40 backdrop-blur-lg border border-slate-700/30'
-        }`}>
-          {/* Logo */}
-          <div className="justify-self-start">
-            <QcuLogo />
-          </div>
-
-          {/* Desktop Links */}
-          <div className="hidden lg:flex items-center justify-center justify-self-center gap-1">
-            {navItems.map((item) => (
-              item.sectionId ? (
-                <button
-                  key={item.label}
-                  type="button"
-                  onClick={() => scrollToSection(item.sectionId)}
-                  onMouseEnter={() => setActiveLink(item.label)}
-                  onMouseLeave={() => setActiveLink('')}
-                  className="relative px-2 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors"
-                >
-                  {item.label}
-                  <span className={`absolute bottom-0 left-3 right-3 h-0.5 bg-gradient-to-r from-red-500 to-yellow-500 rounded-full transition-all duration-300 ${
-                    activeLink === item.label ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0'
-                  }`} />
-                </button>
-              ) : (
-                <Link
-                  key={item.label}
-                  href={item.href ?? '/'}
-                  onMouseEnter={() => setActiveLink(item.label)}
-                  onMouseLeave={() => setActiveLink('')}
-                  className="relative px-2 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors"
-                >
-                  {item.label}
-                  <span className={`absolute bottom-0 left-3 right-3 h-0.5 bg-gradient-to-r from-red-500 to-yellow-500 rounded-full transition-all duration-300 ${
-                    activeLink === item.label ? 'opacity-100 scale-x-100' : 'opacity-0 scale-x-0'
-                  }`} />
-                </Link>
-              )
-            ))}
-          </div>
-
-          {/* Desktop CTA */}
-          <div className="hidden lg:flex items-center justify-end justify-self-end gap-4">
-            <button
-              type="button"
-              onClick={redirectToJoinTeamForm}
-              className="group relative px-4 md:px-5 py-2.5 rounded-lg font-medium text-white text-sm overflow-hidden"
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-red-600 to-red-700 rounded-lg transition-all duration-300 group-hover:shadow-lg group-hover:shadow-red-500/50" />
-              <div className="absolute inset-0 bg-gradient-to-r from-red-500 to-yellow-500 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <span className="relative flex items-center gap-2">
-                Join Team
-                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
-              </span>
-            </button>
-          </div>
-
-          {/* Mobile Toggle */}
-          <div className="lg:hidden justify-self-end">
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="text-slate-300 hover:text-red-400 p-2 rounded-lg hover:bg-slate-800/50 transition-all duration-300"
-            >
-              {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
-          </div>
-        </div>
-
-        {/* Mobile Menu */}
-        {isOpen && (
-          <div className="lg:hidden mt-3 p-5 rounded-xl bg-slate-950/80 backdrop-blur-xl border border-slate-700/50 shadow-2xl">
-            <div className="flex flex-col space-y-3">
-              {navItems.map((item) => (
-                item.sectionId ? (
-                  <button
-                    key={item.label}
-                    type="button"
-                    className="text-left text-slate-300 hover:text-red-400 font-medium px-3 py-2 rounded-lg hover:bg-slate-800/50 transition-all duration-300"
-                    onClick={() => {
-                      scrollToSection(item.sectionId);
-                      setIsOpen(false);
-                    }}
-                  >
-                    {item.label}
-                  </button>
-                ) : (
-                  <Link
-                    key={item.label}
-                    href={item.href ?? '/'}
-                    className="text-slate-300 hover:text-red-400 font-medium px-3 py-2 rounded-lg hover:bg-slate-800/50 transition-all duration-300"
-                    onClick={() => setIsOpen(false)}
-                  >
-                    {item.label}
-                  </Link>
-                )
-              ))}
-              <button
-                type="button"
-                onClick={redirectToJoinTeamForm}
-                className="w-full mt-2 px-5 py-3 rounded-lg bg-gradient-to-r from-red-600 to-red-700 text-white font-semibold hover:shadow-lg hover:shadow-red-500/50 transition-all duration-300 flex items-center justify-center gap-2"
-              >
-                Join Team <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </nav>
-  );
+    const el = ref.current;
+    if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches || value <= 0) { setShown(value); return; }
+    let raf = 0;
+    let started = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    setShown(0);
+    const run = () => {
+      started = true;
+      const t0 = performance.now();
+      const tick = (t: number) => {
+        const p = Math.min((t - t0) / 1000, 1);
+        setShown(Math.round(value * (1 - Math.pow(1 - p, 4))));
+        if (p < 1) raf = requestAnimationFrame(tick);
+      };
+      raf = requestAnimationFrame(tick);
+    };
+    const wait = () => {
+      if (document.documentElement.classList.contains('intro')) timer = setTimeout(wait, 120);
+      else run();
+    };
+    const io = new IntersectionObserver(([e]) => {
+      if (!e.isIntersecting || started) return;
+      io.disconnect();
+      wait();
+    }, { threshold: 0.4 });
+    io.observe(el);
+    return () => { io.disconnect(); cancelAnimationFrame(raf); if (timer) clearTimeout(timer); };
+  }, [value]);
+  return <span ref={ref}>{shown}</span>;
 };
 
 // ─── Carousel Images ──────────────────────────────────────────────────────────
@@ -343,6 +194,42 @@ const FALLBACK_IMAGES = [
 ];
 
 // ─── Hero ─────────────────────────────────────────────────────────────────────
+// Headline "decode" effect: glyphs resolve left to right into the real text once the intro is done.
+// The real text is always in the layout (invisible) so nothing shifts, and SSR renders the final text.
+const DECODE_GLYPHS = '01<>/[]{}#$%&*+=?';
+const DecodeText = ({ text }: { text: string }) => {
+  const [out, setOut] = useState(text);
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let raf = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const run = () => {
+      const t0 = performance.now();
+      const tick = (t: number) => {
+        const p = Math.min((t - t0) / 1000, 1);
+        const settled = Math.floor(p * text.length);
+        setOut(text.split('').map((c, i) => (c === ' ' || i < settled ? c : DECODE_GLYPHS[Math.floor(Math.random() * DECODE_GLYPHS.length)])).join(''));
+        if (p < 1) raf = requestAnimationFrame(tick);
+        else setOut(text);
+      };
+      raf = requestAnimationFrame(tick);
+    };
+    const wait = () => {
+      if (document.documentElement.classList.contains('intro')) timer = setTimeout(wait, 100);
+      else timer = setTimeout(run, 350);
+    };
+    wait();
+    return () => { cancelAnimationFrame(raf); if (timer) clearTimeout(timer); };
+  }, [text]);
+  return (
+    <span className="relative inline-block">
+      <span className="sr-only">{text}</span>
+      <span className="invisible" aria-hidden="true">{text}</span>
+      <span className="absolute left-0 top-0 whitespace-nowrap" aria-hidden="true">{out}</span>
+    </span>
+  );
+};
+
 const Hero = ({ initialStats }: { initialStats?: HeroStats }) => {
   const [currentImage, setCurrentImage] = useState(0);
   const [stats, setStats] = useState({
@@ -363,11 +250,31 @@ const Hero = ({ initialStats }: { initialStats?: HeroStats }) => {
   };
 
   useEffect(() => {
-    const timer = setInterval(() => {
+    const timer = setTimeout(() => {
       setCurrentImage((prev) => (prev + 1) % CAROUSEL_IMAGES.length);
     }, 4000);
-    return () => clearInterval(timer);
-  }, []);
+    return () => clearTimeout(timer);
+  }, [currentImage]);
+
+  // Mouse parallax: write CSS variables straight onto the hero (no React state, no re-render per move)
+  const heroRef = useRef<HTMLElement>(null);
+  const pointerRaf = useRef(0);
+  const onHeroPointer = (e: React.PointerEvent<HTMLElement>) => {
+    if (e.pointerType !== 'mouse') return;
+    const el = heroRef.current;
+    if (!el) return;
+    const { clientX, clientY } = e;
+    cancelAnimationFrame(pointerRaf.current);
+    pointerRaf.current = requestAnimationFrame(() => {
+      const r = el.getBoundingClientRect();
+      el.style.setProperty('--mx', String(((clientX - r.left) / r.width - 0.5) * 2));
+      el.style.setProperty('--my', String(((clientY - r.top) / r.height - 0.5) * 2));
+    });
+  };
+  const onHeroLeave = () => {
+    heroRef.current?.style.setProperty('--mx', '0');
+    heroRef.current?.style.setProperty('--my', '0');
+  };
 
   useEffect(() => {
     // Skip fetch if server already provided initial stats
@@ -450,105 +357,103 @@ const Hero = ({ initialStats }: { initialStats?: HeroStats }) => {
   ];
 
   return (
-    <div className="relative overflow-hidden">
-      <div className="relative min-h-screen pt-32 pb-12 sm:pt-40 sm:pb-16 overflow-hidden">
-        <div className="absolute inset-0 h-full w-full bg-slate-900">
-          <div
-            className="flex h-full w-full transition-transform duration-1000 ease-in-out"
-            style={{
-              width: `${CAROUSEL_IMAGES.length * 100}%`,
-              transform: `translateX(-${currentImage * (100 / CAROUSEL_IMAGES.length)}%)`,
-            }}
-          >
+    <div>
+      <section
+        ref={heroRef}
+        onPointerMove={onHeroPointer}
+        onPointerLeave={onHeroLeave}
+        className="hold relative isolate flex h-[calc(100svh-60px)] min-h-[560px] flex-col overflow-hidden border-b border-slate-700 md:h-[calc(100svh-68px)]"
+      >
+        {/* Carousel background: crossfade + slow push-in + mouse parallax, dimmed so text stays readable */}
+        <div className="absolute inset-0 -z-10 overflow-hidden bg-slate-900" aria-hidden="true">
+          <div className="parallax absolute -inset-6" style={{ ['--k' as string]: -14 } as React.CSSProperties}>
             {CAROUSEL_IMAGES.map((src, idx) => (
-              <div
-                key={idx}
-                className="relative h-full shrink-0"
-                style={{ width: `${100 / CAROUSEL_IMAGES.length}%` }}
-              >
-                <Image
-                  src={src}
-                  alt={`Robotics showcase ${idx + 1}`}
-                  fill
-                  className="object-cover"
-                  sizes="100vw"
-                  priority={idx === 0}
-                  placeholder="blur"
-                  blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAAIAAoDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAhEAACAQMDBQAAAAAAAAAAAAABAgMABAUGIWEREiMxUf/EABUBAQEAAAAAAAAAAAAAAAAAAAMF/8QAGhEAAgIDAAAAAAAAAAAAAAAAAAECEgMRkf/aAAwDAQACEQMRAD8AltJagyeH0AthI5xdrLcNM91BF5pX2HaH9bcfaSXWGaRmknyJckliyjqTzSlT54teleJ/9k="
-                />
-                <div className="absolute inset-0 bg-slate-900/60 mix-blend-multiply pointer-events-none" />
-                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/30 to-transparent pointer-events-none" />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 w-full text-center pointer-events-none">
-          <div className="flex justify-center mb-8 pointer-events-auto">
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-slate-800/50 backdrop-blur-md border border-slate-700/50">
-              <span className="flex h-2 w-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(220,20,60,0.8)] animate-pulse" />
-              <span className="text-xs font-medium text-slate-300 tracking-wider uppercase">Competing at the Highest Level</span>
-            </div>
-          </div>
-
-          <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold text-white tracking-tight mb-6">
-            Quezon City University <br className="hidden sm:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 via-yellow-500 to-red-500">
-              Robotics Society
-            </span>
-          </h1>
-
-          <p className="mt-4 text-lg sm:text-xl text-slate-400 max-w-2xl mx-auto mb-10 font-light leading-relaxed">
-            Building excellence through innovation and teamwork. QCU Robotics brings cutting-edge engineering to international robotics competitions with two competitive teams.
-          </p>
-
-          <div className="flex flex-col sm:flex-row justify-center gap-4 pointer-events-auto mb-8">
-            <button
-              type="button"
-              onClick={redirectToJoinTeamForm}
-              className="px-8 py-4 rounded-xl bg-white text-slate-950 font-semibold hover:bg-slate-200 transition-colors flex items-center justify-center gap-2 shadow-[0_0_30px_rgba(255,255,255,0.2)]"
-            >
-              Join Team <ChevronRight className="w-5 h-5" />
-            </button>
-            <button
-              type="button"
-              onClick={() => scrollToSection('team-members')}
-              className="px-8 py-4 rounded-xl bg-slate-800/40 backdrop-blur-md border border-slate-600/50 text-white font-medium hover:bg-slate-800/60 transition-all flex items-center justify-center gap-2"
-            >
-              Meet Our Teams
-            </button>
-          </div>
-
-          <div className="flex justify-center items-center gap-3 pointer-events-auto">
-            {CAROUSEL_IMAGES.map((_, idx) => (
-              <button
-                key={idx}
-                onClick={() => setCurrentImage(idx)}
-                className={`transition-all duration-500 rounded-full ${
-                  idx === currentImage
-                    ? 'w-10 h-2 bg-gradient-to-r from-red-500 to-red-600 shadow-[0_0_12px_rgba(220,20,60,0.8)]'
-                    : 'w-2 h-2 bg-slate-500/70 hover:bg-slate-300'
-                }`}
-                aria-label={`Go to slide ${idx + 1}`}
+              <Image
+                key={src}
+                src={src}
+                alt=""
+                fill
+                sizes="100vw"
+                priority={idx === 0}
+                className={`xfade object-cover ${idx === currentImage ? 'is-on' : ''}`}
               />
             ))}
           </div>
+          <div className="absolute inset-0 bg-slate-950/70" />
+          <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-slate-950 to-transparent" />
         </div>
-      </div>
 
-      {/* Stats */}
-      <div className="relative pt-0 pb-16 sm:pb-20 bg-slate-950">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="flex flex-wrap justify-center gap-4 max-w-4xl mx-auto -mt-8">
-            {statCards.map((stat, idx) => (
-              <div key={idx} className="min-w-[160px] flex-1 basis-[calc(50%-1rem)] md:basis-[calc(25%-1rem)] p-6 rounded-2xl bg-slate-900/80 backdrop-blur-md border border-slate-700/50 flex flex-col items-center justify-center shadow-xl">
-                <span className="text-3xl font-bold text-white mb-1">{stat.value}</span>
-                <span className="text-xs text-slate-400 uppercase tracking-wider">{stat.label}</span>
-              </div>
-            ))}
+
+        {/* HUD corner brackets */}
+        <span className="hud-corner left-4 top-4 hidden border-l border-t md:block" aria-hidden="true" />
+        <span className="hud-corner right-4 top-4 hidden border-r border-t md:block" aria-hidden="true" />
+        <span className="hud-corner bottom-4 left-4 hidden border-b border-l md:block" aria-hidden="true" />
+        <span className="hud-corner bottom-4 right-4 hidden border-b border-r md:block" aria-hidden="true" />
+
+        {/* headline block fills the free space and centres itself */}
+        <div className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col justify-center px-4 pt-6 md:px-7">
+          <p className="rise mb-[2.2vh] inline-flex w-fit items-center gap-2.5 border border-slate-600 bg-slate-950/50 px-3 py-1.5 font-mono text-[.72rem] uppercase tracking-[.16em] text-slate-300" style={{ ['--i' as string]: 0 } as React.CSSProperties}>
+            <span className="blink h-1.5 w-1.5 bg-accent" aria-hidden="true" />
+            Systems online
+            <span className="text-slate-500" aria-hidden="true">/</span>
+            <span className="text-accent">QCU</span>
+          </p>
+          <p className="kicker rise mb-[1.6vh]" style={{ ['--i' as string]: 1 } as React.CSSProperties}>Quezon City University</p>
+          <h1 className="font-display text-[clamp(2.6rem,min(8vw,12vh),6.2rem)] font-bold leading-[.98] tracking-[-0.045em]">
+            <span className="rise block text-slate-200" style={{ ['--i' as string]: 2 } as React.CSSProperties}>Robotics</span>
+            <span className="rise block text-accent" style={{ ['--i' as string]: 3 } as React.CSSProperties}><DecodeText text="Society" /></span>
+          </h1>
+          <p className="rise mb-[3vh] mt-[2.4vh] line-clamp-3 max-w-[46ch] text-[1.05rem] leading-relaxed text-slate-300 sm:line-clamp-none" style={{ ['--i' as string]: 4 } as React.CSSProperties}>
+            Building excellence through innovation and teamwork. QCU Robotics brings cutting-edge engineering to international robotics competitions with two competitive teams.
+          </p>
+          <div className="rise flex flex-wrap items-center gap-x-5 gap-y-3" style={{ ['--i' as string]: 5 } as React.CSSProperties}>
+            <Link href="/member-reg" prefetch={false} className="btn btn-primary group min-h-[52px] px-7 text-[1rem]">
+              Join the team
+              <ChevronRight className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-0.5" />
+            </Link>
+            <button type="button" onClick={() => scrollToSection('competitions')} className="btn btn-ghost min-h-[52px] bg-slate-950/40 px-6">
+              Explore competitions
+            </button>
           </div>
         </div>
-      </div>
+
+        {/* bottom bar: photo timer + live stats, all inside the same frame */}
+        <div className="rise mx-auto w-full max-w-[1200px] px-4 pb-5 md:px-7 md:pb-7" style={{ ['--i' as string]: 6 } as React.CSSProperties}>
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-2.5" role="tablist" aria-label="Showcase photos">
+              {CAROUSEL_IMAGES.map((_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  role="tab"
+                  aria-selected={idx === currentImage}
+                  aria-label={`Show photo ${idx + 1}`}
+                  onClick={() => setCurrentImage(idx)}
+                  className="group grid h-6 place-items-center"
+                >
+                  <span className={`relative block h-[3px] overflow-hidden rounded-full bg-white/30 transition-all duration-500 ${idx === currentImage ? 'w-12' : 'w-5 group-hover:bg-white/60'}`}>
+                    {idx === currentImage && <span key={currentImage} className="progress-fill absolute inset-0 bg-accent" />}
+                  </span>
+                </button>
+              ))}
+              <span className="ml-2 font-mono text-xs tabular-nums text-slate-300">
+                {String(currentImage + 1).padStart(2, '0')}/{String(CAROUSEL_IMAGES.length).padStart(2, '0')}
+              </span>
+            </div>
+            <span className="hidden font-mono text-[.68rem] uppercase tracking-[.2em] text-slate-500 sm:block">Telemetry</span>
+          </div>
+          <dl className="grid grid-cols-[repeat(auto-fit,minmax(92px,1fr))] gap-px overflow-hidden border border-slate-600/70 bg-slate-600/70">
+            {statCards.map((stat) => (
+              <div key={stat.label} className="bg-slate-950/70 px-4 py-3 md:px-5 md:py-4">
+                <dd className="font-display text-[1.6rem] font-bold leading-none tracking-tight text-white md:text-[2rem]">
+                  <CountUp value={stat.value} />
+                </dd>
+                <dt className="mt-1.5 font-mono text-[.64rem] uppercase tracking-[.14em] text-slate-400 md:text-[.68rem]">{stat.label}</dt>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </section>
     </div>
   );
 };
@@ -587,16 +492,8 @@ const CompetitionsSection = ({ initialCompetitions, initialSeasons }: { initialC
     }
   }, [competitions]);
 
-  const sortedSeasons = [...seasons].sort((a, b) => {
-    const aName = String(a.season_name ?? '').trim();
-    const bName = String(b.season_name ?? '').trim();
-
-    if (aName && bName) {
-      return bName.localeCompare(aName, undefined, { numeric: true, sensitivity: 'base' });
-    }
-
-    return Number(b.id) - Number(a.id);
-  });
+  // Newest season first (names are game titles, so alphabetical order would be wrong; ids grow with each season)
+  const sortedSeasons = [...seasons].sort((a, b) => Number(b.id) - Number(a.id));
 
   const seasonOrderMap = new Map<number, number>(
     sortedSeasons.map((season, index) => [Number(season.id), index])
@@ -709,13 +606,6 @@ const CompetitionsSection = ({ initialCompetitions, initialSeasons }: { initialC
       return seasonOrderA - seasonOrderB;
     }
 
-    const seasonNameA = seasonNameById.get(Number(a.season_id)) ?? '';
-    const seasonNameB = seasonNameById.get(Number(b.season_id)) ?? '';
-
-    if (seasonNameA !== seasonNameB) {
-      return seasonNameB.localeCompare(seasonNameA, undefined, { numeric: true, sensitivity: 'base' });
-    }
-
     const aCreatedAt = a.created_at ? new Date(a.created_at).getTime() : 0;
     const bCreatedAt = b.created_at ? new Date(b.created_at).getTime() : 0;
     return bCreatedAt - aCreatedAt;
@@ -747,150 +637,98 @@ const CompetitionsSection = ({ initialCompetitions, initialSeasons }: { initialC
   }
 
   return (
-    <section id="competitions" className="py-24 relative z-10">
-      <div className="absolute inset-0 bg-gradient-to-b from-red-500/5 via-transparent to-transparent pointer-events-none" />
+    <section id="competitions" data-reveal className="py-24 relative z-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
 
-        {/* Header */}
-        <div className="flex flex-col items-center text-center mb-8">
+        {/* Header: heading on the left, season filter on the right */}
+        <div className="mb-10 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
           <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/30">
-              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-xs font-semibold text-red-400 uppercase tracking-wider">
-                Featured Competitions
-              </span>
-            </div>
-            <h2 className="text-4xl md:text-5xl font-bold text-white mb-4 leading-tight">
-              Competitions &{' '}
-              <span className="bg-gradient-to-r from-red-400 via-red-500 to-orange-500 bg-clip-text text-transparent">
-                Achievements
-              </span>
+            <p className="kicker mb-4">Featured competitions</p>
+            <h2 className="font-display text-[clamp(2.2rem,5vw,3.4rem)] font-bold leading-[1.04] tracking-[-0.04em] text-white">
+              Competitions &amp; <span className="text-accent">achievements</span>
             </h2>
-            <p className="text-slate-400 text-lg leading-relaxed">
+            <p className="mt-4 text-[1.05rem] leading-relaxed text-slate-400">
               QCU Robotics competes at the highest level, showcasing innovation and engineering
               excellence across multiple prestigious competitions worldwide.
             </p>
           </div>
-
+          <Dropdown
+            className="w-full md:w-64 md:shrink-0"
+            label="Season"
+            items={[
+              { label: sortedSeasons.length === 0 ? 'No seasons found' : 'All seasons', value: 'all' },
+              ...sortedSeasons.map((s) => ({ label: String(s.season_name), value: String(s.id) })),
+            ]}
+            value={String(selectedSeason)}
+            onValueChange={(v) => setSelectedSeason(v === 'all' ? 'all' : Number(v))}
+            disabled={seasons.length === 0}
+          />
         </div>
 
-        {/* Season Filter Dropdown */}
-        <div className="flex justify-center mb-10">
-          <div className="flex items-center gap-3 bg-slate-900/60 backdrop-blur-md border border-slate-700/50 px-5 py-3 rounded-2xl shadow-xl">
-            <span className="text-slate-400 text-sm font-medium whitespace-nowrap">
-              Filter by Season:
-            </span>
-            <div className="relative">
-              <select
-                value={selectedSeason}
-                onChange={(e) =>
-                  setSelectedSeason(
-                    e.target.value === 'all' ? 'all' : Number(e.target.value)
-                  )
-                }
-                disabled={seasons.length === 0}
-                className="appearance-none bg-slate-800 border border-slate-600 text-white text-sm font-semibold rounded-xl px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent cursor-pointer hover:bg-slate-700 transition-colors min-w-[180px] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <option value="all">
-                  {sortedSeasons.length === 0 ? 'No seasons found' : 'All Seasons'}
-                </option>
-                {sortedSeasons.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.season_name}
-                  </option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-                <ChevronDown className="w-4 h-4 text-slate-400" />
-              </div>
-            </div>
-          </div>
+        {/* Competition cards */}
+        <div className="mb-4 flex items-baseline justify-between text-sm text-slate-400" aria-live="polite">
+          <p>
+            <span className="font-mono tabular-nums text-white">{String(sortedCompetitions.length).padStart(2, '0')}</span>{' '}
+            {sortedCompetitions.length === 1 ? 'competition' : 'competitions'}
+            {selectedSeason !== 'all' ? <> in <span className="text-white">{seasonNameById.get(Number(selectedSeason))}</span></> : null}
+          </p>
         </div>
-
-        {/* Competition Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div key={String(selectedSeason)} className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
           {sortedCompetitions.length > 0 ? (
             sortedCompetitions.map((comp, idx) => (
-              <div
+              <article
                 key={comp.id}
-                className="group relative overflow-hidden rounded-2xl transition-all duration-500 hover:scale-105"
-                style={{ animationDelay: `${idx * 100}ms` }}
+                className="lift group flex flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-900"
+                style={{ animation: 'rise .6s var(--ease) both', animationDelay: `${Math.min(idx, 8) * 70}ms` }}
               >
-                <div className="absolute inset-0 bg-gradient-to-br from-slate-800/50 via-slate-900/30 to-slate-950/50 backdrop-blur-xl border border-slate-700/40 group-hover:border-red-500/30 transition-colors duration-500" />
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 bg-gradient-to-br from-red-500/10 via-transparent to-orange-600/5" />
-                <div className="relative z-10 p-8 flex flex-col h-full">
+                <div className="relative aspect-[16/9] overflow-hidden border-b border-slate-700 bg-slate-800">
                   {comp.image_url ? (
-                    <div className="mb-6 -mx-8 -mt-8 h-40 bg-gradient-to-br from-slate-800/80 to-slate-900/80 rounded-t-2xl overflow-hidden flex items-center justify-center group-hover:opacity-90 transition-opacity">
-                      <img
-                        src={comp.image_url}
-                        alt={comp.title}
-                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                        }}
-                      />
-                    </div>
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={comp.image_url}
+                      alt={comp.title}
+                      className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
                   ) : (
-                    <div className="mb-6 -mx-8 -mt-8 h-40 rounded-t-2xl overflow-hidden relative bg-gradient-to-br from-red-950/80 via-slate-900 to-slate-950 border-b border-white/5">
-                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(248,113,113,0.22),transparent_35%),radial-gradient(circle_at_bottom_left,rgba(251,191,36,0.16),transparent_32%)]" />
-                      <div className="absolute inset-0 opacity-30" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px)', backgroundSize: '22px 22px' }} />
-                      <div className="relative h-full flex flex-col items-center justify-center gap-3 text-center px-6">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-red-500/30 bg-red-500/10 shadow-[0_0_24px_rgba(239,68,68,0.18)]">
-                          <Trophy className="w-7 h-7 text-red-300" />
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold uppercase tracking-[0.28em] text-red-200/80">
-                            Competition Spotlight
-                          </p>
-                          <p className="mt-1 text-sm text-slate-300/80">
-                            No cover image available
-                          </p>
-                        </div>
-                      </div>
+                    <div className="grid h-full w-full place-items-center text-slate-500">
+                      <Trophy className="h-8 w-8" aria-hidden="true" />
                     </div>
                   )}
-                  <div className="flex items-center gap-3 mb-4 flex-wrap">
-                    <span
-                      className={`text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider transition-all duration-300 ${
-                        comp.status === 'Active'
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
-                          : comp.status === 'Recent'
-                          ? 'bg-blue-500/20 text-blue-300 border border-blue-500/40'
-                          : 'bg-purple-500/20 text-purple-300 border border-purple-500/40'
-                      }`}
-                    >
-                      {comp.status}
-                    </span>
-                    <span className="text-xs text-slate-500 font-medium">{comp.date}</span>
-                  </div>
-                  <h3 className="text-xl font-bold text-white mb-2 group-hover:text-red-100 transition-colors">
-                    {comp.title}
-                  </h3>
-                  <p className="text-slate-400 text-sm font-medium mb-4 flex items-center gap-2">
-                    <span className="w-1 h-1 rounded-full bg-red-500" />
-                    {comp.location}
-                  </p>
-                  <div className="mt-auto flex gap-3">
-                    <Link
-                      href={`/matches?id=${comp.id}`}
-                      className="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-red-400 group-hover:text-red-300 transition-colors py-2 px-3 rounded-lg bg-red-600/10 border border-red-500/30 hover:bg-red-600/20"
-                    >
-                      <span>Matches</span>
-                      <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  <span
+                    className={`absolute left-3 top-3 inline-flex items-center gap-2 border bg-slate-950/80 px-2.5 py-1 font-mono text-[.68rem] uppercase tracking-[.14em] ${
+                      comp.status === 'Active'
+                        ? 'border-accent/50 text-accent'
+                        : comp.status === 'Recent'
+                        ? 'border-violet-400/50 text-violet-300'
+                        : 'border-slate-600 text-slate-300'
+                    }`}
+                  >
+                    <span className={`h-1.5 w-1.5 ${comp.status === 'Active' ? 'bg-accent' : comp.status === 'Recent' ? 'bg-violet-400' : 'bg-slate-400'}`} aria-hidden="true" />
+                    {comp.status}
+                  </span>
+                </div>
+
+                <div className="flex flex-1 flex-col p-6">
+                  <p className="font-mono text-xs tabular-nums text-slate-500">{comp.date}</p>
+                  <h3 className="mt-2 font-display text-xl font-semibold leading-snug tracking-tight text-white">{comp.title}</h3>
+                  {comp.location && <p className="mt-2 text-sm text-slate-400">{comp.location}</p>}
+
+                  <div className="mt-auto grid grid-cols-2 gap-3 pt-6">
+                    <Link href={`/matches?id=${comp.id}`} className="btn btn-primary btn-sm group/b">
+                      Matches
+                      <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover/b:translate-x-0.5" />
                     </Link>
-                    <Link
-                      href={`/achievements?id=${comp.id}`}
-                      className="flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold text-amber-400 group-hover:text-amber-300 transition-colors py-2 px-3 rounded-lg bg-amber-600/10 border border-amber-500/30 hover:bg-amber-600/20"
-                    >
-                      <span>Achievements</span>
-                      <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    <Link href={`/achievements?id=${comp.id}`} className="btn btn-ghost btn-sm group/b">
+                      Achievements
+                      <ChevronRight className="h-4 w-4 transition-transform duration-200 group-hover/b:translate-x-0.5" />
                     </Link>
                   </div>
                 </div>
-              </div>
+              </article>
             ))
           ) : (
-            <p className="text-slate-500 md:col-span-2 lg:col-span-3 text-center py-12 bg-slate-900/30 rounded-2xl border border-slate-800/50">
+            <p className="rounded-2xl border border-dashed border-slate-600 py-14 text-center text-sm text-slate-400 md:col-span-2 lg:col-span-3">
               No competitions found for the selected season.
             </p>
           )}
@@ -959,10 +797,10 @@ const AboutSection = () => {
   }, []);
 
   return (
-    <section id="about-us" className="py-24 relative z-10">
+    <section id="about-us" data-reveal className="py-24 relative z-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          <div className="rounded-3xl overflow-hidden border border-slate-700/50 shadow-[0_0_40px_rgba(220,20,60,0.15)]">
+          <div className="rounded-2xl overflow-hidden border border-slate-700/50">
             <div className="relative h-96 overflow-hidden bg-slate-900">
               <div
                 className="flex h-full w-full transition-transform duration-1000 ease-in-out"
@@ -1000,7 +838,7 @@ const AboutSection = () => {
                     aria-label={`Go to about image ${idx + 1}`}
                     className={`transition-all duration-500 rounded-full ${
                       idx === currentAboutImage
-                        ? 'w-10 h-2 bg-gradient-to-r from-red-500 to-red-600 shadow-[0_0_12px_rgba(220,20,60,0.8)]'
+                        ? 'w-10 h-2  '
                         : 'w-2 h-2 bg-slate-500/70 hover:bg-slate-300'
                     }`}
                   />
@@ -1019,11 +857,11 @@ const AboutSection = () => {
               </p>
             </div>
             <div className="grid grid-cols-2 gap-6 mb-8">
-              <div className="p-6 rounded-2xl bg-slate-900/40 backdrop-blur-sm border border-slate-700/30">
+              <div className="p-6 rounded-2xl bg-slate-900/40 border border-slate-700/30">
                 <span className="text-2xl font-bold text-red-400">{activeTeamCount}</span>
                 <p className="text-slate-400 text-sm mt-2">Competitive Teams</p>
               </div>
-              <div className="p-6 rounded-2xl bg-slate-900/40 backdrop-blur-sm border border-slate-700/30">
+              <div className="p-6 rounded-2xl bg-slate-900/40 border border-slate-700/30">
                 <span className="text-2xl font-bold text-red-400">{activeMemberCount}</span>
                 <p className="text-slate-400 text-sm mt-2">Active Members</p>
               </div>
@@ -1077,12 +915,12 @@ const RemoteImage = ({
 // Used when a person has no photo (or the photo fails to load). Initials on a
 // gradient derived from the name so a roster without photos still looks varied.
 const AVATAR_GRADIENTS = [
-  'from-blue-500/40 via-cyan-500/20 to-slate-900',
-  'from-violet-500/40 via-fuchsia-500/20 to-slate-900',
-  'from-emerald-500/40 via-teal-500/20 to-slate-900',
-  'from-amber-500/40 via-orange-500/20 to-slate-900',
-  'from-rose-500/40 via-pink-500/20 to-slate-900',
-  'from-sky-500/40 via-indigo-500/20 to-slate-900',
+  'bg-violet-500/15',
+  'bg-accent/10',
+  'bg-slate-700',
+  'bg-violet-500/25',
+  'bg-accent/15',
+  'bg-slate-800',
 ];
 
 const getInitials = (name?: string | null): string => {
@@ -1103,10 +941,9 @@ const getAvatarGradient = (name?: string | null): string => {
 const AvatarFallback = ({ name, ringClass = 'border-slate-600' }: { name?: string | null; ringClass?: string }) => (
   <div
     aria-hidden="true"
-    className={`relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-2 bg-gradient-to-br shadow-lg ${ringClass} ${getAvatarGradient(name)}`}
+    className={`relative flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border-2 bg-gradient-to-br  ${ringClass} ${getAvatarGradient(name)}`}
   >
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_25%,rgba(255,255,255,0.18),transparent_55%)]" />
-    <span className="relative text-2xl font-bold tracking-wide text-white drop-shadow">{getInitials(name)}</span>
+    <span className="relative text-2xl font-bold tracking-wide text-white">{getInitials(name)}</span>
   </div>
 );
 
@@ -1114,21 +951,12 @@ const AvatarFallback = ({ name, ringClass = 'border-slate-600' }: { name?: strin
 const PortraitFallback = ({ name, label, accentText = 'text-slate-300' }: { name?: string | null; label: string; accentText?: string }) => (
   <div
     aria-hidden="true"
-    className={`relative flex h-full w-full flex-col items-center justify-center gap-4 bg-gradient-to-br ${getAvatarGradient(name)}`}
+    className={`relative flex h-full w-full flex-col items-center justify-center gap-4 ${getAvatarGradient(name)}`}
   >
-    <div
-      className="absolute inset-0 opacity-40"
-      style={{
-        backgroundImage:
-          'linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)',
-        backgroundSize: '22px 22px',
-      }}
-    />
-    <div className="absolute -bottom-16 left-1/2 h-48 w-48 -translate-x-1/2 rounded-full bg-white/5 blur-2xl" />
-    <div className="relative flex h-24 w-24 items-center justify-center rounded-full border border-white/20 bg-white/10 shadow-xl backdrop-blur-sm">
-      <span className="text-3xl font-bold tracking-wide text-white drop-shadow">{getInitials(name)}</span>
+    <div className="relative flex h-24 w-24 items-center justify-center rounded-full border border-white/20 bg-white/10">
+      <span className="text-3xl font-bold tracking-wide text-white">{getInitials(name)}</span>
     </div>
-    <span className={`relative text-[11px] font-semibold uppercase tracking-[0.3em] ${accentText}`}>{label}</span>
+    <span className={`relative text-[11px] font-semibold uppercase tracking-[0.14em] ${accentText}`}>{label}</span>
   </div>
 );
 
@@ -1185,13 +1013,10 @@ const SponsorSection = ({ initialSponsors }: { initialSponsors?: SponsorCompany[
   const companyById = new Map(sponsorCompanies.map((company) => [Number(company.id), company]));
 
   return (
-    <section id="sponsors" className="py-24 relative z-10 bg-slate-950/50 scroll-mt-28 md:scroll-mt-32 overflow-x-hidden">
+    <section id="sponsors" data-reveal className="py-24 relative z-10 bg-slate-950/50 scroll-mt-28 md:scroll-mt-32 overflow-x-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="text-center max-w-3xl mx-auto mb-16">
-          <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30">
-            <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
-            <span className="text-xs font-semibold uppercase tracking-wider text-amber-200">Sponsors</span>
-          </div>
+          <p className="kicker mb-4">Sponsors</p>
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Our Sponsors</h2>
           <p className="text-slate-400 text-lg">
             Companies and the people behind them who support QCU Robotics.
@@ -1211,25 +1036,25 @@ const SponsorSection = ({ initialSponsors }: { initialSponsors?: SponsorCompany[
             {loading ? (
               <div className="flex flex-wrap justify-center gap-6">
                 {[...Array(3)].map((_, index) => (
-                  <div key={index} className="h-56 w-full max-w-sm basis-full sm:basis-[calc(50%-0.75rem)] lg:basis-[calc(33.333%-1rem)] rounded-3xl border border-slate-700/50 bg-slate-900/40 animate-pulse" />
+                  <div key={index} className="h-56 w-full max-w-sm basis-full sm:basis-[calc(50%-0.75rem)] lg:basis-[calc(33.333%-1rem)] rounded-2xl border border-slate-700/50 bg-slate-900/40 animate-pulse" />
                 ))}
               </div>
             ) : sponsorCompanies.length > 0 ? (
               <div className="flex flex-wrap justify-center gap-6">
                 {sponsorCompanies.map((company) => (
-                  <div key={company.id} className="group w-full max-w-sm basis-full sm:basis-[calc(50%-0.75rem)] lg:basis-[calc(33.333%-1rem)] overflow-hidden rounded-3xl border border-slate-700/50 bg-slate-900/40 backdrop-blur-sm transition-all duration-300 hover:border-amber-500/40 hover:bg-slate-800/50">
+                  <div key={company.id} className="group w-full max-w-sm basis-full sm:basis-[calc(50%-0.75rem)] lg:basis-[calc(33.333%-1rem)] overflow-hidden rounded-2xl border border-slate-700/50 bg-slate-900/40 transition-all duration-300 hover:border-amber-500/40 hover:bg-slate-800/50">
                     <div className="aspect-[4/3] bg-slate-950/60 overflow-hidden flex items-center justify-center">
                       <RemoteImage
                         src={company.image_url}
                         alt={company.company_name || 'Sponsor company'}
                         className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                         fallback={
-                          <div className="flex h-full w-full flex-col items-center justify-center gap-4 bg-gradient-to-br from-amber-500/10 via-slate-900/40 to-red-500/10 px-6 text-center">
+                          <div className="flex h-full w-full flex-col items-center justify-center gap-4 px-6 text-center">
                             <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-400/30 bg-amber-500/10">
                               <Shield className="h-8 w-8 text-amber-300/80" />
                             </div>
                             <div>
-                              <p className="text-sm font-semibold uppercase tracking-[0.3em] text-amber-300/70">Sponsor</p>
+                              <p className="text-sm font-semibold uppercase tracking-[0.14em] text-amber-300/70">Sponsor</p>
                               <p className="mt-2 text-lg font-bold text-white">{company.company_name || 'Sponsor Company'}</p>
                             </div>
                           </div>
@@ -1267,7 +1092,7 @@ const SponsorSection = ({ initialSponsors }: { initialSponsors?: SponsorCompany[
                   return (
                     <div
                       key={person.id}
-                      className="w-full max-w-sm basis-full sm:basis-[calc(50%-1rem)] lg:basis-[calc(25%-1.5rem)] group relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-md border border-slate-700/50 transition-all duration-300 hover:border-amber-500/50 hover:shadow-[0_0_20px_rgba(251,191,36,0.18)]"
+                      className="w-full max-w-sm basis-full sm:basis-[calc(50%-1rem)] lg:basis-[calc(25%-1.5rem)] group relative overflow-hidden rounded-2xl bg-slate-900 border border-slate-700/50 transition-all duration-300 hover:border-amber-500/50"
                     >
                       <div className="relative h-64 overflow-hidden bg-slate-950">
                         <RemoteImage
@@ -1396,11 +1221,177 @@ const formatMemberRoles = (memberRoles: any, seasonOrderMap?: Map<number, number
     .filter(Boolean);
 };
 
+// ─── People: shared building blocks ──────────────────────────────────────────
+// Every roster below (team players, media, members, coaches) uses the same header, card and empty state.
+const PeopleSection = ({
+  id,
+  kicker,
+  title,
+  accent,
+  description,
+  action,
+  tinted = true,
+  defaultOpen = true,
+  children,
+}: {
+  id: string;
+  kicker: string;
+  title: string;
+  accent: string;
+  description: string;
+  action?: React.ReactNode;
+  tinted?: boolean;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) => {
+  const [open, setOpen] = useState(defaultOpen);
+  const panelId = `${id}-panel`;
+
+  return (
+    <section id={id} data-reveal className={`relative z-10 scroll-mt-28 py-16 md:scroll-mt-32 md:py-20 ${tinted ? 'bg-slate-950/50' : ''}`}>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className={`flex flex-col gap-6 md:flex-row md:items-end md:justify-between ${open ? 'mb-10' : ''}`}>
+          <div className="max-w-2xl">
+            <p className="kicker mb-4">{kicker}</p>
+            <h2 className="font-display text-[clamp(2.2rem,5vw,3.4rem)] font-bold leading-[1.04] tracking-[-0.04em] text-white">
+              {title} <span className="text-accent">{accent}</span>
+            </h2>
+            {open && <p className="mt-4 text-[1.05rem] leading-relaxed text-slate-400">{description}</p>}
+          </div>
+          <div className="flex w-full flex-col gap-3 sm:flex-row sm:items-end md:w-auto">
+            {open && action}
+            <button
+              type="button"
+              onClick={() => setOpen((v) => !v)}
+              aria-expanded={open}
+              aria-controls={panelId}
+              className="group inline-flex h-12 shrink-0 cursor-pointer items-center justify-center gap-2 rounded-xl border border-slate-600 bg-slate-900 px-4 text-sm font-medium text-white outline-none transition-colors duration-150 hover:border-slate-500 focus-visible:border-accent"
+            >
+              {open ? 'Hide' : 'Show'}
+              <ChevronDown className={`h-4 w-4 text-slate-400 transition-transform duration-300 ease-out-quint group-hover:text-white ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+
+        <div
+          id={panelId}
+          inert={!open}
+          className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out-quint motion-reduce:transition-none ${open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
+        >
+          <div className="min-h-0 overflow-hidden">{children}</div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+const plural = (noun: string) => (noun === 'person' ? 'people' : noun.endsWith('ch') ? `${noun}es` : `${noun}s`);
+
+const CountLine = ({ count, noun, suffix }: { count: number; noun: string; suffix?: React.ReactNode }) => (
+  <p className="text-sm text-slate-400" aria-live="polite">
+    <span className="font-mono tabular-nums text-white">{String(count).padStart(2, '0')}</span>{' '}
+    {count === 1 ? noun : plural(noun)}
+    {suffix}
+  </p>
+);
+
+const SearchBox = ({ value, onChange, label }: { value: string; onChange: (v: string) => void; label: string }) => (
+  <label className="relative block w-full sm:w-64">
+    <span className="sr-only">{label}</span>
+    <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+    <input
+      type="search"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder="Search by name"
+      className="h-11 w-full rounded-xl border border-slate-600 bg-slate-900 pl-11 pr-4 text-sm font-medium text-white outline-none transition-colors duration-150 placeholder:text-slate-500 hover:border-slate-500 focus-visible:border-accent"
+    />
+  </label>
+);
+
+const PeopleEmpty = ({ children }: { children: React.ReactNode }) => (
+  <p className="rounded-2xl border border-dashed border-slate-600 py-14 text-center text-sm text-slate-400">{children}</p>
+);
+
+const personTone = {
+  accent: 'text-accent',
+  violet: 'text-violet-300',
+} as const;
+
+// Portrait card: team players and coaches.
+const PersonCard = ({
+  name,
+  imageUrl,
+  role,
+  tone = 'accent',
+  seasons = [],
+}: {
+  name: string;
+  imageUrl?: string | null;
+  role: string;
+  tone?: keyof typeof personTone;
+  seasons?: string[];
+}) => (
+  <article className="lift group flex h-full flex-col overflow-hidden rounded-2xl border border-slate-700 bg-slate-900">
+    <div className="relative aspect-[4/5] overflow-hidden border-b border-slate-700 bg-slate-800">
+      <RemoteImage
+        src={imageUrl}
+        alt={name}
+        className="h-full w-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
+        fallback={<PortraitFallback name={name} label="" />}
+      />
+    </div>
+    <div className="flex flex-1 flex-col p-4">
+      <h3 className="font-display text-base font-semibold leading-snug tracking-tight text-white">{name}</h3>
+      <p className={`mt-1 font-mono text-[.7rem] uppercase leading-relaxed tracking-[.12em] ${personTone[tone]}`}>{role}</p>
+      {seasons.length > 0 && (
+        <ul className="mt-3 flex flex-wrap gap-1.5">
+          {seasons.map((season) => (
+            <li key={season} className="rounded-md border border-slate-600 px-2 py-0.5 text-[.7rem] text-slate-300">
+              {season}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  </article>
+);
+
+const PeopleSkeleton = ({ variant, count }: { variant: 'card' | 'row'; count: number }) =>
+  variant === 'card' ? (
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5" aria-hidden="true">
+      {[...Array(count)].map((_, i) => (
+        <div key={i} className="animate-pulse overflow-hidden rounded-2xl border border-slate-700 bg-slate-900">
+          <div className="aspect-[4/5] bg-slate-800" />
+          <div className="space-y-2 p-4">
+            <div className="h-4 w-2/3 rounded bg-slate-800" />
+            <div className="h-3 w-1/2 rounded bg-slate-800" />
+          </div>
+        </div>
+      ))}
+    </div>
+  ) : (
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" aria-hidden="true">
+      {[...Array(count)].map((_, i) => (
+        <div key={i} className="flex animate-pulse items-center gap-3 rounded-xl border border-slate-700 bg-slate-900 p-3">
+          <div className="h-14 w-14 rounded-full bg-slate-800" />
+          <div className="flex-1 space-y-2">
+            <div className="h-4 w-2/3 rounded bg-slate-800" />
+            <div className="h-3 w-1/3 rounded bg-slate-800" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+// ─── Team players ────────────────────────────────────────────────────────────
 const TeamMembersSection = ({ initialTeamMembers, initialSeasons }: { initialTeamMembers?: TeamMember[]; initialSeasons?: Season[] }) => {
   const [seasons, setSeasons] = useState<any[]>(initialSeasons ?? []);
   const [members, setMembers] = useState<any[]>(initialTeamMembers ?? []);
   const [loading, setLoading] = useState(!initialTeamMembers?.length);
   const [selectedSeason, setSelectedSeason] = useState<number | 'all'>('all');
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     // Skip fetch if server already provided initial data
@@ -1418,9 +1409,7 @@ const TeamMembersSection = ({ initialTeamMembers, initialSeasons }: { initialTea
           if (error) console.error('[TeamMembers] Seasons error:', error.message);
           else {
             seasonRows = data ?? [];
-            if (seasonRows.length > 0) {
-              setCachedData('team-members-seasons', seasonRows);
-            }
+            if (seasonRows.length > 0) setCachedData('team-members-seasons', seasonRows);
           }
         }
         setSeasons(seasonRows ?? []);
@@ -1464,9 +1453,7 @@ const TeamMembersSection = ({ initialTeamMembers, initialSeasons }: { initialTea
           if (error) console.error('[TeamMembers] Members error:', error.message);
           else {
             memberRows = data ?? [];
-            if (memberRows.length > 0) {
-              setCachedData('team-members-members', memberRows);
-            }
+            if (memberRows.length > 0) setCachedData('team-members-members', memberRows);
           }
         }
 
@@ -1481,16 +1468,8 @@ const TeamMembersSection = ({ initialTeamMembers, initialSeasons }: { initialTea
     fetchTeamMembers();
   }, []);
 
-  const seasonOptions = [...seasons].sort((left, right) => {
-    const leftName = String(left.season_name ?? '').trim();
-    const rightName = String(right.season_name ?? '').trim();
-
-    if (leftName && rightName) {
-      return rightName.localeCompare(leftName, undefined, { numeric: true, sensitivity: 'base' });
-    }
-
-    return Number(right.id) - Number(left.id);
-  });
+  // Newest season first (names are game titles, so ids give the real order).
+  const seasonOptions = [...seasons].sort((left, right) => Number(right.id) - Number(left.id));
 
   const groupedTeams = (() => {
     const groups = new Map<string, {
@@ -1502,25 +1481,13 @@ const TeamMembersSection = ({ initialTeamMembers, initialSeasons }: { initialTea
       members: any[];
     }>();
 
-    const seasonOrderMap = new Map(
-      seasonOptions.map((season, index) => [Number(season.id), index])
-    );
+    const seasonOrderMap = new Map(seasonOptions.map((season, index) => [Number(season.id), index]));
 
     members.forEach((member) => {
       const memberships = Array.isArray(member.member_team_seasons) ? member.member_team_seasons : [];
-      const seasonNames = Array.from(new Set(
-        memberships
-          .map((membership: any) => membership?.seasons?.season_name ?? formatSeasonLabel(membership?.seasons))
-          .map((seasonName: any) => String(seasonName).trim())
-          .filter(Boolean)
-      ));
-
-      const relevantMemberships = memberships.filter((membership: any) => {
-        if (selectedSeason === 'all') return true;
-        return Number(membership.season_id) === Number(selectedSeason);
-      });
-
-      if (relevantMemberships.length === 0) return;
+      const relevantMemberships = memberships.filter((membership: any) =>
+        selectedSeason === 'all' ? true : Number(membership.season_id) === Number(selectedSeason),
+      );
 
       relevantMemberships.forEach((membership: any) => {
         const teamData = membership.teams ?? {};
@@ -1534,7 +1501,6 @@ const TeamMembersSection = ({ initialTeamMembers, initialSeasons }: { initialTea
           ...member,
           image_url: member.profile_image_url ?? member.image_url ?? null,
           position: roleNames.length > 0 ? roleNames.join(' • ') : (member.position ?? 'Team Member'),
-          role: roleNames.length > 0 ? roleNames : member.role,
         };
 
         if (!groups.has(key)) {
@@ -1547,309 +1513,181 @@ const TeamMembersSection = ({ initialTeamMembers, initialSeasons }: { initialTea
             members: [],
           });
         }
-
-        const group = groups.get(key);
-        if (group) {
-          group.members.push(displayMember);
-        }
+        groups.get(key)?.members.push(displayMember);
       });
     });
 
-    return Array.from(groups.values()).sort((left, right) => {
+    const needle = query.trim().toLowerCase();
+    const all = Array.from(groups.values()).map((g) =>
+      needle ? { ...g, members: g.members.filter((m) => String(m.name ?? '').toLowerCase().includes(needle)) } : g,
+    ).filter((g) => g.members.length > 0);
+
+    return all.sort((left, right) => {
       if (left.seasonId !== right.seasonId) {
-        const leftSeasonIndex = seasonOptions.findIndex((season) => Number(season.id) === Number(left.seasonId));
-        const rightSeasonIndex = seasonOptions.findIndex((season) => Number(season.id) === Number(right.seasonId));
-
-        if (leftSeasonIndex !== rightSeasonIndex) {
-          return leftSeasonIndex - rightSeasonIndex;
-        }
-
-        return right.seasonId - left.seasonId;
+        const l = seasonOrderMap.get(left.seasonId) ?? 999;
+        const r = seasonOrderMap.get(right.seasonId) ?? 999;
+        return l !== r ? l - r : right.seasonId - left.seasonId;
       }
-
-      if (left.teamNumber !== right.teamNumber) {
-        return left.teamNumber - right.teamNumber;
-      }
-
+      if (left.teamNumber !== right.teamNumber) return left.teamNumber - right.teamNumber;
       return left.teamLabel.localeCompare(right.teamLabel, undefined, { numeric: true, sensitivity: 'base' });
     });
   })();
 
-  if (loading) {
-    return (
-      <section id="team-members" className="py-24 relative z-10 bg-slate-950/50 scroll-mt-28 md:scroll-mt-32">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="space-y-14">
-            {[...Array(2)].map((_, index) => (
-              <div key={index}>
-                <div className="h-8 w-1/2 bg-slate-700/50 rounded mb-8 animate-pulse" />
-                <div className="flex flex-wrap justify-center gap-6">
-                  {[...Array(4)].map((_, itemIndex) => (
-                    <div key={itemIndex} className="w-full max-w-sm basis-full sm:basis-[calc(50%-0.75rem)] lg:basis-[calc(25%-1.125rem)]">
-                      <SkeletonTeamMemberCard />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-    );
-  }
+  // A player who appears in several seasons/teams is still one player.
+  const playerCount = new Set(groupedTeams.flatMap((g) => g.members.map((m) => m.id))).size;
+  const groupKeys = groupedTeams.map((g) => `${g.seasonId}-${g.teamId}`);
+  const allCollapsed = groupKeys.length > 0 && groupKeys.every((k) => collapsed.has(k));
+  const toggleGroup = (key: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
+  const selectedSeasonName = selectedSeason === 'all' ? null : seasonOptions.find((s) => Number(s.id) === Number(selectedSeason))?.season_name;
 
   return (
-    <section id="team-members" className="py-24 relative z-10 bg-slate-950/50 scroll-mt-28 md:scroll-mt-32">
-      <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/5 via-transparent to-transparent pointer-events-none" />
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-        <div className="text-center max-w-3xl mx-auto mb-12">
-          <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30">
-            <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-xs font-semibold text-emerald-300 uppercase tracking-wider">Team Players</span>
-          </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Meet the Team Players</h2>
-          <p className="text-slate-400 text-lg">The core robotics teams organized by team number, with seasons and roles.</p>
-        </div>
-
-        <div className="flex justify-center mb-14">
-          <div className="flex items-center gap-3 bg-slate-900/60 backdrop-blur-md border border-slate-700/50 px-5 py-3 rounded-2xl shadow-xl">
-            <span className="text-slate-400 text-sm font-medium whitespace-nowrap">Filter by Season:</span>
-            <div className="relative">
-              <select
-                value={selectedSeason}
-                onChange={(e) => setSelectedSeason(e.target.value === 'all' ? 'all' : Number(e.target.value))}
-                disabled={seasonOptions.length === 0}
-                className="appearance-none bg-slate-800 border border-slate-600 text-white text-sm font-semibold rounded-xl px-4 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent cursor-pointer hover:bg-slate-700 transition-colors min-w-[180px] disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <option value="all">{seasonOptions.length === 0 ? 'No seasons in DB' : 'All Seasons'}</option>
-                {seasonOptions.map((season) => (
-                  <option key={season.id} value={season.id}>{season.season_name}</option>
-                ))}
-              </select>
-              <div className="pointer-events-none absolute inset-y-0 right-3 flex items-center">
-                <ChevronDown className="w-4 h-4 text-slate-400" />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {groupedTeams.length > 0 ? (
-          <div className="space-y-14">
-            {groupedTeams.map((group) => (
-              <div key={`${group.seasonId}-${group.teamId}`}>
-                <h3 className="text-2xl font-bold text-white mb-8 flex items-center gap-3">
-                  <span className="inline-block w-3 h-3 rounded-full bg-blue-500" />
-                  {group.teamLabel} ({group.seasonName})
-                </h3>
-                <div className="flex flex-wrap justify-center gap-6">
-                  {group.members.map((member) => (
-                    <div key={`${group.seasonId}-${group.teamId}-${member.id}`} className="w-full max-w-sm basis-full sm:basis-[calc(50%-0.75rem)] lg:basis-[calc(25%-1.125rem)]">
-                      <MemberCard member={member} label="Team Member" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <RosterEmptyState
-            icon={<Bot className="w-6 h-6" />}
-            title="No team members found for the selected season"
-            accent="blue"
-          />
-        )}
-      </div>
-    </section>
-  );
-};
-
-// ─── Roster Card ─────────────────────────────────────────────────────────────
-const MemberCard = ({ member, label }: { member: any; label: string }) => {
-  const avatarUrl = member.image_url ?? member.profile_image_url ?? null;
-  const subtitle = member.position || formatRoleData(member.role) || label;
-  const seasons = extractSeasons(member.season);
-
-  const accentText   = label === 'Media Team' ? 'text-red-300' : 'text-blue-300';
-  const accentBg     = label === 'Media Team' ? 'bg-red-900/50' : 'bg-blue-900/50';
-  const accentBorder = label === 'Media Team' ? 'border-red-500/40' : 'border-blue-500/40';
-  const gradientBg   = label === 'Media Team' ? 'bg-gradient-to-br from-red-500/20 to-yellow-500/20' : 'bg-gradient-to-br from-blue-500/20 to-cyan-500/20';
-  const hoverGlow    = label === 'Media Team' ? 'hover:shadow-[0_0_20px_rgba(239,68,68,0.24)]' : 'hover:shadow-[0_0_20px_rgba(59,130,246,0.3)]';
-
-  return (
-    <div className={`group p-8 rounded-3xl bg-gradient-to-b from-slate-800/40 to-slate-900/40 backdrop-blur-sm border border-slate-700/50 relative overflow-hidden transition-all duration-300 hover:border-slate-600/80 ${hoverGlow}`}>
-      <div className="absolute top-0 right-0 w-24 h-24 opacity-5 group-hover:opacity-10 transition-opacity">
-        <div className={`w-full h-full rounded-full ${gradientBg}`} />
-      </div>
-
-      <div className="relative z-10 flex flex-col items-center">
-        <div className="relative w-24 h-24 mx-auto mb-6">
-          <RemoteImage
-            src={avatarUrl}
-            alt={member.name}
-            className="w-24 h-24 rounded-full object-cover border-2 border-slate-600 shadow-lg"
-            fallback={<AvatarFallback name={member.name} ringClass={accentBorder} />}
-          />
-        </div>
-
-        <h4 className="text-lg font-bold text-white text-center mb-2 group-hover:text-slate-100 transition-colors">
-          {member.name}
-        </h4>
-
-        <div className={`inline-flex items-center px-3 py-1.5 rounded-full ${accentBg} ${accentBorder} border text-center`}>
-          <p className={`text-xs font-semibold ${accentText} uppercase tracking-wider`}>
-            {subtitle}
-          </p>
-        </div>
-
-        {seasons.length > 0 && (
-          <div className="flex flex-wrap justify-center gap-1.5 mt-4">
-            {seasons.map((season, index) => (
-              <span
-                key={`${season}-${index}`}
-                className="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 border border-slate-600/70 text-slate-300"
-              >
-                {season}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-3xl bg-gradient-to-br from-slate-700/20 via-transparent to-slate-700/20" />
-    </div>
-  );
-};
-
-const RosterEmptyState = ({
-  icon,
-  title,
-  accent,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  accent: 'blue' | 'red';
-}) => {
-  const accentClasses = accent === 'blue'
-    ? 'bg-blue-500/10 border-blue-500/20 text-blue-300'
-    : 'bg-red-500/10 border-red-500/20 text-red-300';
-
-  return (
-    <div className="col-span-full rounded-3xl border border-slate-700/50 bg-gradient-to-br from-slate-900/70 via-slate-900/40 to-slate-950/80 p-8 md:p-10 overflow-hidden relative">
-      <div className={`absolute inset-0 opacity-70 ${accent === 'blue' ? 'bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.16),transparent_35%)]' : 'bg-[radial-gradient(circle_at_top_left,rgba(239,68,68,0.16),transparent_35%)]'}`} />
-      <div className="relative z-10 flex flex-col items-center text-center max-w-xl mx-auto">
-        <div className={`mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border ${accentClasses} shadow-[0_0_24px_rgba(15,23,42,0.4)]`}>
-          {icon}
-        </div>
-        <p className={`mb-2 text-xs font-semibold uppercase tracking-[0.3em] ${accent === 'blue' ? 'text-blue-300/80' : 'text-red-300/80'}`}>
-          Roster unavailable
-        </p>
-        <h4 className="text-2xl font-bold text-white mb-3">{title}</h4>
-      </div>
-    </div>
-  );
-};
-
-const RosterSectionShell = ({
-  id,
-  eyebrow,
-  title,
-  description,
-  accentClass,
-  children,
-}: {
-  id: string;
-  eyebrow: string;
-  title: string;
-  description: string;
-  accentClass: string;
-  children: React.ReactNode;
-}) => (
-  <section id={id} className="py-24 relative z-10 bg-slate-950/50 scroll-mt-28 md:scroll-mt-32">
-    <div className={`absolute inset-0 ${accentClass} pointer-events-none`} />
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-      <div className="text-center max-w-3xl mx-auto mb-16">
-        <div className={`inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full ${accentClass.includes('blue') ? 'bg-blue-500/10 border-blue-500/30' : 'bg-red-500/10 border-red-500/30'} border`}>
-          <div className={`w-2 h-2 rounded-full ${accentClass.includes('blue') ? 'bg-blue-500' : 'bg-red-500'} animate-pulse`} />
-          <span className={`text-xs font-semibold uppercase tracking-wider ${accentClass.includes('blue') ? 'text-blue-300' : 'text-red-300'}`}>{eyebrow}</span>
-        </div>
-        <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">{title}</h2>
-        <p className="text-slate-400 text-lg">{description}</p>
-      </div>
-
-      {children}
-    </div>
-  </section>
-);
-
-const MembersSection = ({ initialMembers }: { initialMembers?: Member[] }) => {
-  const [members, setMembers] = useState<any[]>(initialMembers ?? []);
-  const [loading, setLoading] = useState(!initialMembers?.length);
-
-  useEffect(() => {
-    // Skip fetch if server already provided initial data
-    if (initialMembers?.length) return;
-
-    const fetchMembers = async () => {
-      try {
-        let membersData = getCachedData('homepage-members');
-        if (!membersData || membersData.length === 0) {
-          const { data, error } = await supabase.from('members').select('id, name, image_url').order('id');
-          if (error) console.error('[Members] Error:', error.message);
-          else {
-            membersData = data ?? [];
-            if (membersData.length > 0) {
-              setCachedData('homepage-members', membersData);
-            }
-          }
-        }
-
-        setMembers(membersData ?? []);
-      } catch (err: any) {
-        console.error('[Members] Exception:', err?.message || err);
-      } finally {
-        setLoading(false);
+    <PeopleSection
+      id="team-members"
+      kicker="Team players"
+      title="Meet the"
+      accent="players"
+      description="The core robotics teams, organised by team number, with each player's role for the season."
+      action={
+        <Dropdown
+          className="w-full md:w-64 md:shrink-0"
+          label="Season"
+          items={[
+            { label: seasonOptions.length === 0 ? 'No seasons found' : 'All seasons', value: 'all' },
+            ...seasonOptions.map((s) => ({ label: String(s.season_name), value: String(s.id) })),
+          ]}
+          value={String(selectedSeason)}
+          onValueChange={(v) => setSelectedSeason(v === 'all' ? 'all' : Number(v))}
+          disabled={seasonOptions.length === 0}
+        />
       }
-    };
-
-    fetchMembers();
-  }, []);
-
-  return (
-    <RosterSectionShell
-      id="members"
-      eyebrow="Our Members"
-      title="Members"
-      description="The students building and competing with the team."
-      accentClass="bg-gradient-to-b from-blue-500/5 via-transparent to-transparent"
     >
       {loading ? (
-        <div className="flex flex-wrap justify-center gap-6">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="w-full max-w-sm basis-full sm:basis-[calc(50%-0.75rem)] lg:basis-[calc(25%-1.125rem)]">
-              <SkeletonTeamMemberCard />
-            </div>
-          ))}
-        </div>
-      ) : members.length > 0 ? (
-        <div className="flex flex-wrap justify-center gap-6">
-          {members.map((member) => (
-            <div key={member.id} className="w-full max-w-sm basis-full sm:basis-[calc(50%-0.75rem)] lg:basis-[calc(25%-1.125rem)]">
-              <MemberCard member={member} label="Member" />
-            </div>
-          ))}
-        </div>
+        <PeopleSkeleton variant="card" count={10} />
       ) : (
-        <RosterEmptyState
-          icon={<Bot className="w-6 h-6" />}
-          title="No members found yet"
-          accent="blue"
-        />
+        <>
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <CountLine
+              count={playerCount}
+              noun="player"
+              suffix={<>
+                {selectedSeasonName ? <> in <span className="text-white">{selectedSeasonName}</span></> : null}
+                {query.trim() ? <> matching <span className="text-white">&ldquo;{query.trim()}&rdquo;</span></> : null}
+              </>}
+            />
+            <div className="flex w-full items-center gap-4 sm:w-auto">
+              <SearchBox value={query} onChange={setQuery} label="Search players by name" />
+              {groupKeys.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setCollapsed(allCollapsed ? new Set() : new Set(groupKeys))}
+                  className="shrink-0 cursor-pointer text-sm font-medium text-slate-300 underline-offset-4 transition-colors hover:text-white hover:underline focus-visible:outline-2 focus-visible:outline-accent"
+                >
+                  {allCollapsed ? 'Show all teams' : 'Hide all teams'}
+                </button>
+              )}
+            </div>
+          </div>
+          {groupedTeams.length > 0 ? (
+          <div key={String(selectedSeason)} className="space-y-14">
+            {groupedTeams.map((group) => {
+              const key = `${group.seasonId}-${group.teamId}`;
+              const isOpen = !collapsed.has(key);
+              return (
+                <div key={key}>
+                  <button
+                    type="button"
+                    onClick={() => toggleGroup(key)}
+                    aria-expanded={isOpen}
+                    aria-controls={`team-${key}`}
+                    className={`group flex w-full cursor-pointer items-baseline gap-4 border-b border-slate-700 pb-3 text-left outline-none focus-visible:border-accent ${isOpen ? 'mb-5' : ''}`}
+                  >
+                    <h3 className="font-display text-xl font-semibold tracking-tight text-white">{group.teamLabel}</h3>
+                    <span className="font-mono text-xs uppercase tracking-[.14em] text-slate-400">{group.seasonName}</span>
+                    <span className="ml-auto font-mono text-xs tabular-nums text-slate-500">{String(group.members.length).padStart(2, '0')}</span>
+                    <ChevronDown className={`h-4 w-4 shrink-0 self-center text-slate-400 transition-transform duration-300 ease-out-quint group-hover:text-white ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+                  </button>
+                  <div
+                    id={`team-${key}`}
+                    inert={!isOpen}
+                    className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out-quint motion-reduce:transition-none ${isOpen ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
+                  >
+                    <div className="min-h-0 overflow-hidden">
+                      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                        {group.members.map((member) => (
+                          <PersonCard key={`${key}-${member.id}`} name={member.name} imageUrl={member.image_url} role={member.position} />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          ) : (
+            <PeopleEmpty>{query.trim() ? 'No players match that name.' : 'No team players found for the selected season.'}</PeopleEmpty>
+          )}
+        </>
       )}
-    </RosterSectionShell>
+    </PeopleSection>
   );
 };
 
+const ROSTER_PREVIEW = 10;
+
+// Shows the first ten people (or `preview`); "See all" reveals everyone plus a name search. Used by media and members.
+function ExpandableRoster<T extends { id: number | string; name?: string | null }>({
+  items,
+  noun,
+  render,
+  preview = ROSTER_PREVIEW,
+}: {
+  items: T[];
+  noun: string;
+  preview?: number;
+  render: (visible: T[]) => React.ReactNode;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [query, setQuery] = useState('');
+  const needle = query.trim().toLowerCase();
+  const matches = needle ? items.filter((i) => String(i.name ?? '').toLowerCase().includes(needle)) : items;
+  const visible = expanded || needle ? matches : items.slice(0, preview);
+  const canExpand = items.length > preview && !needle;
+
+  return (
+    <>
+      <div className="mb-5 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <CountLine
+          count={needle ? matches.length : items.length}
+          noun={noun}
+          suffix={needle ? <> matching <span className="text-white">&ldquo;{query.trim()}&rdquo;</span></> : null}
+        />
+        <SearchBox value={query} onChange={setQuery} label={`Search ${plural(noun)} by name`} />
+      </div>
+
+      {visible.length > 0 ? render(visible) : <PeopleEmpty>No {plural(noun)} match that name.</PeopleEmpty>}
+
+      {canExpand && (
+        <div className="mt-8 flex justify-center">
+          <button
+            type="button"
+            onClick={() => setExpanded((v) => !v)}
+            aria-expanded={expanded}
+            className="btn btn-ghost"
+          >
+            {expanded ? 'Show less' : `See all ${items.length} ${plural(noun)}`}
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ─── Media team ──────────────────────────────────────────────────────────────
 const MediaTeamSection = ({ initialMediaTeam }: { initialMediaTeam?: MediaMember[] }) => {
   const [mediaTeam, setMediaTeam] = useState<any[]>(initialMediaTeam ?? []);
   const [loading, setLoading] = useState(!initialMediaTeam?.length);
@@ -1866,12 +1704,9 @@ const MediaTeamSection = ({ initialMediaTeam }: { initialMediaTeam?: MediaMember
           if (error) console.error('[MediaTeam] Error:', error.message);
           else {
             mediaTeamData = data ?? [];
-            if (mediaTeamData.length > 0) {
-              setCachedData('homepage-media-team', mediaTeamData);
-            }
+            if (mediaTeamData.length > 0) setCachedData('homepage-media-team', mediaTeamData);
           }
         }
-
         setMediaTeam(mediaTeamData ?? []);
       } catch (err: any) {
         console.error('[MediaTeam] Exception:', err?.message || err);
@@ -1884,41 +1719,94 @@ const MediaTeamSection = ({ initialMediaTeam }: { initialMediaTeam?: MediaMember
   }, []);
 
   return (
-    <RosterSectionShell
+    <PeopleSection
       id="media-team"
-      eyebrow="Media Team"
-      title="Media Team"
-      description="The people behind photos, videos, and team coverage."
-      accentClass="bg-gradient-to-b from-red-500/5 via-transparent to-transparent"
+      kicker="Media team"
+      title="Behind the"
+      accent="camera"
+      description="The people behind the photos, videos and coverage of every match."
     >
       {loading ? (
-        <div className="flex flex-wrap justify-center gap-6">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="w-full max-w-sm basis-full sm:basis-[calc(50%-0.75rem)] lg:basis-[calc(25%-1.125rem)]">
-              <SkeletonTeamMemberCard />
-            </div>
-          ))}
-        </div>
+        <PeopleSkeleton variant="card" count={5} />
       ) : mediaTeam.length > 0 ? (
-        <div className="flex flex-wrap justify-center gap-6">
-          {mediaTeam.map((person) => (
-            <div key={person.id} className="w-full max-w-sm basis-full sm:basis-[calc(50%-0.75rem)] lg:basis-[calc(25%-1.125rem)]">
-              <MemberCard member={person} label={person.position || 'Media Team'} />
+        <ExpandableRoster
+          items={mediaTeam}
+          noun="person"
+          render={(list) => (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {list.map((person) => (
+                <PersonCard key={person.id} name={person.name} imageUrl={person.image_url} role={person.position || 'Media team'} tone="violet" />
+              ))}
             </div>
-          ))}
-        </div>
-      ) : (
-        <RosterEmptyState
-          icon={<Cpu className="w-6 h-6" />}
-          title="No media team members found yet"
-          accent="red"
+          )}
         />
+      ) : (
+        <PeopleEmpty>No media team members yet.</PeopleEmpty>
       )}
-    </RosterSectionShell>
+    </PeopleSection>
   );
 };
 
-// ─── Coaches Section ──────────────────────────────────────────────────────────
+// ─── Members ─────────────────────────────────────────────────────────────────
+const MembersSection = ({ initialMembers }: { initialMembers?: Member[] }) => {
+  const [members, setMembers] = useState<any[]>(initialMembers ?? []);
+  const [loading, setLoading] = useState(!initialMembers?.length);
+  useEffect(() => {
+    // Skip fetch if server already provided initial data
+    if (initialMembers?.length) return;
+
+    const fetchMembers = async () => {
+      try {
+        let membersData = getCachedData('homepage-members');
+        if (!membersData || membersData.length === 0) {
+          const { data, error } = await supabase.from('members').select('id, name, image_url').order('id');
+          if (error) console.error('[Members] Error:', error.message);
+          else {
+            membersData = data ?? [];
+            if (membersData.length > 0) setCachedData('homepage-members', membersData);
+          }
+        }
+        setMembers(membersData ?? []);
+      } catch (err: any) {
+        console.error('[Members] Exception:', err?.message || err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchMembers();
+  }, []);
+
+  return (
+    <PeopleSection
+      id="members"
+      kicker="Our members"
+      title="The"
+      accent="members"
+      description="The students building and competing with the team."
+    >
+      {loading ? (
+        <PeopleSkeleton variant="card" count={5} />
+      ) : members.length === 0 ? (
+        <PeopleEmpty>No members yet.</PeopleEmpty>
+      ) : (
+        <ExpandableRoster
+          items={members}
+          noun="member"
+          render={(list) => (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {list.map((member) => (
+                <PersonCard key={member.id} name={member.name} imageUrl={member.image_url} role="Member" />
+              ))}
+            </div>
+          )}
+        />
+      )}
+    </PeopleSection>
+  );
+};
+
+// ─── Coaches ─────────────────────────────────────────────────────────────────
 const CoachesSection = ({ initialCoaches }: { initialCoaches?: Coach[] }) => {
   const [coaches, setCoaches] = useState<any[]>(initialCoaches ?? []);
   const [loading, setLoading] = useState(!initialCoaches?.length);
@@ -1934,13 +1822,13 @@ const CoachesSection = ({ initialCoaches }: { initialCoaches?: Coach[] }) => {
 
         const { data, error } = await supabase.from('Coaches').select('*').order('id');
         if (error) {
-          console.error('[Coaches] ❌ Error:', error.message);
+          console.error('[Coaches] Error:', error.message);
         } else if (data) {
           setCachedData('coaches', data);
           setCoaches(data);
         }
       } catch (err: any) {
-        console.error('[Coaches] ❌ Exception:', err?.message || err);
+        console.error('[Coaches] Exception:', err?.message || err);
       } finally {
         setLoading(false);
       }
@@ -1949,50 +1837,31 @@ const CoachesSection = ({ initialCoaches }: { initialCoaches?: Coach[] }) => {
   }, []);
 
   return (
-    <section id="coaches" className="py-24 relative z-10 bg-slate-950/50">
-      <div className="absolute inset-0 bg-gradient-to-b from-purple-500/5 via-transparent to-transparent pointer-events-none" />
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
-        <div className="text-center max-w-3xl mx-auto mb-16">
-          <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/30">
-            <div className="w-2 h-2 rounded-full bg-purple-500 animate-pulse" />
-            <span className="text-xs font-semibold text-purple-300 uppercase tracking-wider">Leadership</span>
-          </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Meet Our Coaches</h2>
-          <p className="text-slate-400 text-lg">Expert mentors guiding our teams to victory and fostering the next generation of robotic enthusiasts.</p>
-        </div>
-
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {[...Array(4)].map((_, i) => <SkeletonCoachCard key={i} />)}
-          </div>
-        ) : coaches.length === 0 ? (
-          <p className="text-slate-500 text-center py-12">No coaches added yet.</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {coaches.map((coach) => (
-              <div
-                key={coach.id}
-                className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-md border border-slate-700/50 transition-all duration-300 hover:border-purple-500/50 hover:shadow-[0_0_20px_rgba(168,85,247,0.2)]"
-              >
-                <div className="relative h-64 overflow-hidden bg-slate-950">
-                  <RemoteImage
-                    src={coach.image_url}
-                    alt={coach.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    fallback={<PortraitFallback name={coach.name} label="Team Coach" accentText="text-purple-200/90" />}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                </div>
-                <div className="p-6">
-                  <h3 className="text-lg font-bold text-white mb-1">{coach.name}</h3>
-                  <p className="text-sm text-purple-300 font-medium">Team Coach</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-    </section>
+    <PeopleSection
+      id="coaches"
+      kicker="Leadership"
+      title="Meet our"
+      accent="coaches"
+      description="Mentors guiding our teams to victory and growing the next generation of robotics students."
+    >
+      {loading ? (
+        <PeopleSkeleton variant="card" count={4} />
+      ) : coaches.length === 0 ? (
+        <PeopleEmpty>No coaches added yet.</PeopleEmpty>
+      ) : (
+        <ExpandableRoster
+          items={coaches}
+          noun="coach"
+          render={(list) => (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+              {list.map((coach) => (
+                <PersonCard key={coach.id} name={coach.name} imageUrl={coach.image_url} role="Team coach" />
+              ))}
+            </div>
+          )}
+        />
+      )}
+    </PeopleSection>
   );
 };
 
@@ -2044,14 +1913,15 @@ const Footer = () => {
   }, []);
 
   return (
-    <footer className="relative z-10 border-t border-slate-800 bg-slate-950/80 backdrop-blur-lg pt-16 pb-8">
+    <footer className="relative z-10 border-t border-slate-800 bg-slate-950/80 pt-16 pb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 mb-12">
           {/* Brand */}
           <div>
-            <div className="mb-6">
-              <QcuLogo />
-            </div>
+            <Link href="/" className="mb-6 inline-flex items-center gap-3" aria-label="QCU Robotics home">
+              <Image src="/logo-96.png" alt="" width={44} height={44} className="h-11 w-11 object-contain" />
+              <span className="font-display text-lg font-bold tracking-tight">QCU Robotics</span>
+            </Link>
             <p className="text-slate-400 text-sm leading-relaxed mb-6">
               Competing at the highest level. QCU Robotics Team brings innovation, teamwork, and technical excellence to every event.
             </p>
@@ -2081,8 +1951,8 @@ const Footer = () => {
           </div>
 
           {/* Contact CTA */}
-          <div className="rounded-3xl border border-slate-700/40 bg-gradient-to-br from-slate-900/60 via-slate-900/40 to-slate-950/80 p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-red-300/80 mb-3">Get in touch</p>
+          <div className="rounded-2xl border border-slate-700/40 bg-slate-900 p-8">
+            <p className="kicker mb-3">Get in touch</p>
             <h4 className="text-2xl font-bold text-white mb-4">Message the QCU Robotics Team</h4>
             <p className="text-slate-400 text-sm leading-relaxed mb-6 max-w-md">
               Have questions, want to collaborate, need event information, or just want to send a general message? Reach out and the QCU Robotics Team will get back to you.
@@ -2092,7 +1962,7 @@ const Footer = () => {
                 href={gmailComposeUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-red-600/80 px-5 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-500"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent px-5 py-3 text-sm font-semibold text-accent-ink transition-colors hover:bg-accent-hi"
               >
                 Send a Message
                 <ArrowUpRight className="h-4 w-4" />
@@ -2155,9 +2025,7 @@ export default function App({
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50 font-sans selection:bg-red-500/30 overflow-x-hidden">
-      <AmbientBackground />
-      <Navbar />
+    <div className="overflow-x-hidden">
       <main>
         <Hero initialStats={initialHeroStats} />
         <CompetitionsSection initialCompetitions={initialCompetitions} initialSeasons={initialSeasons} />

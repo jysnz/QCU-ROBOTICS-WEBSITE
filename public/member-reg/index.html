@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QCU Robotics</title>
+<meta name="theme-color" content="#0a0b0f">
+<link rel="icon" type="image/png" href="/member-reg/favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/member-reg/styles.css">
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+<noscript><style>.splash{display:none!important}body.intro .shell{opacity:1!important}body.flying .topbar .logo{opacity:1!important}</style></noscript>
+</head>
+<body class="intro flying">
+<div class="splash" id="splash" aria-hidden="true">
+  <div class="splash-bg"></div>
+  <svg class="splash-traces" viewBox="0 0 1400 300" preserveAspectRatio="xMidYMid slice" fill="none">
+    <g class="tr tr-l">
+      <path pathLength="1" d="M530 150H450L420 120H300L270 90H120"/><circle cx="120" cy="90" r="5"/>
+      <path pathLength="1" d="M535 190H470L440 220H320L290 250H150"/><circle cx="150" cy="250" r="5"/>
+      <path pathLength="1" d="M525 112H480L460 92H380L360 72H250"/><circle cx="250" cy="72" r="5"/>
+    </g>
+    <g class="tr tr-r" transform="translate(1400 0) scale(-1 1)">
+      <path pathLength="1" d="M530 150H450L420 120H300L270 90H120"/><circle cx="120" cy="90" r="5"/>
+      <path pathLength="1" d="M535 190H470L440 220H320L290 250H150"/><circle cx="150" cy="250" r="5"/>
+      <path pathLength="1" d="M525 112H480L460 92H380L360 72H250"/><circle cx="250" cy="72" r="5"/>
+    </g>
+  </svg>
+  <div class="splash-in">
+    <div class="splash-logo"><img src="/member-reg/logo.png" alt="" width="320" height="320"></div>
+    <p class="splash-cap">Quezon City University</p>
+  </div>
+</div>
+
+<div class="bg" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="topbar-in">
+    <a class="brand" href="/" aria-label="QCU Robotics home">
+      <img class="logo" src="/member-reg/logo-96.png" alt="" width="44" height="44">
+      <span class="brand-text"><strong>QCU Robotics</strong><small>Quezon City University</small></span>
+    </a>
+  </div>
+</header>
+
+<main class="shell">
+  <div class="col-main">
+
+    <!-- WELCOME -->
+    <section class="screen is-active" id="welcome" aria-labelledby="welcome-title">
+      <p class="kicker">Member registration</p>
+      <h1 id="welcome-title" class="hero-title"><span class="soft">Welcome to</span><br><span class="accent">QCU Robotics</span></h1>
+      <p class="lead">Four quick steps and you're on the roster. Your card builds itself as you go.</p>
+      <div class="field role-pick">
+        <span class="label" id="roleLabel">I'm joining as a</span>
+        <div class="chips role" role="radiogroup" aria-labelledby="roleLabel" id="roleChips">
+          <label class="chip"><input type="radio" name="role" value="member"><span>Member</span></label>
+          <label class="chip"><input type="radio" name="role" value="media"><span>Media</span></label>
+          <label class="chip"><input type="radio" name="role" value="player"><span>Player</span></label>
+        </div>
+                <p class="error" id="role-err" role="alert"></p>
+      </div>
+      <div class="cta-row">
+        <button class="btn btn-primary btn-lg" id="continueBtn" type="button">Continue
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+        <span class="note">Takes about a minute</span>
+      </div>
+      <div class="need">
+        <p class="need-title">Have these ready</p>
+        <ul>
+          <li>Your student ID, program, year level and section</li>
+          <li>Your email address</li>
+          <li>Five photos of yourself</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- FORM -->
+    <form class="screen" id="flow" novalidate autocomplete="on" aria-label="QCU Robotics registration">
+      <ol class="steps" id="steps" aria-label="Progress">
+        <li class="current" aria-current="step"><span class="n">1</span><span class="t">About you</span></li>
+        <li><span class="n">2</span><span class="t">School</span></li>
+        <li><span class="n">3</span><span class="t">Photos</span></li>
+        <li><span class="n">4</span><span class="t">Interests</span></li>
+      </ol>
+
+      <!-- Step 1 -->
+      <fieldset class="step is-active" data-step="1">
+        <legend class="step-title">Tell us about you</legend>
+        <p class="step-sub">Basic details for your member card.</p>
+        <div class="row2">
+          <div class="field">
+            <label for="firstName">First name</label>
+            <input id="firstName" name="firstName" type="text" autocomplete="given-name" required maxlength="40" enterkeyhint="next">
+            <p class="error" id="firstName-err" role="alert"></p>
+          </div>
+          <div class="field">
+            <label for="lastName">Last name</label>
+            <input id="lastName" name="lastName" type="text" autocomplete="family-name" required maxlength="40" enterkeyhint="next">
+            <p class="error" id="lastName-err" role="alert"></p>
+          </div>
+        </div>
+        <div class="field">
+          <span class="label" id="genderLabel">Gender</span>
+          <div class="chips gender" role="radiogroup" aria-labelledby="genderLabel">
+            <label class="chip"><input type="radio" name="gender" value="Male"><span>Male</span></label>
+            <label class="chip"><input type="radio" name="gender" value="Female"><span>Female</span></label>
+            <label class="chip"><input type="radio" name="gender" value="LGBTQIA+"><span>LGBTQIA+</span></label>
+            <label class="chip"><input type="radio" name="gender" value="Prefer not to say"><span>Prefer not to say</span></label>
+          </div>
+          <p class="error" id="gender-err" role="alert"></p>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label for="birthdayBtn" id="birthdayLabel">Birthday</label>
+            <div class="select-wrap">
+              <button type="button" class="dd-trigger" id="birthdayBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="calPanel" aria-labelledby="birthdayLabel">
+                <span class="dd-value placeholder" id="birthdayText">Select date</span>
+                <svg class="dd-chev cal-ico" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>
+              </button>
+              <input type="hidden" id="birthday" name="birthday">
+              <div class="cal" id="calPanel" role="dialog" aria-label="Choose your birthday" hidden></div>
+            </div>
+            <p class="error" id="birthday-err" role="alert"></p>
+          </div>
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" required maxlength="120" autocomplete="email" inputmode="email" enterkeyhint="done" placeholder="you@example.com">
+            <p class="error" id="email-err" role="alert"></p>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- Step 2 -->
+      <fieldset class="step" data-step="2">
+        <legend class="step-title">Your school details</legend>
+        <p class="step-sub">Where you study at QCU.</p>
+        <div class="row2">
+          <div class="field">
+            <label for="studentId">Student ID</label>
+            <input id="studentId" name="studentId" type="text" required maxlength="20" autocomplete="off" enterkeyhint="next" placeholder="##-####">
+            <p class="error" id="studentId-err" role="alert"></p>
+          </div>
+          <div class="field">
+            <label for="section">Section</label>
+            <input id="section" name="section" type="text" required maxlength="20" placeholder="e.g. SBIT-3A" enterkeyhint="next">
+            <p class="error" id="section-err" role="alert"></p>
+          </div>
+        </div>
+        <div class="field">
+          <label for="programBtn" id="programLabel">Program</label>
+          <div class="select-wrap" id="programWrap">
+            <button type="button" class="dd-trigger" id="programBtn" role="combobox" aria-haspopup="listbox" aria-expanded="false" aria-controls="programPanel" aria-labelledby="programLabel">
+              <span class="dd-value placeholder" id="programText">Select your program</span>
+              <svg class="dd-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <div class="dd-panel" id="programPanel" role="listbox" aria-labelledby="programLabel" hidden></div>
+            <select id="program" name="program" required class="sr-only" tabindex="-1" aria-hidden="true">
+              <option value="" selected disabled>Select your program</option>
+              <optgroup label="College of Engineering">
+                <option>Bachelor of Science in Computer Engineering</option>
+                <option>Bachelor of Science in Electronics Engineering</option>
+                <option>Bachelor of Science in Industrial Engineering</option>
+              </optgroup>
+              <optgroup label="College of Computer Studies">
+                <option>Bachelor of Science in Computer Science</option>
+                <option>Bachelor of Science in Information Systems</option>
+                <option>Bachelor of Science in Information Technology</option>
+              </optgroup>
+              <optgroup label="College of Business Administration and Accountancy">
+                <option>Bachelor of Science in Accountancy</option>
+                <option>Bachelor of Science in Entrepreneurship</option>
+              </optgroup>
+              <optgroup label="College of Education">
+                <option>Bachelor of Early Childhood Education</option>
+              </optgroup>
+            </select>
+          </div>
+          <p class="error" id="program-err" role="alert"></p>
+        </div>
+        <div class="field">
+          <span class="label" id="yearLabel">Year level</span>
+          <div class="chips year" role="radiogroup" aria-labelledby="yearLabel">
+            <label class="chip"><input type="radio" name="year" value="1st Year"><span>1st</span></label>
+            <label class="chip"><input type="radio" name="year" value="2nd Year"><span>2nd</span></label>
+            <label class="chip"><input type="radio" name="year" value="3rd Year"><span>3rd</span></label>
+            <label class="chip"><input type="radio" name="year" value="4th Year"><span>4th</span></label>
+            <label class="chip"><input type="radio" name="year" value="5th Year+"><span>5th+</span></label>
+          </div>
+          <p class="error" id="year-err" role="alert"></p>
+        </div>
+      </fieldset>
+
+      <!-- Step 3 -->
+      <fieldset class="step" data-step="3">
+        <legend class="step-title">Add 5 photos</legend>
+        <p class="step-sub">The first one is your profile photo. Clear, well-lit pictures work best.</p>
+        <div class="photo-meter" aria-live="polite"><span id="photoCount">0 of 5 added</span><span class="hint" id="photoHint">Next: profile photo</span></div>
+        <div class="slots" id="slots" role="list" aria-label="Your photos"></div>
+        <div class="photo-actions">
+          <label class="btn btn-primary" for="photoFile">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+            Choose photos
+          </label>
+          <label class="btn btn-ghost" for="photoCamera">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+            Take a photo
+          </label>
+        </div>
+        <input class="sr-only" id="photoCamera" type="file" accept="image/*" capture="user">
+        <input class="sr-only" id="photoFile" type="file" accept="image/*" multiple>
+        <p class="hint center-text">JPG or PNG. Select several at once or drop them on the boxes.</p>
+        <p class="error center-text" id="photo-err" role="alert"></p>
+      </fieldset>
+
+      <!-- Step 4 -->
+      <fieldset class="step" data-step="4">
+        <legend class="step-title">What are you into?</legend>
+        <p class="step-sub">Pick at least one hobby and one like. Add your own if we missed it.</p>
+        <div class="group">
+          <div class="group-head"><span class="label" id="hobbyLabel">Hobbies</span><span class="counter" id="hobbyCount">0 selected</span></div>
+          <div class="chips" id="hobbyChips" role="group" aria-labelledby="hobbyLabel"></div>
+          <div class="add-row">
+            <input id="hobbyCustom" type="text" maxlength="30" placeholder="Add another hobby" aria-label="Add another hobby">
+            <button type="button" class="btn btn-ghost btn-sm" data-add="hobby">Add</button>
+          </div>
+        </div>
+        <div class="group">
+          <div class="group-head"><span class="label" id="likeLabel">Likes</span><span class="counter" id="likeCount">0 selected</span></div>
+          <div class="chips" id="likeChips" role="group" aria-labelledby="likeLabel"></div>
+          <div class="add-row">
+            <input id="likeCustom" type="text" maxlength="30" placeholder="Add something you like" aria-label="Add something you like">
+            <button type="button" class="btn btn-ghost btn-sm" data-add="like">Add</button>
+          </div>
+        </div>
+        <details class="more">
+          <summary>Add a note <span class="opt">(optional)</span></summary>
+          <div class="field">
+            <label for="about" class="sr-only">Note</label>
+            <textarea id="about" name="about" rows="3" maxlength="240" placeholder="A fun fact about you"></textarea>
+            <span class="counter" id="aboutCount">0 / 240</span>
+          </div>
+        </details>
+        <p class="error" id="interests-err" role="alert"></p>
+      </fieldset>
+
+      <div class="flow-foot">
+        <button type="button" class="btn btn-ghost" id="backBtn">Back</button>
+    <div class="humancheck" id="humancheck" data-state="idle" role="status" aria-live="polite" hidden>
+      <div class="hc-row">
+        <span class="hc-icon" aria-hidden="true">
+          <svg class="hc-bot" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M24 6v6"/><circle cx="24" cy="4.6" r="1.8" class="hc-led"/>
+            <rect x="9" y="12" width="30" height="24" rx="7"/>
+            <circle cx="18" cy="23" r="2.4" class="hc-eye"/><circle cx="30" cy="23" r="2.4" class="hc-eye"/>
+            <path d="M18 30h12M4 20v8M44 20v8"/>
+            <path class="hc-scan" d="M11 15h26"/>
+          </svg>
+          <svg class="hc-ok" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <circle class="hc-ok-ring" cx="24" cy="24" r="19"/>
+            <path class="hc-ok-tick" d="M15 25l7 7 12-14"/>
+          </svg>
+        </span>
+        <span class="hc-text" id="hcText">Human check</span>
+        <button type="button" class="hc-retry" id="hcRetry" hidden>Try again</button>
+      </div>
+      <div class="hc-bar" aria-hidden="true"><i></i></div>
+      <div class="ts-box" id="tsBox"></div>
+    </div>
+        <button type="submit" class="btn btn-primary" id="nextBtn">Continue</button>
+      </div>
+    </form>
+
+    <!-- DONE -->
+    <section class="screen" id="done" aria-labelledby="done-title">
+      <p class="kicker">Registration complete</p>
+      <h2 id="done-title" class="hero-title sm"><span class="soft">You're in,</span><br><span class="accent" id="doneName"></span></h2>
+      <p class="lead">Welcome to QCU Robotics. Your registration is saved and your member card is ready.</p>
+      <div class="cta-row"><button class="btn btn-ghost" id="againBtn" type="button">Register another member</button></div>
+    </section>
+
+  </div>
+
+  <aside class="stage" aria-label="Live preview of your member card">
+    <article class="idcard" id="preview">
+      <div class="idc-top"><span class="idc-brand"><img src="/member-reg/logo-96.png" alt="" width="22" height="22">QCU Robotics</span><span class="idc-tag" id="pvRole">Member</span></div>
+      <div class="idc-photo" id="pvPhoto"><span id="pvInitials">?</span></div>
+      <h3 class="idc-name empty" id="pvName">Your name</h3>
+      <p class="idc-prog empty" id="pvProgram">Your program</p>
+      <p class="idc-meta empty" id="pvMeta">Year level · Section</p>
+      <p class="idc-meta empty" id="pvId">Student ID</p>
+      <p class="idc-meta empty" id="pvBday">Birthday</p>
+      <ul class="tags" id="pvTags"></ul>
+      <div class="idc-foot">
+        <div class="idc-strip" id="pvStrip" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+        <span id="pvCount">0 / 5 photos</span>
+      </div>
+    </article>
+    <p class="stage-cap" id="stageCap">Live preview. Your card fills in as you type.</p>
+  </aside>
+</main>
+
+<script src="/member-reg/app.js"></script>
+</body>
+</html>

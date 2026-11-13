@@ -218,7 +218,9 @@ export const getMediaTeam = cache(async (): Promise<MediaMember[]> => {
 export const getMembers = cache(async (): Promise<Member[]> => {
   const { data, error } = await supabase
     .from('members')
-    .select('*')
+    // Explicit columns only: the anon role may read just these. Registration data
+    // (email, birthday, student ID, ...) is private, so select('*') is denied.
+    .select('id, name, image_url, is_active')
     .order('id', { ascending: true });
 
   if (error) {

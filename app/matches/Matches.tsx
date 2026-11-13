@@ -5,10 +5,11 @@ import Hls from 'hls.js';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import { LoadingSpinner, SkeletonMatchCard } from '../components/LoadingSpinner';
-import { ChevronLeft, ChevronDown, Check, Settings, Trophy, Download, Loader2, AlertTriangle } from 'lucide-react';
+import { ChevronLeft, Settings, Trophy, Download, Loader2, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { convertHlsToMp4, triggerBlobDownload } from './hlsToMp4';
+import CompetitionFilters from '../components/CompetitionFilters';
 
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
@@ -268,7 +269,7 @@ const HLSVideo = ({ url, thumbnailUrl }: { url: string; thumbnailUrl?: string | 
                 Tap to load match video
               </div>
             )}
-            <span className="absolute inline-flex h-14 w-14 items-center justify-center rounded-full border border-white/40 bg-black/55 text-white backdrop-blur-sm transition-colors group-hover:bg-black/70">
+            <span className="absolute inline-flex h-14 w-14 items-center justify-center rounded-full border border-white/40 bg-black/55 text-white transition-colors group-hover:bg-black/70">
               ▶
             </span>
           </button>
@@ -361,27 +362,13 @@ const MatchesSection = () => {
   const competitionIdParam = searchParams?.get('id');
 
   const [competitions, setCompetitions] = useState<any[]>([]);
+  const [seasons, setSeasons] = useState<any[]>([]);
   const [selectedComp, setSelectedComp] = useState<number | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<string | number | null>(null);
   const [matches, setMatches] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
   const [loadingMatches, setLoadingMatches] = useState(false);
   
-  // Custom Dropdown State & Ref
-  const [isCompDropdownOpen, setIsCompDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsCompDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
   useEffect(() => {
     if (!('serviceWorker' in navigator)) return;
 
@@ -399,13 +386,21 @@ const MatchesSection = () => {
   useEffect(() => {
     const fetchCompetitionsAndTeams = async () => {
       try {
-        let compData = getCachedData('matches-competitions');
+        let compData = getCachedData('matches-competitions-v2');
         if (!compData) {
-          const { data, error: compError } = await supabase.from('competitions').select('id, title');
+          const { data, error: compError } = await supabase.from('competitions').select('id, title, season_id');
           if (compError) { console.error('[Matches] ❌ Error:', compError.message); return; }
           compData = data;
-          if (compData) setCachedData('matches-competitions', compData);
+          if (compData) setCachedData('matches-competitions-v2', compData);
         }
+
+        let seasonData = getCachedData('matches-seasons');
+        if (!seasonData) {
+          const { data, error: seasonError } = await supabase.from('seasons').select('id, season_name').order('id', { ascending: false });
+          if (seasonError) console.error('[Matches] ⚠️ Seasons error:', seasonError.message);
+          else { seasonData = data ?? []; setCachedData('matches-seasons', seasonData); }
+        }
+        if (seasonData) setSeasons(seasonData);
 
         let teamData = getCachedData('matches-teams');
         if (!teamData) {
@@ -517,89 +512,37 @@ const MatchesSection = () => {
   const currentTeamLabel = teams.find((team) => Number(team.id) === Number(selectedTeam))?.team_code || 'All linked teams';
 
   return (
-    <section id="matches" className="py-24 relative z-10 bg-slate-950/50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col md:flex-row md:items-end justify-between mb-10">
-          <div className="flex items-center gap-4">
-            <Link href="/#competitions" className="p-2 rounded-lg bg-slate-900/40 border border-slate-700/40 hover:bg-slate-800/40 transition-all">
-              <ChevronLeft className="w-5 h-5 text-slate-300" />
-            </Link>
-            <div>
-              <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">Match Results</h2>
-              <p className="text-slate-400">Track scores and watch match footage for each competition.</p>
-            </div>
-          </div>
-        </div>
+    <section id="matches" className="relative z-10 pb-20 pt-8 md:pt-12">
+      <div className="mx-auto max-w-[1200px] px-4 md:px-7">
+        <Link
+          href="/#competitions"
+          className="group mb-8 inline-flex items-center gap-1.5 text-sm font-medium text-slate-400 transition-colors hover:text-white"
+        >
+          <ChevronLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
+          Competitions
+        </Link>
 
-        {/* Filters */}
-        <div className="mb-8">
-          
-          {/* Custom Competition Dropdown */}
-          <div className="mb-6 relative w-full max-w-sm" ref={dropdownRef}>
-            <label className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-2 block">
-              Competition
-            </label>
-            
-            <button
-              type="button"
-              onClick={() => setIsCompDropdownOpen(!isCompDropdownOpen)}
-              className={`w-full flex items-center justify-between bg-slate-900/60 border ${
-                isCompDropdownOpen ? 'border-blue-500/50 ring-1 ring-blue-500/30' : 'border-slate-700/50 hover:border-slate-600'
-              } text-white text-sm font-medium px-4 py-3 rounded-xl backdrop-blur-sm transition-all duration-300`}
-            >
-              <span className="truncate">{currentCompTitle}</span>
-              <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isCompDropdownOpen ? 'rotate-180 text-blue-400' : ''}`} />
-            </button>
+        <header className="mb-10 max-w-2xl">
+          <p className="kicker mb-4">Matches</p>
+          <h1 className="font-display text-[clamp(2.4rem,6vw,3.8rem)] font-bold leading-[1.02] tracking-[-0.04em]">
+            Match <span className="text-accent">results</span>
+          </h1>
+          <p className="mt-4 text-[1.05rem] leading-relaxed text-slate-400">
+            Scores and match footage for each competition.
+          </p>
+        </header>
 
-            {/* Dropdown Menu */}
-            {isCompDropdownOpen && (
-              <div className="absolute z-50 w-full mt-2 bg-slate-900/95 backdrop-blur-xl border border-slate-700 rounded-xl shadow-2xl shadow-black/50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                <ul className="max-h-60 overflow-y-auto custom-scrollbar py-1">
-                  {competitions.map((comp) => (
-                    <li key={comp.id}>
-                      <button
-                        onClick={() => {
-                          setSelectedComp(comp.id);
-                          setIsCompDropdownOpen(false);
-                        }}
-                        className={`w-full text-left flex items-center justify-between px-4 py-3 text-sm transition-colors ${
-                          selectedComp === comp.id
-                            ? 'bg-blue-600/10 text-blue-400 font-semibold'
-                            : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                        }`}
-                      >
-                        <span className="truncate">{comp.title}</span>
-                        {selectedComp === comp.id && <Check className="w-4 h-4" />}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
+        <CompetitionFilters
+          seasons={seasons}
+          competitions={competitions}
+          selectedComp={selectedComp}
+          onCompChange={(id) => setSelectedComp(Number(id))}
+          teams={teamOptions}
+          selectedTeam={selectedTeam}
+          onTeamChange={setSelectedTeam}
+        />
 
-          {/* Team filter */}
-          <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900/40 to-slate-900/20 backdrop-blur-md border border-slate-700/40 text-center">
-            <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold mb-4">Select Team</p>
-            <div className="flex gap-4 flex-wrap justify-center">
-              {teamOptions.length > 0 ? teamOptions.map((team) => (
-                <button
-                  key={team.id}
-                  onClick={() => setSelectedTeam(team.id)}
-                  className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 border-2 ${
-                    selectedTeam === team.id
-                      ? 'bg-blue-600 border-blue-400 text-white shadow-lg shadow-blue-500/20'
-                      : 'bg-slate-800/50 border-slate-700/50 text-slate-300 hover:border-blue-500/50 hover:text-white'
-                  }`}
-                >
-                  {team.team_code || `Team ${team.team_number}`}
-                </button>
-              )) : (
-                <p className="text-slate-500 text-sm">No teams are linked to this competition.</p>
-              )}
-            </div>
-          </div>
-        </div>
+        <div className="h-8" />
 
         {/* Match Cards */}
         {loadingMatches ? (
@@ -607,29 +550,21 @@ const MatchesSection = () => {
             {[...Array(4)].map((_, i) => <SkeletonMatchCard key={i} />)}
           </div>
         ) : matches.length === 0 ? (
-          <div className="relative overflow-hidden rounded-3xl border border-slate-700/50 bg-gradient-to-br from-slate-900/70 via-slate-900/40 to-slate-950/80 p-10 text-center">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(59,130,246,0.12),transparent_35%),radial-gradient(circle_at_bottom,rgba(220,38,38,0.10),transparent_32%)]" />
-            <div className="relative z-10 mx-auto flex max-w-xl flex-col items-center">
-              <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-red-500/30 bg-red-500/10 shadow-[0_0_28px_rgba(239,68,68,0.16)]">
-                <Trophy className="h-8 w-8 text-red-300" />
-              </div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.3em] text-red-300/80">
-                No matches available
-              </p>
-              <h3 className="text-2xl font-bold text-white mb-3">
-                No results recorded for this competition yet.
-              </h3>
-              <p className="text-slate-400 leading-relaxed max-w-lg">
-                The selected competition is {currentCompTitle}. The current team filter is {currentTeamLabel}. If this event has not been linked to matches yet, they will appear here once entries are added.
-              </p>
+          <div className="rounded-2xl border border-dashed border-slate-600 px-6 py-16 text-center">
+            <div className="mx-auto mb-5 grid h-14 w-14 place-items-center rounded-xl border border-slate-600 text-slate-400">
+              <Trophy className="h-6 w-6" />
             </div>
+            <h2 className="font-display text-xl font-semibold text-white">No matches recorded yet</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-400">
+              There are no results for {currentTeamLabel} at {currentCompTitle}. They will appear here once entries are added.
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-stagger">
             {matches.map((match) => (
               <div
                 key={match.id}
-                className="p-6 rounded-2xl bg-slate-900/30 backdrop-blur-md border border-slate-700/40 hover:bg-slate-800/40 transition-all duration-300 animate-fadeIn"
+                className="p-6 rounded-2xl bg-slate-900/30 border border-slate-700/40 hover:bg-slate-800/40 transition-all duration-300 animate-fadeIn"
               >
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-bold text-white">{match.name}</h3>

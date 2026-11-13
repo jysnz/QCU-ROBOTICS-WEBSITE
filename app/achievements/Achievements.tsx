@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import Link from 'next/link';
-import { ChevronLeft, Trophy, Star, Zap, Award, ChevronDown, Check } from 'lucide-react';
+import { ChevronLeft, Trophy, Star, Zap, Award } from 'lucide-react';
 import { LoadingSpinner } from '../components/LoadingSpinner';
+import CompetitionFilters from '../components/CompetitionFilters';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
@@ -39,37 +40,31 @@ export default function AchievementsPage() {
   const competitionIdParam = searchParams?.get('id') ?? null;
 
   const [competitions, setCompetitions] = useState<any[]>([]);
+  const [seasons, setSeasons] = useState<any[]>([]);
   const [selectedComp, setSelectedComp] = useState<string | number | null>(null);
   const [selectedTeam, setSelectedTeam] = useState<string | number | null>(null);
   const [achievements, setAchievements] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Custom Dropdown State & Ref
-  const [isCompDropdownOpen, setIsCompDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsCompDropdownOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
   useEffect(() => {
     const fetchCompetitionsAndTeams = async () => {
       try {
-        let compData = getCachedData('achievements-competitions');
+        let compData = getCachedData('achievements-competitions-v2');
         if (!compData) {
-          const { data, error: compError } = await supabase.from('competitions').select('id, title');
+          const { data, error: compError } = await supabase.from('competitions').select('id, title, season_id');
           if (compError) { console.error('[Achievements] ❌ Error:', compError.message); return; }
           compData = data;
-          if (compData) setCachedData('achievements-competitions', compData);
+          if (compData) setCachedData('achievements-competitions-v2', compData);
         }
+
+        let seasonData = getCachedData('achievements-seasons');
+        if (!seasonData) {
+          const { data, error: seasonError } = await supabase.from('seasons').select('id, season_name').order('id', { ascending: false });
+          if (seasonError) console.error('[Achievements] ⚠️ Seasons error:', seasonError.message);
+          else { seasonData = data ?? []; setCachedData('achievements-seasons', seasonData); }
+        }
+        if (seasonData) setSeasons(seasonData);
 
         let teamData = getCachedData('achievements-teams');
         if (!teamData) {
@@ -178,179 +173,102 @@ export default function AchievementsPage() {
   const currentCompTitle = competitions.find(c => c.id === selectedComp)?.title || 'Select Competition...';
 
   // Filter achievements locally based on selected team
-  const displayedAchievements = selectedTeam 
+  const displayedAchievements = selectedTeam
     ? achievements.filter(a => a.team_id === selectedTeam)
     : achievements;
 
   const selectedTeamLabel = teams.find((team) => Number(team.id) === Number(selectedTeam))?.team_code || 'All teams';
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950">
-      {/* Header */}
-      <div className="fixed top-0 left-0 right-0 z-40 bg-gradient-to-b from-slate-950/95 to-slate-950/80 backdrop-blur-md border-b border-slate-800/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <Link
-            href="/#competitions"
-            className="p-2 rounded-lg bg-slate-900/40 border border-slate-700/40 hover:bg-slate-800/40 transition-all inline-flex items-center justify-center"
-          >
-            <ChevronLeft className="w-5 h-5 text-slate-300" />
-          </Link>
-        </div>
+    <main className="mx-auto max-w-[1200px] px-4 pb-20 pt-8 md:px-7 md:pt-12">
+      <Link
+        href="/#competitions"
+        className="group mb-8 inline-flex items-center gap-1.5 text-sm font-medium text-slate-400 transition-colors hover:text-white"
+      >
+        <ChevronLeft className="h-4 w-4 transition-transform duration-200 group-hover:-translate-x-0.5" />
+        Competitions
+      </Link>
+
+      <header className="mb-10 max-w-2xl">
+        <p className="kicker mb-4">Achievements</p>
+        <h1 className="font-display text-[clamp(2.4rem,6vw,3.8rem)] font-bold leading-[1.02] tracking-[-0.04em]">
+          Competition <span className="text-accent">achievements</span>
+        </h1>
+        <p className="mt-4 text-[1.05rem] leading-relaxed text-slate-400">
+          The awards and placements our teams have earned across robotics competitions.
+        </p>
+      </header>
+
+      <CompetitionFilters
+        seasons={seasons}
+        competitions={competitions}
+        selectedComp={selectedComp}
+        onCompChange={setSelectedComp}
+        teams={teams}
+        selectedTeam={selectedTeam}
+        onTeamChange={setSelectedTeam}
+      />
+
+      {/* Results */}
+      <div className="mt-8 flex items-baseline justify-between gap-4" aria-live="polite">
+        <p className="text-sm text-slate-400">
+          {loading ? 'Loading…' : (
+            <>
+              <span className="font-mono tabular-nums text-white">{String(displayedAchievements.length).padStart(2, '0')}</span>{' '}
+              {displayedAchievements.length === 1 ? 'achievement' : 'achievements'}
+              {selectedTeam ? <> for <span className="text-white">{selectedTeamLabel}</span></> : null}
+            </>
+          )}
+        </p>
+        <p className="hidden truncate text-sm text-slate-500 sm:block">{currentCompTitle}</p>
       </div>
 
-      {/* Main Content */}
-      <main className="pt-24 pb-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Section Header */}
-          <div className="mb-12">
-            <div className="inline-flex items-center gap-2 mb-4 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30">
-              <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-              <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">Achievements</span>
-            </div>
-            <h1 className="text-5xl font-bold text-white mb-4">
-              Competition <span className="bg-gradient-to-r from-amber-400 via-yellow-400 to-orange-400 bg-clip-text text-transparent">Achievements</span>
-            </h1>
-            <p className="text-slate-400 text-lg max-w-2xl">
-              Celebrating the accomplishments and awards earned by our teams across various robotics competitions.
-            </p>
-          </div>
-
-          {/* Filters Section */}
-          <div className="mb-12">
-            {/* Custom Competition Filter Dropdown */}
-            <div className="mb-6 relative w-full max-w-sm" ref={dropdownRef}>
-              <label className="text-xs text-slate-500 uppercase tracking-widest font-semibold mb-2 block">
-                Competition
-              </label>
-              
-              <button
-                type="button"
-                onClick={() => setIsCompDropdownOpen(!isCompDropdownOpen)}
-                className={`w-full flex items-center justify-between bg-slate-900/60 border ${
-                  isCompDropdownOpen ? 'border-amber-500/50 ring-1 ring-amber-500/30' : 'border-slate-700/50 hover:border-slate-600'
-                } text-white text-sm font-medium px-4 py-3 rounded-xl backdrop-blur-sm transition-all duration-300`}
-              >
-                <span className="truncate">{currentCompTitle}</span>
-                <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isCompDropdownOpen ? 'rotate-180 text-amber-400' : ''}`} />
-              </button>
-
-              {/* Dropdown Menu */}
-              {isCompDropdownOpen && (
-                <div className="absolute z-50 w-full mt-2 bg-slate-900/95 backdrop-blur-xl border border-slate-700 rounded-xl shadow-2xl shadow-black/50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                  <ul className="max-h-60 overflow-y-auto custom-scrollbar py-1">
-                    {competitions.map((comp) => (
-                      <li key={comp.id}>
-                        <button
-                          onClick={() => {
-                            setSelectedComp(comp.id);
-                            setIsCompDropdownOpen(false); // Close menu on selection
-                          }}
-                          className={`w-full text-left flex items-center justify-between px-4 py-3 text-sm transition-colors ${
-                            selectedComp === comp.id
-                              ? 'bg-amber-500/10 text-amber-400 font-semibold'
-                              : 'text-slate-300 hover:bg-slate-800 hover:text-white'
-                          }`}
-                        >
-                          <span className="truncate">{comp.title}</span>
-                          {selectedComp === comp.id && <Check className="w-4 h-4" />}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-
-            {/* Team Filter */}
-            <div className="p-6 rounded-2xl bg-gradient-to-r from-slate-900/40 to-slate-900/20 backdrop-blur-md border border-slate-700/40 text-center">
-              <p className="text-xs text-slate-400 uppercase tracking-widest font-semibold mb-4">Select Team</p>
-              <div className="flex gap-4 flex-wrap justify-center">
-                {teams.length > 0 ? teams.map((team) => (
-                  <button
-                    key={team.id}
-                    onClick={() => setSelectedTeam(team.id)}
-                    className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 border-2 ${
-                      selectedTeam === team.id
-                        ? 'bg-amber-600 border-amber-400 text-white shadow-lg shadow-amber-500/20'
-                        : 'bg-slate-800/50 border-slate-700/50 text-slate-300 hover:border-amber-500/50 hover:text-white'
-                    }`}
-                  >
-                    {team.team_code || `Team ${team.team_number || team.id}`}
-                  </button>
-                )) : (
-                  <p className="text-slate-500 text-sm">No teams are linked to this competition.</p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Achievements Grid */}
-          {loading ? (
-            <div className="flex justify-center py-20">
-              <LoadingSpinner />
-            </div>
-          ) : displayedAchievements.length === 0 ? (
-            <div className="relative overflow-hidden rounded-3xl border border-slate-700/50 bg-gradient-to-br from-slate-900/70 via-slate-900/40 to-slate-950/80 px-6 py-14 text-center md:px-10">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(251,191,36,0.14),transparent_35%),radial-gradient(circle_at_bottom,rgba(249,115,22,0.10),transparent_32%)]" />
-              <div className="relative z-10 mx-auto flex max-w-xl flex-col items-center">
-                <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-500/30 bg-amber-500/10 shadow-[0_0_28px_rgba(245,158,11,0.16)]">
-                  <Trophy className="w-8 h-8 text-amber-300" />
-                </div>
-                <p className="mb-2 text-xs font-semibold uppercase tracking-[0.3em] text-amber-300/80">
-                  No achievements available
-                </p>
-                <h3 className="text-2xl font-bold text-white mb-3">
-                  Nothing has been recorded for this competition yet.
-                </h3>
-                <p className="text-slate-400 leading-relaxed max-w-lg">
-                  The selected competition is {currentCompTitle} and the active team filter is {selectedTeamLabel}. Once awards or placements are added for this team, they will appear here.
-                </p>
-              </div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-stagger">
-              {displayedAchievements.map((achievement, idx) => {
-                const team = teams.find(t => t.id === achievement.team_id);
-                const teamName = team ? (team.team_code || `Team ${team.id}`) : 'Unknown Team';
-
-                return (
-                  <div
-                    key={achievement.achievement_id}
-                    className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-800/40 to-slate-900/40 backdrop-blur-md border border-slate-700/50 p-8 transition-all duration-300 hover:border-amber-500/30 hover:shadow-[0_0_20px_rgba(217,119,6,0.2)] animate-fadeIn"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/5 via-transparent to-orange-500/5 opacity-0 group-hover:opacity-100 transition-opacity" />
-
-                    <div className="relative z-10">
-                      <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-500/20 border border-amber-500/30 text-amber-400 mb-4 group-hover:scale-110 transition-transform duration-300">
-                        {getIconComponent(idx)}
-                      </div>
-
-                      <h3 className="text-xl font-bold text-white mb-4 group-hover:text-amber-100 transition-colors">
-                        {achievement.achievement_name}
-                      </h3>
-
-                      {team && (
-                        <div className="flex items-center justify-between pt-4 border-t border-slate-700/50">
-                          <div className="flex gap-2">
-                            <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30">
-                              {teamName}
-                            </span>
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Trophy className="w-4 h-4 text-yellow-400" />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-2xl bg-gradient-to-br from-amber-500/20 via-transparent to-orange-500/20" />
-                  </div>
-                );
-              })}
-            </div>
-          )}
+      {loading ? (
+        <div className="flex justify-center py-20">
+          <LoadingSpinner />
         </div>
-      </main>
-    </div>
+      ) : displayedAchievements.length === 0 ? (
+        <div className="mt-4 rounded-2xl border border-dashed border-slate-600 px-6 py-16 text-center">
+          <div className="mx-auto mb-5 grid h-14 w-14 place-items-center rounded-xl border border-slate-600 text-slate-400">
+            <Trophy className="h-6 w-6" />
+          </div>
+          <h2 className="font-display text-xl font-semibold text-white">Nothing recorded yet</h2>
+          <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-slate-400">
+            No awards or placements have been added for {selectedTeamLabel} at {currentCompTitle}. Try another team or competition.
+          </p>
+        </div>
+      ) : (
+        <ul key={`${selectedComp}-${selectedTeam}`} className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {displayedAchievements.map((achievement, idx) => {
+            const team = teams.find(t => t.id === achievement.team_id);
+            const teamName = team ? (team.team_code || `Team ${team.id}`) : 'Unknown team';
+
+            return (
+              <li
+                key={achievement.achievement_id}
+                className="lift group flex min-h-[180px] flex-col rounded-2xl border border-slate-700 bg-slate-900 p-6"
+                style={{ animation: 'rise .6s var(--ease) both', animationDelay: `${Math.min(idx, 9) * 60}ms` }}
+              >
+                <div className="mb-5 flex items-start justify-between">
+                  <span className="grid h-12 w-12 place-items-center rounded-xl bg-accent/10 text-accent transition-colors duration-200 group-hover:bg-accent group-hover:text-accent-ink">
+                    {getIconComponent(idx)}
+                  </span>
+                  <span className="font-mono text-xs tabular-nums text-slate-500">{String(idx + 1).padStart(2, '0')}</span>
+                </div>
+                <h3 className="font-display text-xl font-semibold leading-snug tracking-tight text-white">
+                  {achievement.achievement_name}
+                </h3>
+                <div className="mt-auto pt-5">
+                  <span className="inline-flex items-center gap-2 border-t border-slate-700 pt-4 font-mono text-[.7rem] uppercase tracking-[.14em] text-slate-400">
+                    <span className="h-1.5 w-1.5 bg-accent" aria-hidden="true" />
+                    {teamName}
+                  </span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </main>
   );
 }

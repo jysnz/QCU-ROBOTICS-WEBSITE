@@ -5,7 +5,7 @@ export const LoadingSpinner = () => (
       <div className="absolute inset-0 rounded-full border-3 border-slate-700 border-t-red-500 animate-spin" />
       
       {/* Inner pulsing dot */}
-      <div className="absolute inset-3 rounded-full bg-gradient-to-br from-red-500/30 to-orange-500/30 animate-pulse" />
+      <div className="absolute inset-3 rounded-full animate-pulse" />
       
       {/* Center dot */}
       <div className="absolute inset-4 rounded-full bg-red-500/50" />
