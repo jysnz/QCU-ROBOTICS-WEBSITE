@@ -195,7 +195,7 @@ export default function PeoplePanel({ kind, startNew = false }: { kind: Kind; st
         <div className="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-xl">
             <p className={`font-mono text-[.7rem] uppercase tracking-[.2em] ${tone.text}`}>Website roster</p>
-            <h1 id="panel-title" className="mt-2 font-display text-4xl font-bold tracking-[-0.03em] text-white">{cfg.label}</h1>
+            <h1 id="panel-title" className="mt-2 font-display text-3xl font-bold sm:text-4xl tracking-[-0.03em] text-white">{cfg.label}</h1>
             <p className="mt-3 text-slate-400">{cfg.desc}</p>
             {cfg.note && <p className="mt-2 text-sm text-slate-500">{cfg.note}</p>}
             {stack.length > 0 && (
@@ -212,11 +212,11 @@ export default function PeoplePanel({ kind, startNew = false }: { kind: Kind; st
           </div>
 
           <div className="w-full max-w-md lg:w-[22rem]">
-            <dl className="grid grid-cols-3 gap-3">
+            <dl className="grid grid-cols-3 gap-2 sm:gap-3">
               {([["Total", total, "text-white"], ["Active", activeCount, tone.text], ["Inactive", inactiveCount, "text-slate-400"]] as const).map(([k, n, c]) => (
-                <div key={k} className="rounded-2xl border border-slate-700 bg-slate-950/50 px-4 py-3">
+                <div key={k} className="min-w-0 rounded-2xl border border-slate-700 bg-slate-950/50 px-3 py-3 sm:px-4">
                   <dt className="text-xs text-slate-400">{k}</dt>
-                  <dd className={`mt-1 font-display text-3xl font-bold leading-none tabular-nums ${c}`}><NumberFlow value={n} /></dd>
+                  <dd className={`mt-1 font-display text-2xl font-bold sm:text-3xl leading-none tabular-nums ${c}`}><NumberFlow value={n} /></dd>
                 </div>
               ))}
             </dl>
@@ -231,17 +231,17 @@ export default function PeoplePanel({ kind, startNew = false }: { kind: Kind; st
       </header>
 
       {/* ───── Toolbar (stays in view while you scroll) ───── */}
-      <div className="sticky top-3 z-20 mb-4 rounded-2xl border border-slate-700 bg-slate-950/85 p-2 shadow-[0_10px_30px_rgba(0,0,0,.35)] backdrop-blur" style={{ animation: "rise .6s var(--ease) both", animationDelay: "80ms" }}>
-        <div className="grid gap-2 lg:grid-cols-[1fr_auto_13rem_auto] lg:items-center">
-          <label className="relative block">
+      <div className="mb-4 rounded-2xl border border-slate-700 bg-slate-950/85 p-2 shadow-[0_10px_30px_rgba(0,0,0,.35)] backdrop-blur lg:sticky lg:top-3 lg:z-20" style={{ animation: "rise .6s var(--ease) both", animationDelay: "80ms" }}>
+        <div className="grid grid-cols-[1fr_auto] gap-2 lg:grid-cols-[1fr_auto_13rem_auto] lg:items-center">
+          <label className="relative col-span-2 block lg:col-span-1">
             <span className="sr-only">Search {cfg.label.toLowerCase()}</span>
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
             <input type="search" value={query} onChange={(e) => { setQuery(e.target.value); resetPaging(); }} placeholder={cfg.position ? "Search name or position" : "Search by name"} className="h-11 w-full rounded-xl bg-slate-900 pl-11 pr-4 text-sm font-medium text-white outline-none transition-shadow placeholder:text-slate-500 focus-visible:shadow-[0_0_0_2px_rgba(200,245,96,.5)]" />
           </label>
-          <div className="relative inline-flex w-fit gap-1 rounded-xl bg-slate-900 p-1" role="group" aria-label="Status">
+          <div className="relative col-span-2 flex w-full gap-1 rounded-xl bg-slate-900 p-1 lg:col-span-1 lg:inline-flex lg:w-fit" role="group" aria-label="Status">
             {(["all", "active", "inactive"] as const).map((k) => (
               <button key={k} type="button" aria-pressed={status === k} onClick={() => { setStatus(k); resetPaging(); }}
-                className={`h-9 rounded-lg px-4 text-sm font-semibold capitalize transition-[background-color,color] duration-200 ${status === k ? "bg-accent text-accent-ink" : "text-slate-300 hover:text-white"}`}>{k}</button>
+                className={`h-10 flex-1 rounded-lg px-4 text-sm font-semibold capitalize lg:h-9 lg:flex-none transition-[background-color,color] duration-200 ${status === k ? "bg-accent text-accent-ink" : "text-slate-300 hover:text-white"}`}>{k}</button>
             ))}
           </div>
           <Dropdown
@@ -252,10 +252,10 @@ export default function PeoplePanel({ kind, startNew = false }: { kind: Kind; st
             value={sort}
             onValueChange={(v) => setSort(v as Sort)}
           />
-          <div className="inline-flex w-fit gap-1 rounded-xl bg-slate-900 p-1" role="group" aria-label="View">
+          <div className="inline-flex w-fit gap-1 self-stretch rounded-xl bg-slate-900 p-1" role="group" aria-label="View">
             {([["grid", LayoutGrid, "Grid view"], ["list", List, "List view"]] as const).map(([k, Icon, label]) => (
               <button key={k} type="button" aria-pressed={view === k} aria-label={label} title={label} onClick={() => changeView(k)}
-                className={`grid h-9 w-9 place-items-center rounded-lg transition-[background-color,color] duration-200 ${view === k ? "bg-slate-700 text-white" : "text-slate-400 hover:text-white"}`}><Icon className="h-4 w-4" aria-hidden="true" /></button>
+                className={`grid h-10 w-10 place-items-center rounded-lg transition-[background-color,color] lg:h-9 lg:w-9 duration-200 ${view === k ? "bg-slate-700 text-white" : "text-slate-400 hover:text-white"}`}><Icon className="h-4 w-4" aria-hidden="true" /></button>
             ))}
           </div>
         </div>
@@ -324,7 +324,7 @@ export default function PeoplePanel({ kind, startNew = false }: { kind: Kind; st
 
                   <div className="absolute inset-x-0 bottom-0 flex items-end gap-2 p-4">
                     <div className="min-w-0 flex-1">
-                      <h2 className="break-words font-display text-lg font-semibold leading-tight text-white">{m.name}</h2>
+                      <h2 className="break-words font-display text-base font-semibold leading-tight text-white sm:text-lg">{m.name}</h2>
                       <p className={`mt-1 break-words font-mono text-[.68rem] uppercase leading-snug tracking-[.14em] ${tone.text}`}>{role}</p>
                       {kind === "media" && head?.media_team_id === m.id && <HeadBadge className="mt-2" />}
                     </div>

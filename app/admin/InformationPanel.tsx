@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import NumberFlow from "@number-flow/react";
-import { BookUser, ChevronLeft, ChevronRight, Download, ImageOff, Images, Loader2, Search, X } from "lucide-react";
+import { BookUser, ChevronLeft, ChevronRight, Download, ImageOff, Images, LayoutGrid, List, Loader2, Search, X } from "lucide-react";
 import Dropdown from "../components/Dropdown";
 import { notify } from "./notify";
 import { adminFetch } from "./supabase";
@@ -77,6 +77,12 @@ export default function InformationPanel() {
   const [status, setStatus] = useState("all");
   const [limit, setLimit] = useState(PAGE);
   const [open, setOpen] = useState<Person | null>(null);
+  // Rows read better on a phone, so that is the starting point there; the switch in the toolbar changes it any time.
+  const [layout, setLayout] = useState<"grid" | "list">(() => {
+    try { const saved = localStorage.getItem("info-layout"); if (saved === "grid" || saved === "list") return saved; } catch {}
+    return typeof window !== "undefined" && window.matchMedia("(max-width: 639px)").matches ? "list" : "grid";
+  });
+  const changeLayout = (v: "grid" | "list") => { setLayout(v); try { localStorage.setItem("info-layout", v); } catch {} };
 
   const load = useCallback(async () => {
     try {
@@ -108,17 +114,17 @@ export default function InformationPanel() {
 
   return (
     <section aria-labelledby="panel-title" className="pb-16">
-      <header className="relative mb-6 overflow-hidden rounded-3xl border border-slate-700 bg-slate-900/60 p-6 sm:p-8" style={{ animation: "rise .6s var(--ease) both" }}>
+      <header className="relative mb-6 overflow-hidden rounded-3xl border border-slate-700 bg-slate-900/60 p-5 sm:p-8" style={{ animation: "rise .6s var(--ease) both" }}>
         <span className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-accent/10 blur-3xl" aria-hidden="true" />
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex max-w-xl items-start gap-4">
             <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-accent/40 bg-accent/10 text-accent"><BookUser className="h-6 w-6" aria-hidden="true" /></span>
             <div>
-              <h1 id="panel-title" className="font-display text-3xl font-bold tracking-[-0.03em] text-white">Informations</h1>
+              <h1 id="panel-title" className="font-display text-2xl font-bold sm:text-3xl tracking-[-0.03em] text-white">Informations</h1>
               <p className="mt-2 text-slate-400">Everyone who joined the team through the registration form, with their details and the photos they sent. Tap a person to see all of them.</p>
             </div>
           </div>
-          <dl className="grid grid-cols-4 gap-3">
+          <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {([["Total", total, "text-white"], ["Members", count("member"), "text-accent"], ["Media", count("media"), "text-violet-300"], ["Players", count("player"), "text-sky-300"]] as const).map(([k, n, c]) => (
               <div key={k} className="min-w-[4.5rem] rounded-2xl border border-slate-700 bg-slate-950/50 px-3.5 py-3">
                 <dt className="text-xs text-slate-400">{k}</dt>
@@ -129,14 +135,14 @@ export default function InformationPanel() {
         </div>
       </header>
 
-      <div className="sticky top-3 z-20 mb-4 rounded-2xl border border-slate-700 bg-slate-950/85 p-2 shadow-[0_10px_30px_rgba(0,0,0,.35)] backdrop-blur" style={{ animation: "rise .6s var(--ease) both", animationDelay: "80ms" }}>
-        <div className="grid gap-2 lg:grid-cols-[1fr_auto_11rem] lg:items-center">
-          <label className="relative block">
+      <div className="mb-4 rounded-2xl border border-slate-700 bg-slate-950/85 p-2 shadow-[0_10px_30px_rgba(0,0,0,.35)] backdrop-blur lg:sticky lg:top-3 lg:z-20" style={{ animation: "rise .6s var(--ease) both", animationDelay: "80ms" }}>
+        <div className="grid grid-cols-[1fr_auto] gap-2 lg:grid-cols-[1fr_auto_11rem_auto] lg:items-center">
+          <label className="relative col-span-2 block lg:col-span-1">
             <span className="sr-only">Search people</span>
             <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
             <input type="search" value={query} onChange={(e) => { setQuery(e.target.value); setLimit(PAGE); }} placeholder="Search name, email, student ID or program" className="h-11 w-full rounded-xl bg-slate-900 pl-11 pr-4 text-sm font-medium text-white outline-none transition-shadow placeholder:text-slate-500 focus-visible:shadow-[0_0_0_2px_rgba(200,245,96,.5)]" />
           </label>
-          <div className="flex w-full gap-1 overflow-x-auto rounded-xl bg-slate-900 p-1 lg:w-auto" role="group" aria-label="Filter by role">
+          <div className="col-span-2 flex w-full gap-1 overflow-x-auto rounded-xl bg-slate-900 p-1 [scrollbar-width:none] lg:col-span-1 lg:w-auto" role="group" aria-label="Filter by role">
             {roles.map(([k, label]) => (
               <button key={k} type="button" aria-pressed={role === k} onClick={() => { setRole(k); setLimit(PAGE); }}
                 className={`h-9 shrink-0 rounded-lg px-3.5 text-sm font-semibold transition-[background-color,color] duration-200 ${role === k ? "bg-accent text-accent-ink" : "text-slate-300 hover:text-white"}`}>
@@ -145,6 +151,12 @@ export default function InformationPanel() {
             ))}
           </div>
           <Dropdown hideLabel className="w-full" label="Status" items={[{ label: "All statuses", value: "all" }, { label: "Approved", value: "approved" }, { label: "Pending review", value: "pending" }]} value={status} onValueChange={(v) => { setStatus(v); setLimit(PAGE); }} />
+          <div className="inline-flex w-fit gap-1 self-stretch rounded-xl bg-slate-900 p-1" role="group" aria-label="View">
+            {([["grid", LayoutGrid, "Grid view"], ["list", List, "Row view"]] as const).map(([k, Icon, label]) => (
+              <button key={k} type="button" aria-pressed={layout === k} aria-label={label} title={label} onClick={() => changeLayout(k)}
+                className={`grid h-10 w-10 place-items-center rounded-lg transition-[background-color,color] duration-200 lg:h-9 lg:w-9 ${layout === k ? "bg-slate-700 text-white" : "text-slate-400 hover:text-white"}`}><Icon className="h-4 w-4" aria-hidden="true" /></button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -164,6 +176,28 @@ export default function InformationPanel() {
       ) : (
         <>
           <p className="mb-4 px-1 text-sm text-slate-400" aria-live="polite"><span className="font-mono tabular-nums text-white">{String(filtered.length).padStart(2, "0")}</span> {filtered.length === 1 ? "person" : "people"}{filtered.length !== total && <> of {total}</>}</p>
+          {layout === "list" ? (
+            <ul className="space-y-2" key={`l-${role}-${status}`}>
+              {shown.map((p, i) => (
+                <li key={p.id} style={{ animation: "rise .45s var(--ease) both", animationDelay: `${Math.min(i, 11) * 35}ms` }}>
+                  <button type="button" onClick={() => setOpen(p)} aria-label={`Open ${p.name}'s information`}
+                    className="flex w-full items-center gap-3 rounded-2xl border border-slate-700 bg-slate-900 p-3 text-left outline-none transition-[border-color,box-shadow,background-color] duration-200 hover:border-slate-500 focus-visible:border-accent focus-visible:shadow-[0_0_0_3px_rgba(200,245,96,.3)]">
+                    <span className="h-14 w-14 shrink-0 overflow-hidden rounded-xl border border-slate-600 bg-slate-800"><Cover p={p} /></span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-display text-base font-semibold text-white">{p.name}</span>
+                      <span className="block truncate text-xs text-slate-400">{[shortProgram(p.program), p.year_level].filter(Boolean).join(" · ") || p.email}</span>
+                      <span className="mt-1.5 flex flex-wrap items-center gap-1">
+                        {rolesOf(p).map((k) => <span key={k} className={`rounded-full border px-2 py-0.5 font-mono text-[.58rem] uppercase tracking-[.12em] ${ROLE_TONE[k] ?? "border-slate-600 text-slate-300"}`}>{ROLE_LABEL[k] ?? k}</span>)}
+                        {p.registration_status === "pending" && <span className="rounded-full border border-[#fbbf24]/50 px-2 py-0.5 font-mono text-[.58rem] uppercase tracking-[.12em] text-[#fbbf24]">Pending</span>}
+                        <span className="inline-flex items-center gap-1 font-mono text-[.62rem] text-slate-500"><Images className="h-3 w-3" aria-hidden="true" />{p.photos.length}</span>
+                      </span>
+                    </span>
+                    <ChevronRight className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          ) : (
           <ul className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4" key={`${role}-${status}`}>
             {shown.map((p, i) => (
               <li key={p.id} className="group" style={{ animation: "rise .5s var(--ease) both", animationDelay: `${Math.min(i, 11) * 45}ms` }}>
@@ -182,6 +216,7 @@ export default function InformationPanel() {
               </li>
             ))}
           </ul>
+          )}
           {filtered.length > shown.length && (
             <div className="mt-8 flex justify-center">
               <button type="button" onClick={() => setLimit((n) => n + PAGE)} className="btn btn-ghost">Show {Math.min(PAGE, filtered.length - shown.length)} more <span className="font-mono text-xs text-slate-500">({filtered.length - shown.length} left)</span></button>
@@ -279,7 +314,7 @@ function PersonDialog({ person, onClose }: { person: Person | null; onClose: () 
                         {saving === i ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Download className="h-4 w-4" aria-hidden="true" />}
                       </button>
                     </div>
-                    <ul className="mt-3 grid grid-cols-5 gap-2" aria-label="All photos">
+                    <ul className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5" aria-label="All photos">
                       {photos.map((src, n) => (
                         <li key={src}>
                           <button type="button" onClick={() => setI(n)} aria-label={`Show photo ${n + 1}`} aria-current={n === i}

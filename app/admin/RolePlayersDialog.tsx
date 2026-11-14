@@ -99,7 +99,7 @@ export default function RolePlayersDialog({ role, onClose }: { role: { id: numbe
                   {bySeason.map(({ season, list }, gi) => (
                     <section key={season.id} style={{ animation: "rise .4s var(--ease) both", animationDelay: `${gi * 60}ms` }}>
                       <h3 className="mb-2 flex items-center gap-2 font-mono text-[.7rem] uppercase tracking-[.16em] text-slate-400">{season.name}<span className="rounded-full border border-slate-700 px-2 py-0.5 text-[.64rem] tabular-nums text-slate-500">{list.length}</span></h3>
-                      <ul className="grid gap-2 sm:grid-cols-2">
+                      <ul className="grid grid-cols-[minmax(0,1fr)] gap-2 sm:grid-cols-2">
                         {list.map((h, i) => (
                           <li key={`${h.memberId}-${season.id}`} className="flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-950/40 p-2.5" style={{ animation: "rise .35s var(--ease) both", animationDelay: `${gi * 60 + Math.min(i, 8) * 30}ms` }}>
                             <Avatar name={h.name} src={h.photo} />

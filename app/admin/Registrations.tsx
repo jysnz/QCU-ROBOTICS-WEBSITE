@@ -125,7 +125,7 @@ function RegCard({
             </button>
 
             {pending ? (
-              <div className="flex shrink-0 gap-2">
+              <div className="flex w-full shrink-0 gap-2 sm:w-auto [&>button]:flex-1 sm:[&>button]:flex-none">
                 <button type="button" disabled={busy} onClick={onReject} className="btn btn-ghost btn-sm disabled:opacity-60"><Trash2 className="h-4 w-4" aria-hidden="true" /> Reject</button>
                 <button type="button" disabled={busy} onClick={onApprove} className="btn btn-primary btn-sm disabled:opacity-60">
                   {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Check className="h-4 w-4" aria-hidden="true" />} Approve
@@ -211,14 +211,14 @@ export default function Registrations() {
 
   return (
     <section aria-labelledby="panel-title">
-      <div className="mb-8 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+      <div className="mb-6 flex flex-col gap-5 sm:mb-8 sm:gap-6 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-xl">
-          <h1 id="panel-title" className="font-display text-3xl font-bold tracking-[-0.03em] text-white">Registrations</h1>
+          <h1 id="panel-title" className="font-display text-2xl font-bold sm:text-3xl tracking-[-0.03em] text-white">Registrations</h1>
           <p className="mt-2 text-slate-400">
             Sign-ups from the public <span className="text-slate-200">/member-reg</span> form. Approving puts the person on the site with their name and photo only. Their details stay private to this page.
           </p>
         </div>
-        <dl className="flex gap-3">
+        <dl className="grid grid-cols-2 gap-3 sm:flex">
           <div className="min-w-24 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3">
             <dt className="text-xs text-slate-400">Waiting</dt>
             <dd className="font-display text-2xl font-bold tabular-nums text-white"><NumberFlow value={pendingAll.length} /></dd>
@@ -231,7 +231,7 @@ export default function Registrations() {
       </div>
 
       <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="relative inline-flex w-fit gap-1 rounded-xl border border-slate-600 bg-slate-900 p-1" role="tablist" aria-label="Registration status">
+        <div className="relative grid w-full grid-cols-2 gap-1 rounded-xl border border-slate-600 bg-slate-900 p-1 sm:inline-flex sm:w-fit" role="tablist" aria-label="Registration status">
           {(["pending", "approved"] as const).map((f) => (
             <button
               key={f}
@@ -239,7 +239,7 @@ export default function Registrations() {
               role="tab"
               aria-selected={tab === f}
               onClick={() => { setTab(f); setOpenId(null); }}
-              className={`relative h-10 rounded-lg px-5 text-sm font-semibold transition-colors duration-200 ${tab === f ? "bg-accent text-accent-ink" : "text-slate-300 hover:text-white"}`}
+              className={`relative h-11 rounded-lg px-3 text-sm font-semibold sm:h-10 sm:px-5 transition-colors duration-200 ${tab === f ? "bg-accent text-accent-ink" : "text-slate-300 hover:text-white"}`}
             >
               {f === "pending" ? "Needs review" : "Approved"}
               <span className={`ml-2 font-mono text-xs ${tab === f ? "text-accent-ink/70" : "text-slate-500"}`}>{f === "pending" ? pendingAll.length : reviewedAll.length}</span>
@@ -254,14 +254,14 @@ export default function Registrations() {
         </label>
       </div>
 
-      <div className="mb-6 flex flex-wrap gap-2" role="group" aria-label="Filter by role">
+      <div className="-mx-4 mb-6 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0 sm:pb-0 [scrollbar-width:none]" role="group" aria-label="Filter by role">
         {roleTabs.map(([k, label]) => (
           <button
             key={k}
             type="button"
             aria-pressed={role === k}
             onClick={() => setRole(k)}
-            className={`rounded-full border px-4 py-1.5 text-sm transition-colors duration-150 ${role === k ? "border-accent bg-accent/10 text-accent" : "border-slate-600 text-slate-300 hover:border-slate-500 hover:text-white"}`}
+            className={`shrink-0 whitespace-nowrap rounded-full border px-4 py-2 text-sm transition-colors duration-150 sm:py-1.5 ${role === k ? "border-accent bg-accent/10 text-accent" : "border-slate-600 text-slate-300 hover:border-slate-500 hover:text-white"}`}
           >
             {label} <span className="ml-1 font-mono text-xs opacity-70">{roleCount(k)}</span>
           </button>

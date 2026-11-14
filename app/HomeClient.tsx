@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import Dropdown from './components/Dropdown';
 import type { HeroStats, Season, Competition, TeamMember, MediaMember, Member, Coach, SponsorCompany } from './lib/data';
+import CountUp from './components/CountUp';
 
 // ─── Props passed from the server component ───────────────────────────────────
 export type HomeClientProps = {
@@ -131,42 +132,6 @@ const GithubIcon = ({ className }: { className?: string }) => (
     <path d="M12 .8A11.2 11.2 0 0 0 8.5 22.6c.5.1.7-.2.7-.5v-1.9c-2.8.6-3.4-1.2-3.4-1.2-.4-1-.9-1.3-.9-1.3-.7-.5.1-.5.1-.5.8.1 1.3.8 1.3.8.7 1.3 1.9.9 2.4.7.1-.6.3-.9.5-1.1-2.2-.3-4.6-1.1-4.6-5a3.9 3.9 0 0 1 1-2.7 3.6 3.6 0 0 1 .1-2.6s.8-.2 2.7 1a9.2 9.2 0 0 1 5 0c1.9-1.2 2.7-1 2.7-1a3.6 3.6 0 0 1 .1 2.6 3.9 3.9 0 0 1 1 2.7c0 3.9-2.4 4.7-4.6 5 .3.3.6.8.6 1.6v2.4c0 .3.2.6.7.5A11.2 11.2 0 0 0 12 .8Z" />
   </svg>
 );
-
-// Counts up once when scrolled into view (after the intro). Renders the real value first, so no-JS and SSR stay correct.
-const CountUp = ({ value }: { value: number }) => {
-  const ref = useRef<HTMLSpanElement>(null);
-  const [shown, setShown] = useState(value);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches || value <= 0) { setShown(value); return; }
-    let raf = 0;
-    let started = false;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    setShown(0);
-    const run = () => {
-      started = true;
-      const t0 = performance.now();
-      const tick = (t: number) => {
-        const p = Math.min((t - t0) / 1000, 1);
-        setShown(Math.round(value * (1 - Math.pow(1 - p, 4))));
-        if (p < 1) raf = requestAnimationFrame(tick);
-      };
-      raf = requestAnimationFrame(tick);
-    };
-    const wait = () => {
-      if (document.documentElement.classList.contains('intro')) timer = setTimeout(wait, 120);
-      else run();
-    };
-    const io = new IntersectionObserver(([e]) => {
-      if (!e.isIntersecting || started) return;
-      io.disconnect();
-      wait();
-    }, { threshold: 0.4 });
-    io.observe(el);
-    return () => { io.disconnect(); cancelAnimationFrame(raf); if (timer) clearTimeout(timer); };
-  }, [value]);
-  return <span ref={ref}>{shown}</span>;
-};
 
 // ─── Carousel Images ──────────────────────────────────────────────────────────
 const CAROUSEL_IMAGES = [
@@ -699,12 +664,12 @@ const CompetitionsSection = ({ initialCompetitions, initialSeasons }: { initialC
                     className={`absolute left-3 top-3 inline-flex items-center gap-2 border bg-slate-950/80 px-2.5 py-1 font-mono text-[.68rem] uppercase tracking-[.14em] ${
                       comp.status === 'Active'
                         ? 'border-accent/50 text-accent'
-                        : comp.status === 'Recent'
+                        : comp.status === 'Upcoming'
                         ? 'border-violet-400/50 text-violet-300'
                         : 'border-slate-600 text-slate-300'
                     }`}
                   >
-                    <span className={`h-1.5 w-1.5 ${comp.status === 'Active' ? 'bg-accent' : comp.status === 'Recent' ? 'bg-violet-400' : 'bg-slate-400'}`} aria-hidden="true" />
+                    <span className={`h-1.5 w-1.5 ${comp.status === 'Active' ? 'bg-accent' : comp.status === 'Upcoming' ? 'bg-violet-400' : 'bg-slate-400'}`} aria-hidden="true" />
                     {comp.status}
                   </span>
                 </div>

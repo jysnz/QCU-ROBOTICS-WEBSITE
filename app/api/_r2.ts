@@ -12,7 +12,7 @@ export const r2Enabled = process.env.R2_ORIGINALS === "1" && !!SUPABASE_URL && !
 
 export const ORIGINALS_PREFIX = "registrations";
 export const MAX_ORIGINAL_BYTES = 25 * 1024 * 1024;
-export const ORIGINAL_TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/heic": "heic", "image/heif": "heif" };
+export const ORIGINAL_TYPES: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png" };
 
 async function call<T>(body: unknown): Promise<T> {
   const r = await fetch(`${SUPABASE_URL}/functions/v1/r2-photos`, {

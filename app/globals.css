@@ -275,3 +275,15 @@ html.intro .hold, html.intro .hold * { animation-play-state: paused !important; 
   .tk-check path { animation: none; stroke-dashoffset: 0; }
   .tk-card { transition: none; transform: none !important; }
 }
+
+
+/* phone-inputs: iOS zooms the whole page when a field smaller than 16px gets focus, so keep fields at 16px on phones
+   and give small controls a comfortable tap size. Tablets and desktops keep the compact sizes. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  select,
+  textarea { font-size: 16px; }
+  .btn-sm { min-height: 44px; }
+}
+html { -webkit-text-size-adjust: 100%; }
+body { overflow-x: clip; }

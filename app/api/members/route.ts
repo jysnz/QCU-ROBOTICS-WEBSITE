@@ -75,6 +75,11 @@ function decodeImage(v: unknown, maxBytes: number): Img | { tooLarge: true } | n
   if (!match) return null;
   const buf = Buffer.from(match[2], "base64");
   if (buf.length > maxBytes) return { tooLarge: true };
+  // The label in the data URL is just text the sender chose. Check the file's real first bytes match it, so a script or
+  // any other file renamed as a photo is rejected.
+  const isPng = buf.length > 8 && buf.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
+  const isJpg = buf.length > 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff;
+  if (match[1] === "png" ? !isPng : !isJpg) return null;
   return { buf, ext: match[1] === "png" ? "png" : "jpg", type: match[1] === "png" ? "image/png" : "image/jpeg" };
 }
 const isImg = (x: Img | { tooLarge: true } | null): x is Img => !!x && !("tooLarge" in x);

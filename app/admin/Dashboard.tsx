@@ -4,13 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
+import { Dialog } from "@base-ui/react/dialog";
 import NumberFlow from "@number-flow/react";
 import { Toaster } from "sonner";
-import {
-  ArrowUpRight, Award, Building2, Camera, CalendarRange, ClipboardCheck, ExternalLink, FileText, GraduationCap,
-  BookUser, HeartHandshake, LayoutDashboard, LogOut, Medal, Network, Plus, Share2, Shield, ShieldCheck, Swords, Tag, Trophy,
-  ListTodo, Search, Send, UserRound, Users,
-} from "lucide-react";
+import { ArrowUpRight, Award, Building2, Camera, CalendarRange, ClipboardCheck, ExternalLink, FileText, GraduationCap, BookUser, HeartHandshake, LayoutDashboard, LogOut, Medal, Network, Plus, Share2, Shield, ShieldCheck, Swords, Tag, Trophy, ListTodo, Search, Send, UserRound, Users, Menu, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Accounts from "./Accounts";
 import CommandPalette, { type PaletteItem } from "./CommandPalette";
@@ -272,7 +269,9 @@ export default function Dashboard({ name, email, onSignOut }: { name: string; em
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  const [menuOpen, setMenuOpen] = useState(false);
   const go = (v: View, add = false) => {
+    setMenuOpen(false);
     const target = MERGED[v] ?? v; // merged pages open their new home
     setStartNew(add);
     setView(target);
@@ -289,52 +288,8 @@ export default function Dashboard({ name, email, onSignOut }: { name: string; em
     { id: "out", label: "Sign out", group: "Account", icon: LogOut, run: onSignOut },
   ];
 
-  return (
+  const navList = () => (
     <>
-      {/* Rendered into <body> so the message boxes stay pinned to the screen corner wherever the page is scrolled,
-          even if a parent is padded, animated or very tall. */}
-      {typeof document !== "undefined" && createPortal(
-        <Toaster position="bottom-right" expand visibleToasts={5} gap={10} offset={{ bottom: 76, right: 12 }} mobileOffset={{ bottom: 76, right: 12, left: 12 }} style={{ position: "fixed", zIndex: 2147483000 }} />,
-        document.body,
-      )}
-      <CommandPalette items={paletteItems} open={paletteOpen} onOpenChange={setPaletteOpen} />
-    <div className="min-h-screen lg:grid lg:grid-cols-[16rem_1fr]">
-      <aside className="border-b border-slate-700 bg-slate-950/60 lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:border-b-0 lg:border-r">
-        <div className="flex items-center justify-between gap-3 px-4 py-4 lg:px-5 lg:py-6">
-          <Link href="/" className="inline-flex items-center gap-3">
-            <Image src="/logo-96.png" alt="" width={36} height={36} className="site-logo" />
-            <span className="leading-tight">
-              <span className="block font-display text-[15px] font-semibold text-white">QCU Robotics</span>
-              <span className="block font-mono text-[10px] uppercase tracking-[.18em] text-accent">Admin</span>
-            </span>
-          </Link>
-          {/* Phone: search + one select instead of a long sidebar */}
-          <button type="button" onClick={() => setPaletteOpen(true)} aria-label="Search" className="grid h-10 w-10 place-items-center rounded-lg border border-slate-600 bg-slate-900 text-slate-300 lg:hidden"><Search className="h-4 w-4" aria-hidden="true" /></button>
-          <label className="lg:hidden">
-            <span className="sr-only">Section</span>
-            <select
-              value={view}
-              onChange={(e) => go(e.target.value)}
-              className="h-10 rounded-lg border border-slate-600 bg-slate-900 px-3 text-sm text-white outline-none focus-visible:border-accent"
-            >
-              {groups.map((g) => (
-                <optgroup key={g.title} label={g.title}>
-                  {g.items.map((i) => <option key={i.id} value={i.id}>{i.label}</option>)}
-                </optgroup>
-              ))}
-            </select>
-          </label>
-        </div>
-
-        <div className="hidden px-3 pb-4 lg:block">
-          <button type="button" onClick={() => setPaletteOpen(true)} className="flex h-10 w-full items-center gap-3 rounded-lg border border-slate-700 bg-slate-900 px-3 text-sm text-slate-400 transition-colors hover:border-slate-500 hover:text-white">
-            <Search className="h-4 w-4" aria-hidden="true" />
-            <span className="flex-1 text-left">Jump to…</span>
-            <kbd className="rounded border border-slate-600 px-1.5 py-0.5 font-mono text-[10px]">{mac ? "⌘K" : "Ctrl K"}</kbd>
-          </button>
-        </div>
-
-        <nav aria-label="Admin sections" className="hidden min-h-0 flex-1 overflow-y-auto px-3 pb-6 lg:block">
           {groups.map((g) => (
             <div key={g.title} className="mt-5 first:mt-0">
               <p className="px-3 pb-2 font-mono text-[.66rem] uppercase tracking-[.18em] text-slate-500 select-none">{g.title}</p>
@@ -361,7 +316,64 @@ export default function Dashboard({ name, email, onSignOut }: { name: string; em
               </ul>
             </div>
           ))}
-        </nav>
+        </>
+  );
+
+  return (
+    <>
+      {/* Rendered into <body> so the message boxes stay pinned to the screen corner wherever the page is scrolled,
+          even if a parent is padded, animated or very tall. */}
+      {typeof document !== "undefined" && createPortal(
+        <Toaster position="bottom-right" expand visibleToasts={5} gap={10} offset={{ bottom: 76, right: 12 }} mobileOffset={{ bottom: 76, right: 12, left: 12 }} style={{ position: "fixed", zIndex: 2147483000 }} />,
+        document.body,
+      )}
+      <Dialog.Root open={menuOpen} onOpenChange={setMenuOpen}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="fixed inset-0 z-40 bg-black/70 transition-opacity duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 lg:hidden" />
+          <Dialog.Popup className="fixed inset-y-0 left-0 z-50 flex w-[min(20rem,88vw)] flex-col border-r border-slate-700 bg-slate-950 outline-none transition-transform duration-300 ease-out-quint data-[starting-style]:-translate-x-full data-[ending-style]:-translate-x-full lg:hidden">
+            <div className="flex items-center justify-between gap-3 px-5 py-4">
+              <Dialog.Title className="font-display text-base font-semibold text-white">Menu</Dialog.Title>
+              <Dialog.Close aria-label="Close menu" className="grid h-10 w-10 place-items-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white"><X className="h-4 w-4" aria-hidden="true" /></Dialog.Close>
+            </div>
+            <Dialog.Description className="sr-only">Choose a section of the admin</Dialog.Description>
+            <nav aria-label="Admin sections" className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">{navList()}</nav>
+            <div className="border-t border-slate-700 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+              <p className="truncate text-sm font-medium text-white">{name}</p>
+              <p className="mb-3 truncate text-xs text-slate-500">{email}</p>
+              <div className="flex gap-2">
+                <Link href="/" target="_blank" className="btn btn-ghost btn-sm flex-1"><ExternalLink className="h-4 w-4" aria-hidden="true" /> Site</Link>
+                <button type="button" onClick={onSignOut} className="btn btn-ghost btn-sm flex-1"><LogOut className="h-4 w-4" aria-hidden="true" /> Sign out</button>
+              </div>
+            </div>
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
+      <CommandPalette items={paletteItems} open={paletteOpen} onOpenChange={setPaletteOpen} />
+    <div className="min-h-screen lg:grid lg:grid-cols-[16rem_1fr]">
+      <aside className="sticky top-0 z-30 border-b border-slate-700 bg-slate-950/90 backdrop-blur lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:border-b-0 lg:border-r">
+        <div className="flex items-center justify-between gap-2 px-4 py-3 sm:px-6 lg:px-5 lg:py-6">
+          <Link href="/" className="inline-flex items-center gap-3">
+            <Image src="/logo-96.png" alt="" width={36} height={36} className="site-logo" />
+            <span className="leading-tight">
+              <span className="block font-display text-[15px] font-semibold text-white whitespace-nowrap">QCU Robotics</span>
+              <span className="block font-mono text-[10px] uppercase tracking-[.18em] text-accent">Admin</span>
+            </span>
+          </Link>
+          <div className="flex items-center gap-2 lg:hidden">
+            <button type="button" onClick={() => setPaletteOpen(true)} aria-label="Search" className="grid h-11 w-11 place-items-center rounded-xl border border-slate-700 bg-slate-900 text-slate-300 transition-colors hover:border-slate-500 hover:text-white active:scale-95"><Search className="h-[18px] w-[18px]" aria-hidden="true" /></button>
+            <button type="button" onClick={() => setMenuOpen(true)} aria-label="Open menu" className="grid h-11 w-11 place-items-center rounded-xl border border-accent/40 bg-accent/10 text-accent transition-colors hover:bg-accent/15 active:scale-95"><Menu className="h-5 w-5" aria-hidden="true" /></button>
+          </div>
+        </div>
+
+        <div className="hidden px-3 pb-4 lg:block">
+          <button type="button" onClick={() => setPaletteOpen(true)} className="flex h-10 w-full items-center gap-3 rounded-lg border border-slate-700 bg-slate-900 px-3 text-sm text-slate-400 transition-colors hover:border-slate-500 hover:text-white">
+            <Search className="h-4 w-4" aria-hidden="true" />
+            <span className="flex-1 text-left">Jump to…</span>
+            <kbd className="rounded border border-slate-600 px-1.5 py-0.5 font-mono text-[10px]">{mac ? "⌘K" : "Ctrl K"}</kbd>
+          </button>
+        </div>
+
+        <nav aria-label="Admin sections" className="hidden min-h-0 flex-1 overflow-y-auto px-3 pb-6 lg:block">{navList()}</nav>
 
         <div className="hidden border-t border-slate-700 p-4 lg:block">
           <div className="flex items-center gap-3">
@@ -380,7 +392,7 @@ export default function Dashboard({ name, email, onSignOut }: { name: string; em
         </div>
       </aside>
 
-      <main className="min-w-0 px-4 py-8 sm:px-8 lg:px-12 lg:py-12">
+      <main className="min-w-0 px-4 py-6 sm:px-8 sm:py-8 lg:px-12 lg:py-12">
         <div className="mx-auto max-w-5xl">
           {/* keyed so every section change fades in instead of snapping */}
           <div key={view} className="animate-fadeIn">
@@ -393,9 +405,6 @@ export default function Dashboard({ name, email, onSignOut }: { name: string; em
             {view === "sponsors" && <SponsorsPanel />}
             {view === "information" && <InformationPanel />}
             {resource && view !== "team-players" && view !== "media-team" && view !== "members" && view !== "coaches" && view !== "sponsors" && <CrudPanel key={resource.id} resource={resource} startNew={startNew} />}
-          </div>
-          <div className="mt-12 flex gap-3 lg:hidden">
-            <button type="button" onClick={onSignOut} className="btn btn-ghost btn-sm"><LogOut className="h-4 w-4" aria-hidden="true" /> Sign out</button>
           </div>
         </div>
       </main>

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import { Switch } from "@base-ui/react/switch";
 import { Tabs } from "@base-ui/react/tabs";
-import NumberFlow from "@number-flow/react";
+import StatNumber from "./StatNumber";
 import { notify } from "./notify";
 import { Check, ChevronDown, Info, Loader2, Lock, Pencil, Plus, Search, Trash2, UserPlus, UserX, X } from "lucide-react";
 import Dropdown from "../components/Dropdown";
@@ -573,7 +573,7 @@ function PlayerCard({ p, roles, otherSeasons, duplicate, delay, onEdit }: {
     otherSeasons.length > 0 ? `Also: ${otherSeasons.join(", ")}` : "",
   ].filter(Boolean).join(" · ") || " ";
   return (
-    <li className="h-full" style={{ animation: "rise .5s var(--ease) both", animationDelay: `${delay}ms` }}>
+    <li className="h-full min-w-0" style={{ animation: "rise .5s var(--ease) both", animationDelay: `${delay}ms` }}>
       <button type="button" onClick={onEdit} className="lift group relative flex h-[5.5rem] w-full items-center gap-3 rounded-xl border border-slate-700 bg-slate-900 p-3 text-left hover:border-slate-500">
         <span className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl border border-slate-600 bg-slate-800 font-display text-base font-semibold text-slate-400">
           {p.profile_image_url && !broken ? (
@@ -675,12 +675,12 @@ export default function TeamPlayersPanel({ startNew = false, embedded = false }:
 
   return (
     <section aria-labelledby="panel-title">
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
         <div className="max-w-2xl">
-          {!embedded && <h1 id="panel-title" className="font-display text-3xl font-bold tracking-[-0.03em] text-white">Team players</h1>}
+          {!embedded && <h1 id="panel-title" className="font-display text-2xl font-bold sm:text-3xl tracking-[-0.03em] text-white">Team players</h1>}
           <p className={embedded ? "text-sm text-slate-400" : "mt-2 text-slate-400"}>Players grouped by team. Someone who played in several seasons appears under each team, labelled with the season.</p>
         </div>
-        <button type="button" onClick={() => { setDialogTeam(null); setDialog("new"); }} className="btn btn-primary shrink-0"><UserPlus className="h-4 w-4" aria-hidden="true" /> Assign team player</button>
+        <button type="button" onClick={() => { setDialogTeam(null); setDialog("new"); }} className="btn btn-primary w-full shrink-0 sm:w-auto"><UserPlus className="h-4 w-4" aria-hidden="true" /> Assign team player</button>
       </div>
 
       <div className="mb-6 grid gap-4 md:grid-cols-[14rem_1fr_auto] md:items-end">
@@ -696,9 +696,9 @@ export default function TeamPlayersPanel({ startNew = false, embedded = false }:
           <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
           <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search players" className={`${input} h-12 pl-11`} />
         </label>
-        <dl className="flex gap-3">
-          <div className="min-w-20 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2"><dt className="text-xs text-slate-400">Players</dt><dd className="font-display text-xl font-bold tabular-nums text-white"><NumberFlow value={view?.uniquePlayers ?? 0} /></dd></div>
-          <div className="min-w-20 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2"><dt className="text-xs text-slate-400">Teams</dt><dd className="font-display text-xl font-bold tabular-nums text-white"><NumberFlow value={view?.groups.length ?? 0} /></dd></div>
+        <dl className="grid grid-cols-2 gap-3 md:flex">
+          <div className="min-w-20 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2"><dt className="text-xs text-slate-400">Players</dt><dd className="font-display text-xl font-bold tabular-nums text-white"><StatNumber value={view?.uniquePlayers ?? 0} /></dd></div>
+          <div className="min-w-20 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2"><dt className="text-xs text-slate-400">Teams</dt><dd className="font-display text-xl font-bold tabular-nums text-white"><StatNumber value={view?.groups.length ?? 0} /></dd></div>
         </dl>
       </div>
 
@@ -729,11 +729,11 @@ export default function TeamPlayersPanel({ startNew = false, embedded = false }:
               return (
                 <section key={g.team.id} className="overflow-hidden rounded-2xl border border-slate-700 bg-slate-950/40" style={{ animation: "rise .5s var(--ease) both", animationDelay: `${Math.min(gi, 6) * 60}ms` }}>
                   {/* one aligned row: team name, player count, Assign, expand. The global focus outline is replaced by a soft ring. */}
-                  <div className="flex items-center gap-3 px-4 py-4 sm:px-5">
-                    <button type="button" onClick={() => toggle(g.team.id)} aria-expanded={open} aria-controls={`tp-${g.team.id}`} className="group flex min-w-0 flex-1 items-center gap-4 rounded-lg text-left outline-none! focus-visible:shadow-[0_0_0_3px_rgba(200,245,96,.3)]">
+                  <div className="flex items-center gap-2 px-3 py-3 sm:gap-3 sm:px-5 sm:py-4">
+                    <button type="button" onClick={() => toggle(g.team.id)} aria-expanded={open} aria-controls={`tp-${g.team.id}`} className="group flex min-w-0 flex-1 items-center gap-3 rounded-lg sm:gap-4 text-left outline-none! focus-visible:shadow-[0_0_0_3px_rgba(200,245,96,.3)]">
                       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-600 bg-slate-900 font-mono text-xs font-semibold text-accent">{g.team.team_number}</span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate font-display text-lg font-semibold text-white">{teamLabel(g.team)}{g.team.team_name && g.team.team_code ? <span className="ml-2 text-sm font-normal text-slate-400">{g.team.team_name}</span> : null}</span>
+                        <span className="block truncate font-display text-base font-semibold text-white sm:text-lg">{teamLabel(g.team)}{g.team.team_name && g.team.team_code ? <span className="ml-2 text-sm font-normal text-slate-400">{g.team.team_name}</span> : null}</span>
                         <span className="block font-mono text-[.7rem] uppercase tracking-[.14em] text-slate-400">{g.seasonName}</span>
                       </span>
                     </button>
@@ -763,7 +763,7 @@ export default function TeamPlayersPanel({ startNew = false, embedded = false }:
                         {g.members.length === 0 ? (
                           <p className="py-4 text-center text-sm text-slate-500">No players on this team yet.</p>
                         ) : (
-                          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                          <ul className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2 xl:grid-cols-3">
                             {g.members.map((p, i) => (
                               <PlayerCard
                                 key={p.id}
@@ -788,7 +788,7 @@ export default function TeamPlayersPanel({ startNew = false, embedded = false }:
               <section className="rounded-2xl border border-dashed border-slate-600 p-5" style={{ animation: "rise .5s var(--ease) both" }}>
                 <h2 className="flex items-center gap-2 font-display text-lg font-semibold text-white"><UserX className="h-4 w-4 text-slate-400" aria-hidden="true" /> Not on a team <span className="font-mono text-xs font-normal text-slate-400">{view.unassigned.length}</span></h2>
                 <p className="mt-1 text-sm text-slate-400">These players aren&rsquo;t assigned to any team, so they don&rsquo;t show on the site. Open one to assign a team.</p>
-                <ul className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                <ul className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2 xl:grid-cols-3">
                   {view.unassigned.map((p, i) => (
                     <PlayerCard key={p.id} p={p} roles={[]} otherSeasons={[]} duplicate={(view.nameCount.get(p.name.trim().toLowerCase()) ?? 0) > 1} delay={Math.min(i, 9) * 35} onEdit={() => { setDialogTeam(null); setDialog(p.id); }} />
                   ))}

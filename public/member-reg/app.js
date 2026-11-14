@@ -409,17 +409,30 @@
     img.src = url;
   });
 
+  async function looksLikeImage(file) {
+    try {
+      const b = new Uint8Array(await file.slice(0, 8).arrayBuffer());
+      const png = b.length >= 8 && [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a].every((x, i) => b[i] === x);
+      const jpg = b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff;
+      return file.type === "image/png" ? png : jpg;
+    } catch (_) { return false; }
+  }
+
   async function addFiles(fileList) {
     const err = $("#photo-err"); err.textContent = "";
-    const files = [...fileList].filter((f) => f.type.startsWith("image/"));
-    if (!files.length) { if (fileList.length) err.textContent = "Please choose image files (JPG or PNG)."; return; }
+    // Only real JPG or PNG files: the declared type must match AND the file's first bytes must be a JPEG/PNG signature.
+    const all = [...fileList];
+    const files = [];
+    for (const f of all) if (["image/jpeg", "image/png"].includes(f.type) && (await looksLikeImage(f))) files.push(f);
+    if (!files.length) { if (all.length) err.textContent = "Only JPG or PNG photos are allowed."; return; }
     const room = PHOTOS - state.photos.length;
     if (room <= 0) { err.textContent = "You already have 5 photos. Remove one to add another."; return; }
     let failed = 0;
     for (const f of files.slice(0, room)) {
       try { const small = await resize(f); state.photos.push(small); state.files.push(f); renderSlots(); } catch (_) { failed++; }
     }
-    if (failed) err.textContent = `${failed} image${failed > 1 ? "s" : ""} couldn't be read. Try another.`;
+    if (all.length > files.length && !failed) err.textContent = "Some files were skipped. Only JPG or PNG photos are allowed.";
+    else if (failed) err.textContent = `${failed} image${failed > 1 ? "s" : ""} couldn't be read. Try another.`;
     else if (files.length > room) err.textContent = `Only ${room} more fit, so the extra photos were skipped.`;
   }
   ["#photoCamera", "#photoFile"].forEach((id) =>
@@ -581,6 +594,9 @@
   hc.retry.addEventListener("click", () => { hc.state = "idle"; hcStart(); });
 
   function submitWithCheck() {
+    if (sending || hc.pending) return;
+    // Check every page again before sending, and jump back to the first page that has a problem.
+    for (let s = 1; s <= TOTAL; s++) if (!validate(s)) { go(s); validate(s); return; }
     if (hc.token) return finish();
     hc.pending = true;
     const btn = $("#nextBtn"); btn.disabled = true; btn.textContent = "Verifying...";
@@ -627,7 +643,10 @@
     } catch (_) { /* the registration itself is already saved */ }
   }
 
+  let sending = false;
   async function finish() {
+    if (sending) return; // Enter pressed or the check finishing while a submit is already running would send it twice
+    sending = true;
     const btn = $("#nextBtn");
     btn.disabled = true; btn.textContent = "Submitting...";
     const data = {
@@ -655,6 +674,7 @@
       if (e.field === "studentId") { go(2); setErr("studentId", e.message); $("#studentId").focus(); }
       else setErr("interests", e.message === "Failed to fetch" ? "Can't reach the server. Check your connection and try again." : e.message);
     } finally {
+      sending = false;
       btn.disabled = false; btn.textContent = "Submit registration";
       hc.token = ""; hc.state = "idle"; // each token works once, so get a fresh one
       if (!ok && state.step === TOTAL) hcStart();

@@ -10,6 +10,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { convertHlsToMp4, triggerBlobDownload } from './hlsToMp4';
 import CompetitionFilters from '../components/CompetitionFilters';
+import CountUp from '../components/CountUp';
 
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
@@ -582,12 +583,12 @@ const MatchesSection = () => {
                 <div className="flex items-center justify-center gap-6 py-4 mb-4 rounded-xl bg-slate-950/40 border border-slate-800/50">
                   <div className="text-center">
                     <p className="text-xs text-slate-400 mb-1">{teamOptions.find(t => Number(t.id) === Number(match.team_id))?.team_code || 'Our Team'}</p>
-                    <p className="text-4xl font-extrabold text-white">{match.our_score}</p>
+                    <p className="text-4xl font-extrabold text-white"><CountUp value={Number(match.our_score) || 0} /></p>
                   </div>
                   <span className="text-slate-600 text-xl font-bold">vs</span>
                   <div className="text-center">
                     <p className="text-xs text-slate-400 mb-1">{match.opponent_name}</p>
-                    <p className="text-4xl font-extrabold text-slate-300">{match.opponent_score}</p>
+                    <p className="text-4xl font-extrabold text-slate-300"><CountUp value={Number(match.opponent_score) || 0} /></p>
                   </div>
                 </div>
 

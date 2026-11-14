@@ -1,6 +1,6 @@
 /* Declarative description of the website tables the admin can edit (from the QCUR-Apex docs/03-database-schema.md).
    CrudPanel renders a list + create/edit/delete UI for each entry. */
-export type FieldType = "text" | "textarea" | "number" | "boolean" | "date" | "select" | "relation" | "image" | "video";
+export type FieldType = "text" | "textarea" | "number" | "boolean" | "date" | "select" | "relation" | "image" | "video" | "daterange";
 
 export type Field = {
   key: string;
@@ -177,9 +177,9 @@ export const RESOURCES: Resource[] = [
     fields: [
       { key: "title", label: "Title", type: "text", required: true },
       { key: "season_id", label: "Season", type: "relation", list: true, relation: { table: "seasons", labelKey: "season_name", orderBy: "id" } },
-      { key: "status", label: "Status", type: "select", list: true, options: ["Active", "Recent", "Completed"] },
-      { key: "date", label: "Date", type: "text", list: true, hint: "Shown as written, e.g. March 14-15, 2026" },
+      { key: "status", label: "Status", type: "select", list: true, readOnly: true, options: ["Upcoming", "Active", "Completed"] },
       { key: "location", label: "Location", type: "text" },
+      { key: "date", label: "Date", type: "daterange", list: true, wide: true, hint: "One day or a range. The status follows it: Upcoming before this date, Active during it, Completed after it." },
       { key: "image_url", label: "Image", type: "image", bucket: "images", folder: "Competition_pictures" },
     ],
   },

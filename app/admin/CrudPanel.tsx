@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { Dialog } from "@base-ui/react/dialog";
 import { Switch } from "@base-ui/react/switch";
-import NumberFlow from "@number-flow/react";
+import StatNumber from "./StatNumber";
 import { Award, CalendarRange, ChevronDown, ExternalLink, FileText, Link2, Loader2, MapPin, Pencil, Play, Plus, Search, Shield, Swords, Tag, Trash2, Trophy, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Dropdown from "../components/Dropdown";
@@ -13,6 +13,7 @@ import RolePlayersDialog from "./RolePlayersDialog";
 import { notify } from "./notify";
 import PhotoDropzone from "./PhotoDropzone";
 import VideoDropzone from "./VideoDropzone";
+import DateRangeField from "./DateRangeField";
 import SocialIcon from "./SocialIcon";
 import type { Field, Resource } from "./resources";
 import { adminFetch, sb } from "./supabase";
@@ -609,9 +610,9 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
   const Item = layout === "cards" ? CardItem : layout === "scores" ? ScoreItem : layout === "chips" ? ChipItem : layout === "links" ? LinkItem : layout === "text" ? TextItem : RowItem;
   const renderItems = (items: Row[]) =>
     layout === "cards" ? (
-      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">{items.map((r, i) => <Item key={r.id} ctx={ctx} row={r} i={i} />)}</ul>
+      <ul className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2 xl:grid-cols-3">{items.map((r, i) => <Item key={r.id} ctx={ctx} row={r} i={i} />)}</ul>
     ) : layout === "chips" ? (
-      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <ul className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {items.map((r, i) => <Item key={r.id} ctx={ctx} row={r} i={i} />)}
         <li style={{ animation: "rise .45s var(--ease) both", animationDelay: `${Math.min(items.length, 12) * 45}ms` }}>
           <button type="button" onClick={openNew} className="flex h-full min-h-[7.5rem] w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-600 text-sm font-medium text-slate-400 transition-[border-color,color,background-color] duration-200 hover:border-accent/60 hover:bg-accent/5 hover:text-accent">
@@ -629,21 +630,21 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
   return (
     <section aria-labelledby="panel-title" className="pb-20">
       {/* Header */}
-      <header className="relative mb-6 overflow-hidden rounded-3xl border border-slate-700 bg-slate-900/60 p-6 sm:p-8" style={{ animation: "rise .6s var(--ease) both" }}>
+      <header className="relative mb-6 overflow-hidden rounded-3xl border border-slate-700 bg-slate-900/60 p-5 sm:p-8" style={{ animation: "rise .6s var(--ease) both" }}>
         <span className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-accent/10 blur-3xl" aria-hidden="true" />
         <div className="relative flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex max-w-xl items-start gap-4">
             <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-accent/40 bg-accent/10 text-accent"><Icon className="h-6 w-6" aria-hidden="true" /></span>
             <div>
-              <h1 id="panel-title" className="font-display text-3xl font-bold tracking-[-0.03em] text-white">{res.label}</h1>
+              <h1 id="panel-title" className="font-display text-2xl font-bold sm:text-3xl tracking-[-0.03em] text-white">{res.label}</h1>
               <p className="mt-2 text-slate-400">{res.description}</p>
             </div>
           </div>
-          <dl className="flex flex-wrap gap-3">
+          <dl className="grid grid-cols-[repeat(var(--c),minmax(0,1fr))] gap-2 sm:flex sm:flex-wrap sm:gap-3" style={{ "--c": Math.min(tiles.length, 3) } as React.CSSProperties}>
             {tiles.map(([k, n]) => (
-              <div key={k} className="min-w-24 rounded-2xl border border-slate-700 bg-slate-950/50 px-4 py-3">
+              <div key={k} className="min-w-0 rounded-2xl border border-slate-700 bg-slate-950/50 px-3 py-3 sm:min-w-24 sm:px-4">
                 <dt className="text-xs text-slate-400">{k}</dt>
-                <dd className="mt-1 font-display text-3xl font-bold leading-none tabular-nums text-white"><NumberFlow value={n} /></dd>
+                <dd className="mt-1 font-display text-2xl font-bold leading-none tabular-nums text-white sm:text-3xl"><StatNumber value={n} /></dd>
               </div>
             ))}
           </dl>
@@ -826,6 +827,8 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
                                   }}
                                   onRemoveCurrent={() => setDraft((d) => ({ ...d, __removeVideo: true }))}
                                 />
+                              ) : f.type === "daterange" ? (
+                                <DateRangeField id={id} value={String(draft[f.key] ?? "")} onChange={set} invalid={formError.startsWith(f.label)} />
                               ) : f.type === "textarea" ? (
                                 <textarea id={id} rows={res.layout === "text" ? 10 : 5} value={draft[f.key] ?? ""} onChange={(e) => set(e.target.value)} className={`${input} h-auto py-3`} />
                               ) : f.type === "select" && f.allowOther ? (
@@ -893,6 +896,7 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
                                   placeholder={f.placeholder}
                                   maxLength={f.maxLength}
                                   autoComplete="off"
+                                  spellCheck={false}
                                   autoFocus={f.key === titleField.key}
                                 />
                               )}
