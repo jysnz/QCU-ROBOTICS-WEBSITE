@@ -1,0 +1,41 @@
+name: Process match videos
+
+# Converts match videos that were uploaded in the admin into streaming pieces (.m3u8 + .ts) in the background.
+# Every 10 minutes it looks for videos waiting to be processed; if there are none it stops in a few seconds.
+# You can also start it by hand: Actions > Process match videos > Run workflow.
+#
+# Repository secrets / variables needed (Settings > Secrets and variables > Actions):
+#   secret  SUPABASE_SERVICE_ROLE_KEY
+#   secret  NEXT_PUBLIC_SUPABASE_URL
+#   secret  NEXT_PUBLIC_R2_URL_MATCHES   (the public address of the "matches" bucket)
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+
+concurrency:
+  group: process-match-videos
+  cancel-in-progress: false
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      NEXT_PUBLIC_R2_URL_MATCHES: ${{ secrets.NEXT_PUBLIC_R2_URL_MATCHES }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Is any video waiting?
+        id: check
+        run: node scripts/process-match-videos.mjs --pending
+      - name: Install ffmpeg
+        if: steps.check.outputs.pending != '0'
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - name: Convert the waiting videos
+        if: steps.check.outputs.pending != '0'
+        run: node scripts/process-match-videos.mjs
