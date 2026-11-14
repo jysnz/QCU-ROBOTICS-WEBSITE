@@ -5,16 +5,17 @@ import { createPortal } from "react-dom";
 import { Dialog } from "@base-ui/react/dialog";
 import { Switch } from "@base-ui/react/switch";
 import NumberFlow from "@number-flow/react";
-import { Award, CalendarRange, ExternalLink, FileText, Link2, Loader2, MapPin, Pencil, Play, Plus, Search, Shield, Swords, Tag, Trash2, Trophy, X } from "lucide-react";
+import { Award, CalendarRange, ChevronDown, ExternalLink, FileText, Link2, Loader2, MapPin, Pencil, Play, Plus, Search, Shield, Swords, Tag, Trash2, Trophy, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Dropdown from "../components/Dropdown";
 import HlsPlayer from "./HlsPlayer";
 import RolePlayersDialog from "./RolePlayersDialog";
 import { notify } from "./notify";
 import PhotoDropzone from "./PhotoDropzone";
+import VideoDropzone from "./VideoDropzone";
 import SocialIcon from "./SocialIcon";
 import type { Field, Resource } from "./resources";
-import { sb } from "./supabase";
+import { adminFetch, sb } from "./supabase";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
@@ -23,7 +24,15 @@ type Labels = Record<string, Map<string, string>>; // relation table -> id -> la
 const ICONS: Record<string, LucideIcon> = { season: CalendarRange, team: Shield, competition: Trophy, match: Swords, achievement: Award, role: Tag, social: Link2, text: FileText };
 const PAGE = 30;
 
-const input = "h-11 w-full rounded-xl border border-slate-600 bg-slate-900 px-4 text-sm font-medium text-white outline-none transition-[border-color,box-shadow] placeholder:text-slate-500 hover:border-slate-500 focus-visible:border-accent focus-visible:shadow-[0_0_0_3px_rgba(200,245,96,.18)] focus-visible:outline-none";
+const input = "h-11 w-full rounded-xl border border-slate-600 bg-slate-900 px-4 text-sm font-medium text-white outline-none! transition-[border-color,box-shadow] placeholder:text-slate-500 hover:border-slate-500 focus-visible:border-accent focus-visible:shadow-[0_0_0_3px_rgba(200,245,96,.18)] focus-visible:outline-none!";
+/* selects drop the browser arrow for our own, so every field in the form looks alike */
+const selectInput = `${input.replace("px-4", "pl-4 pr-10")} cursor-pointer appearance-none`;
+const SelectBox = ({ children }: { children: React.ReactNode }) => (
+  <div className="relative min-w-0 flex-1">
+    {children}
+    <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+  </div>
+);
 const fieldLabel = "mb-2 block font-mono text-[.7rem] font-medium uppercase tracking-[.16em] text-slate-400";
 const switchRoot = "relative inline-flex shrink-0 cursor-pointer items-center rounded-full border border-slate-600 bg-slate-800 outline-none transition-colors duration-200 focus-visible:shadow-[0_0_0_3px_rgba(200,245,96,.25)] data-[checked]:border-accent data-[checked]:bg-accent disabled:opacity-60";
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -178,6 +187,10 @@ function ScoreItem({ ctx, row, i }: { ctx: Ctx; row: Row; i: number }) {
             </span>
             {processing && <span className="absolute bottom-1.5 left-1.5 rounded bg-slate-950/80 px-1.5 py-0.5 font-mono text-[.58rem] uppercase tracking-[.1em] text-[#fbbf24]">Processing</span>}
           </button>
+        ) : processing ? (
+          <span className="hidden aspect-video w-40 shrink-0 items-center justify-center gap-2 rounded-lg border border-[#fbbf24]/40 bg-[#fbbf24]/5 text-xs text-[#fbbf24] sm:flex"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />Processing</span>
+        ) : row.processing_error ? (
+          <span title={String(row.processing_error)} className="hidden aspect-video w-40 shrink-0 place-items-center rounded-lg border border-[#f87171]/40 bg-[#f87171]/5 text-xs text-[#f87171] sm:grid">Processing failed</span>
         ) : (
           <span className="hidden aspect-video w-40 shrink-0 place-items-center rounded-lg border border-dashed border-slate-700 text-xs text-slate-600 sm:grid">No video</span>
         )}
@@ -186,6 +199,7 @@ function ScoreItem({ ctx, row, i }: { ctx: Ctx; row: Row; i: number }) {
         <span className="min-w-0 flex-1">
           <span className="block break-words text-sm font-semibold text-white">{ctx.title(row)}</span>
           {bits.length > 0 && <span className="mt-0.5 block break-words text-xs text-slate-400">{bits.join(" · ")}</span>}
+          {!video && processing && <span className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-[#fbbf24] sm:hidden"><Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />Video processing</span>}
           {video && (
             <button type="button" onClick={() => ctx.onPlay(row)} className="mt-1.5 inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:underline sm:hidden">
               <Play className="h-3 w-3 fill-current" aria-hidden="true" />{open ? "Close video" : "Watch video"}
@@ -320,6 +334,7 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
   const [toggling, setToggling] = useState<number | null>(null);
   const [links, setLinks] = useState<Record<string, Row[]>>({}); // fieldKey -> rows of its link table (e.g. team_competitions)
   const [present, setPresent] = useState<Set<string>>(new Set()); // optional columns that really exist in the table
+  const [videoBusy, setVideoBusy] = useState(false); // a match video is still uploading
   const [usage, setUsage] = useState<Record<string, number>>({});
   const [roleView, setRoleView] = useState<Row | null>(null); // the role whose players are shown
   const [playingId, setPlayingId] = useState<number | null>(null); // one match plays at a time
@@ -519,10 +534,29 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
     });
   }
 
+  // A video that is still being converted: check back every 10 seconds so the row flips to playable by itself.
+  useEffect(() => {
+    if (!res.videoKey) return;
+    const waiting = rows.filter((r) => r.is_processing === true).map((r) => r[pk]);
+    if (!waiting.length) return;
+    const t = setInterval(async () => {
+      const { data } = await sb.from(res.table).select("*").in(pk, waiting);
+      if (data?.length) setRows((prev) => prev.map((r) => (data as Row[]).find((d) => d[pk] === r[pk]) ?? r));
+    }, 10000);
+    return () => clearInterval(t);
+  }, [rows, res, pk]);
+
   async function save() {
     if (!draft || saving) return;
     const payload: Row = {};
     for (const f of fields) {
+      if (f.readOnly) continue; // computed by the database; sending it makes the save fail
+      if (f.type === "video") {
+        // A newly uploaded video waits for the background converter; "remove" clears the video and its thumbnail.
+        if (draft.__video) Object.assign(payload, { source_key: draft.__video.key, is_processing: true, video_url: null, thumbnail: null, retry_count: 0, processing_error: null, processing_started_at: null });
+        else if (draft.__removeVideo) Object.assign(payload, { video_url: null, thumbnail: null, source_key: null, is_processing: false, processing_error: null });
+        continue;
+      }
       const v = draft[f.key];
       if (f.type === "boolean") payload[f.key] = !!v;
       else if (f.type === "number" || f.type === "relation") payload[f.key] = v === "" || v === null || v === undefined ? null : Number(v);
@@ -539,6 +573,8 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
     setSaving(false);
     if (e) { setFormError(e.message); notify.error(`Couldn't save: ${e.message}`); return; }
     const label = String(draft?.[res.titleKey] ?? "").trim();
+    // a new video is waiting: ask the background converter to start now instead of waiting for its timer
+    if (draft.__video) adminFetch("/api/admin/match-video/process", { method: "POST" }).catch(() => {});
     if (editingId === null) notify.created(`${cap(res.singular)} added`, { description: label || undefined });
     else notify.updated(`${cap(res.singular)} updated`, { description: label || undefined });
     setDraft(null);
@@ -562,6 +598,8 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
     setDeleting(false);
     if (e) { setError(e.message); notify.error(`Couldn't delete: ${e.message}`); setToDelete(null); return; }
     notify.deleted(`${cap(res.singular)} deleted`, { description: title(toDelete) });
+    // a match's video files live in storage too: remove them with the match
+    if (res.id === "matches") adminFetch("/api/admin/match-video/cleanup", { method: "POST", body: JSON.stringify({ items: [{ video_url: toDelete.video_url ?? null, source_key: toDelete.source_key ?? null }] }) }).catch(() => {});
     setToDelete(null);
     load();
   }
@@ -751,7 +789,7 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
               {draft && (
                 <form onSubmit={(e) => { e.preventDefault(); save(); }} className="px-6 pb-6" noValidate>
                   <div className="grid gap-5 sm:grid-cols-2">
-                    {res.fields.filter((f) => !f.optional || present.has(f.key) || f.type === "image").map((f) => {
+                    {res.fields.filter((f) => !f.readOnly && (!f.optional || present.has(f.key) || f.type === "image")).map((f) => {
                       const id = `f-${f.key}`;
                       const missing = !!f.optional && !present.has(f.key);
                       // choosing a value clears any dependent field (e.g. the team) whose choice is no longer allowed
@@ -763,7 +801,7 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
                         }
                         return n;
                       });
-                      const wide = f.type === "textarea" || f.type === "image" || f.type === "boolean" || f.key === res.titleKey;
+                      const wide = f.wide || f.type === "video" || f.type === "textarea" || f.type === "image" || f.type === "boolean" || f.key === res.titleKey;
                       return (
                         <div key={f.key} className={wide ? "sm:col-span-2" : ""}>
                           {f.type === "boolean" ? (
@@ -776,23 +814,35 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
                           ) : (
                             <>
                               <label className={fieldLabel} htmlFor={id}>{f.label}{f.required ? <span className="text-accent"> *</span> : ""}</label>
-                              {f.type === "textarea" ? (
+                              {f.type === "video" ? (
+                                <VideoDropzone
+                                  value={draft.__video ?? null}
+                                  onChange={(v) => setDraft((d) => ({ ...d, __video: v, __removeVideo: false }))}
+                                  onBusy={setVideoBusy}
+                                  current={{
+                                    hasVideo: !!draft[f.key] && !draft.__removeVideo,
+                                    processing: draft.is_processing === true && !draft[f.key],
+                                    error: !draft[f.key] && draft.is_processing !== true && typeof draft.processing_error === "string" && draft.processing_error ? draft.processing_error : null,
+                                  }}
+                                  onRemoveCurrent={() => setDraft((d) => ({ ...d, __removeVideo: true }))}
+                                />
+                              ) : f.type === "textarea" ? (
                                 <textarea id={id} rows={res.layout === "text" ? 10 : 5} value={draft[f.key] ?? ""} onChange={(e) => set(e.target.value)} className={`${input} h-auto py-3`} />
                               ) : f.type === "select" && f.allowOther ? (
                                 <div className="space-y-3">
                                   <div className="flex items-center gap-3">
                                   <SocialIcon name={String(draft[f.key] ?? "")} className="h-11 w-11 shrink-0 rounded-xl transition-all duration-300" />
-                                  <select
+                                  <SelectBox><select
                                     id={id}
                                     value={draft[`${f.key}__other`] ? "__other__" : draft[f.key] ?? ""}
                                     onChange={(e) => setDraft((d) => e.target.value === "__other__" ? { ...d, [f.key]: "", [`${f.key}__other`]: true } : { ...d, [f.key]: e.target.value, [`${f.key}__other`]: false })}
-                                    className={`${input} ${formError.startsWith(f.label) ? "!border-[#f87171]" : ""}`}
+                                    className={`${selectInput} ${formError.startsWith(f.label) ? "!border-[#f87171]" : ""}`}
                                     autoFocus={f.key === titleField.key}
                                   >
                                     <option value="">Choose a {f.label.toLowerCase()}…</option>
                                     {f.options!.map((o) => <option key={o} value={o}>{o}</option>)}
                                     <option value="__other__">Other…</option>
-                                  </select>
+                                  </select></SelectBox>
                                   </div>
                                   {draft[`${f.key}__other`] && (
                                     <div className="animate-fadeIn">
@@ -802,12 +852,12 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
                                   )}
                                 </div>
                               ) : f.type === "select" ? (
-                                <select id={id} value={draft[f.key] ?? ""} onChange={(e) => set(e.target.value)} className={input}>
+                                <SelectBox><select id={id} value={draft[f.key] ?? ""} onChange={(e) => set(e.target.value)} className={selectInput}>
                                   <option value="">—</option>
                                   {f.options!.map((o) => <option key={o} value={o}>{o}</option>)}
-                                </select>
+                                </select></SelectBox>
                               ) : f.type === "relation" ? (
-                                <select id={id} value={draft[f.key] ?? ""} onChange={(e) => set(e.target.value)} className={`${input} disabled:cursor-not-allowed disabled:opacity-60`} required={f.required}
+                                <SelectBox><select id={id} value={draft[f.key] ?? ""} onChange={(e) => set(e.target.value)} className={`${selectInput} disabled:cursor-not-allowed disabled:opacity-60`} required={f.required}
                                   disabled={!!f.limitBy && (!draft[f.limitBy.field] || allowedFor(f).length === 0)}>
                                   <option value="">{f.limitBy ? (!draft[f.limitBy.field] ? f.limitBy.chooseHint : allowedFor(f).length === 0 ? f.limitBy.emptyHint : "—") : "—"}</option>
                                   {(() => {
@@ -818,7 +868,7 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
                                     if (heads.length <= 1 && !heads[0]) return opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>);
                                     return heads.map((h) => <optgroup key={h} label={h || "Other"}>{opts.filter((o) => (o.group ?? "") === h).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</optgroup>);
                                   })()}
-                                </select>
+                                </select></SelectBox>
                               ) : f.type === "image" && missing ? (
                                 <div className="rounded-xl border border-[#fbbf24]/40 bg-[#fbbf24]/5 p-4 text-sm text-slate-300">
                                   <p className="font-medium text-white">The photo column isn&rsquo;t in the database yet</p>
@@ -837,13 +887,16 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
                                   id={id}
                                   type={f.type === "number" ? "number" : f.type === "date" ? "date" : "text"}
                                   value={draft[f.key] ?? ""}
-                                  onChange={(e) => set(e.target.value)}
-                                  className={`${input} ${formError.startsWith(f.label) ? "!border-[#f87171]" : ""}`}
+                                  onChange={(e) => set(f.upper ? e.target.value.toUpperCase() : e.target.value)}
+                                  className={`${input} ${f.upper ? "uppercase tracking-[.1em]" : ""} ${f.type === "number" ? "[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none" : ""} ${formError.startsWith(f.label) ? "!border-[#f87171]" : ""}`}
                                   required={f.required}
+                                  placeholder={f.placeholder}
+                                  maxLength={f.maxLength}
+                                  autoComplete="off"
                                   autoFocus={f.key === titleField.key}
                                 />
                               )}
-                              {f.hint && <p className="mt-2 text-xs text-slate-500">{f.hint}</p>}
+                              {f.hint && <p className="mt-2 text-xs text-slate-400">{f.hint}</p>}
                             </>
                           )}
                         </div>
@@ -855,7 +908,7 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
 
                   <div className="mt-6 flex justify-end gap-3 border-t border-slate-700 pt-5">
                     <Dialog.Close className="btn btn-ghost btn-sm" disabled={saving}>Cancel</Dialog.Close>
-                    <button type="submit" disabled={saving} className="btn btn-primary btn-sm min-w-28 disabled:opacity-60">
+                    <button type="submit" disabled={saving || videoBusy} className="btn btn-primary btn-sm min-w-28 disabled:opacity-60">
                       {saving && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
                       {editingId === null ? `Add ${res.singular}` : "Save changes"}
                     </button>
@@ -875,7 +928,7 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
             <Dialog.Popup className="w-full max-w-sm rounded-2xl border border-slate-600 bg-slate-900 p-6 outline-none transition-[opacity,transform] duration-200 ease-out-quint data-[starting-style]:scale-[.97] data-[starting-style]:opacity-0 data-[ending-style]:scale-[.97] data-[ending-style]:opacity-0">
               <Dialog.Title className="font-display text-xl font-semibold text-white">Delete {res.singular}?</Dialog.Title>
               <Dialog.Description className="mt-3 text-sm text-slate-400">
-                <span className="text-white">{toDelete ? title(toDelete) : ""}</span> will be removed from the live website. This can&rsquo;t be undone.
+                <span className="text-white">{toDelete ? title(toDelete) : ""}</span>{" "}will be removed from the live website. This can&rsquo;t be undone.
               </Dialog.Description>
               <div className="mt-6 flex justify-end gap-3">
                 <Dialog.Close className="btn btn-ghost" disabled={deleting}>Cancel</Dialog.Close>

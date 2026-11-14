@@ -208,7 +208,7 @@ export default function SponsorsPanel() {
               <Dialog.Description className="mt-3 text-sm text-slate-400">
                 {del?.kind === "company"
                   ? <><span className="text-white">{del.company.company_name}</span>{del.people > 0 ? <> and its <span className="text-white">{del.people} {del.people === 1 ? "person" : "people"}</span></> : null} will be removed from the live website. This can&rsquo;t be undone.</>
-                  : <><span className="text-white">{del?.person.name}</span> will be removed from the live website. This can&rsquo;t be undone.</>}
+                  : <><span className="text-white">{del?.person.name}</span>{" "}will be removed from the live website. This can&rsquo;t be undone.</>}
               </Dialog.Description>
               <div className="mt-6 flex justify-end gap-3">
                 <Dialog.Close className="btn btn-ghost" disabled={deleting}>Cancel</Dialog.Close>

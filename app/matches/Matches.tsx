@@ -599,6 +599,14 @@ const MatchesSection = () => {
                     <DownloadMp4Button url={match.video_url} matchName={match.name} />
                   </div>
                 )}
+
+                {/* The video was uploaded but is still being converted for streaming (it appears here by itself when ready). */}
+                {!match.video_url && match.is_processing === true && (
+                  <div role="status" className="flex items-center gap-3 rounded-xl border border-amber-400/30 bg-amber-400/5 px-4 py-3 text-sm text-amber-200">
+                    <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden="true" />
+                    <span>This video is still being processed. Check back in a little while.</span>
+                  </div>
+                )}
               </div>
             ))}
           </div>

@@ -260,3 +260,18 @@ html.intro .hold, html.intro .hold * { animation-play-state: paused !important; 
 @keyframes auth-lane-run { 0% { background-position: -30% 0; opacity: 1; } 78% { background-position: 130% 0; opacity: 1; } 100% { background-position: 130% 0; opacity: 0; } }
 @keyframes auth-lane-blink { 0%, 72% { opacity: 0; transform: scale(.6); } 80% { opacity: 1; transform: scale(1.5); box-shadow: 0 0 12px #22c55e; } 100% { opacity: .35; transform: scale(1); box-shadow: none; } }
 @media (prefers-reduced-motion: reduce) { .auth-lane::after, .auth-bus::after { animation: none; } .auth-lane i { animation: none; opacity: .6; } }
+
+/* ---------- admin Tasks ---------- */
+@keyframes tk-pop { 0% { transform: scale(.6) } 55% { transform: scale(1.2) } 100% { transform: scale(1) } }
+@keyframes tk-check { from { stroke-dashoffset: 1 } to { stroke-dashoffset: 0 } }
+.tk-pop { animation: tk-pop .36s var(--ease) both; }
+.tk-check path { stroke-dasharray: 1; stroke-dashoffset: 1; animation: tk-check .28s var(--ease) .06s forwards; }
+.tk-rise { animation: rise .5s var(--ease) both; animation-delay: calc(var(--i, 0) * 45ms); }
+.tk-card { transition: transform .2s var(--ease), border-color .2s var(--ease), background-color .2s var(--ease); }
+@media (hover: hover) { .tk-card:hover { transform: translateY(-2px); border-color: #4a516a; } }
+.tk-card:active { transform: scale(.995); }
+@media (prefers-reduced-motion: reduce) {
+  .tk-pop, .tk-rise { animation: none; }
+  .tk-check path { animation: none; stroke-dashoffset: 0; }
+  .tk-card { transition: none; transform: none !important; }
+}

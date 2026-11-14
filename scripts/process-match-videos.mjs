@@ -40,12 +40,26 @@ const log = (...a) => console.log(new Date().toISOString().slice(11, 19), ...a);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function rest(pathAndQuery, init = {}) {
-  const res = await fetch(`${SB}/rest/v1/${pathAndQuery}`, { ...init, headers: { ...H, ...(init.headers ?? {}) } });
+  const res = await tough(`${SB}/rest/v1/${pathAndQuery}`, { ...init, headers: { ...H, ...(init.headers ?? {}) } });
   if (!res.ok) throw new Error(`database ${res.status}: ${(await res.text()).slice(0, 160)}`);
   return res.status === 204 ? null : res.json();
 }
+/* fetch that tries again when the connection fails. After a long conversion the pooled connections are stale and the
+   first request on one fails with "fetch failed"; a retry opens a fresh connection. Real HTTP answers are never retried
+   except server errors (5xx). */
+async function tough(url, init, tries = 4) {
+  for (let i = 1; ; i++) {
+    try {
+      const res = await fetch(url, init);
+      if (res.status < 500 || i >= tries) return res;
+    } catch (e) {
+      if (i >= tries) throw e;
+    }
+    await sleep(500 * i * i);
+  }
+}
 async function fn(body) {
-  const res = await fetch(`${SB}/functions/v1/r2-media`, { method: "POST", headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const res = await tough(`${SB}/functions/v1/r2-media`, { method: "POST", headers: { apikey: KEY, Authorization: `Bearer ${KEY}`, "Content-Type": "application/json" }, body: JSON.stringify(body) });
   if (!res.ok) throw new Error(`r2-media ${body.action} ${res.status}`);
   return res.json();
 }
@@ -141,13 +155,20 @@ async function processMatch(m) {
         while (next < batch.length) {
           const j = next++;
           const body = await batch[j].read();
-          const r = await fetch(puts[j], { method: "PUT", headers: { "Content-Type": TYPE[batch[j].key.split(".").pop()] ?? "application/octet-stream" }, body });
+          const r = await tough(puts[j], { method: "PUT", headers: { "Content-Type": TYPE[batch[j].key.split(".").pop()] ?? "application/octet-stream" }, body });
           if (!r.ok) throw new Error(`upload of ${batch[j].key} failed (${r.status})`);
         }
       }));
     }
 
-    await rest(`matches?id=eq.${m.id}`, { method: "PATCH", headers: { Prefer: "return=minimal" }, body: JSON.stringify({ video_url: `${PUB}/${folder}/abr/master.m3u8`, thumbnail: `${PUB}/${folder}/thumbnail.jpg`, is_processing: false, source_key: null, processing_error: null, processing_started_at: null }) });
+    const updated = await rest(`matches?id=eq.${m.id}`, { method: "PATCH", headers: { Prefer: "return=representation" }, body: JSON.stringify({ video_url: `${PUB}/${folder}/abr/master.m3u8`, thumbnail: `${PUB}/${folder}/thumbnail.jpg`, is_processing: false, source_key: null, processing_error: null, processing_started_at: null }) });
+    if (!updated.length) {
+      // the match was deleted while its video was being converted: don't leave the files behind
+      const keys = [...files.map((f) => f.key), m.source_key];
+      for (let i = 0; i < keys.length; i += 400) await fn({ action: "delete", bucket: "matches", keys: keys.slice(i, i + 400) }).catch(() => {});
+      log(`#${m.id}: the match was deleted meanwhile, its files were removed`);
+      return;
+    }
     try { await fn({ action: "delete", bucket: "matches", keys: [m.source_key] }); } catch { /* the original is just left behind */ }
     log(`#${m.id}: done, ${PUB}/${folder}/abr/master.m3u8`);
   } catch (e) {

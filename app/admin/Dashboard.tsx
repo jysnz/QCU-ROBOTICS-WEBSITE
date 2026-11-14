@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
@@ -9,7 +9,7 @@ import { Toaster } from "sonner";
 import {
   ArrowUpRight, Award, Building2, Camera, CalendarRange, ClipboardCheck, ExternalLink, FileText, GraduationCap,
   BookUser, HeartHandshake, LayoutDashboard, LogOut, Medal, Network, Plus, Share2, Shield, ShieldCheck, Swords, Tag, Trophy,
-  Search, UserRound, Users,
+  ListTodo, Search, Send, UserRound, Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Accounts from "./Accounts";
@@ -22,13 +22,15 @@ import TeamPlayersPanel from "./TeamPlayersPanel";
 import TeamRecordChart from "./TeamRecordChart";
 import CrudPanel from "./CrudPanel";
 import Registrations from "./Registrations";
+import Tasks from "./Tasks";
+import { canAssignTasks, useAdminRole, usePendingPrompts } from "./useAdminRole";
 import { RESOURCES } from "./resources";
 import { adminFetch, sb } from "./supabase";
 
 type View = string; // "overview" | "registrations" | "accounts" | a resource id
 
 const ICONS: Record<string, LucideIcon> = {
-  overview: LayoutDashboard, registrations: ClipboardCheck, accounts: ShieldCheck,
+  overview: LayoutDashboard, "tasks-assign": Send, "tasks-todo": ListTodo, registrations: ClipboardCheck, accounts: ShieldCheck,
   "team-players": Users, assignments: Network, "player-roles": Medal, "media-team": Camera, members: UserRound, coaches: GraduationCap,
   seasons: CalendarRange, teams: Shield, competitions: Trophy, matches: Swords, achievements: Award,
   information: BookUser, roles: Tag, "sponsor-companies": Building2, sponsors: HeartHandshake, socials: Share2, descriptions: FileText,
@@ -39,6 +41,7 @@ const MERGED: Record<string, string> = { assignments: "team-players", "player-ro
 const GROUPS: { title: string; items: { id: View; label: string }[] }[] = [
   { title: "Overview", items: [{ id: "overview", label: "Dashboard" }] },
   { title: "Review", items: [{ id: "registrations", label: "Registrations" }, { id: "accounts", label: "Accounts" }] },
+  { title: "Tasks", items: [{ id: "tasks-assign", label: "Assign" }, { id: "tasks-todo", label: "To do" }] },
   ...(["People", "Competitions", "Site"] as const).map((g) => ({
     title: g,
     items: [
@@ -58,7 +61,7 @@ const STAT_GROUPS: { title: string; blurb: string; ids: string[] }[] = [
 type Stat = { count: number; active?: number; latest?: string };
 
 const QUICK = [
-  { id: "team-players", label: "Add team player" },
+  { id: "team-players", label: "Assign team player" },
   { id: "matches", label: "Add match" },
   { id: "competitions", label: "Add competition" },
   { id: "achievements", label: "Add achievement" },
@@ -244,6 +247,20 @@ export default function Dashboard({ name, email, onSignOut }: { name: string; em
   const [startNew, setStartNew] = useState(false); // open the "add" form as soon as the section loads
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [mac, setMac] = useState(false);
+  const role = useAdminRole();
+  const pending = usePendingPrompts(role, view); // competition tasks waiting for the media head
+  // Assigning tasks is for the super admin, the media head and the head's assistants; everyone else just sees To do.
+  const groups = useMemo(() => GROUPS.map((g) => (g.title === "Tasks" ? { ...g, items: g.items.filter((i) => i.id !== "tasks-assign" || canAssignTasks(role)) } : g)), [role]);
+  const canAssign = canAssignTasks(role);
+
+  useEffect(() => {
+    // someone without access landed on #tasks-assign (old link, or their role changed): send them to their own list
+    if (role !== undefined && !canAssign && view === "tasks-assign") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setView("tasks-todo");
+      window.history.replaceState(null, "", "/admin#tasks-todo");
+    }
+  }, [role, canAssign, view]);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -266,7 +283,7 @@ export default function Dashboard({ name, email, onSignOut }: { name: string; em
   const resource = RESOURCES.find((r) => r.id === view);
 
   const paletteItems: PaletteItem[] = [
-    ...GROUPS.flatMap((g) => g.items.map((i) => ({ id: `go-${i.id}`, label: i.label, group: "Go to", icon: ICONS[i.id], run: () => go(i.id) }))),
+    ...groups.flatMap((g) => g.items.map((i) => ({ id: `go-${i.id}`, label: i.label, group: "Go to", icon: ICONS[i.id], run: () => go(i.id) }))),
     ...QUICK.map((q) => ({ id: `add-${q.id}`, label: q.label, group: "Quick actions", icon: Plus, run: () => go(q.id, true) })),
     { id: "site", label: "Open the website", group: "Account", icon: ExternalLink, run: () => window.open("/", "_blank") },
     { id: "out", label: "Sign out", group: "Account", icon: LogOut, run: onSignOut },
@@ -277,7 +294,7 @@ export default function Dashboard({ name, email, onSignOut }: { name: string; em
       {/* Rendered into <body> so the message boxes stay pinned to the screen corner wherever the page is scrolled,
           even if a parent is padded, animated or very tall. */}
       {typeof document !== "undefined" && createPortal(
-        <Toaster position="bottom-right" visibleToasts={4} gap={10} offset={{ bottom: 76, right: 12 }} mobileOffset={{ bottom: 76, right: 12, left: 12 }} style={{ position: "fixed", zIndex: 2147483000 }} />,
+        <Toaster position="bottom-right" expand visibleToasts={5} gap={10} offset={{ bottom: 76, right: 12 }} mobileOffset={{ bottom: 76, right: 12, left: 12 }} style={{ position: "fixed", zIndex: 2147483000 }} />,
         document.body,
       )}
       <CommandPalette items={paletteItems} open={paletteOpen} onOpenChange={setPaletteOpen} />
@@ -300,7 +317,7 @@ export default function Dashboard({ name, email, onSignOut }: { name: string; em
               onChange={(e) => go(e.target.value)}
               className="h-10 rounded-lg border border-slate-600 bg-slate-900 px-3 text-sm text-white outline-none focus-visible:border-accent"
             >
-              {GROUPS.map((g) => (
+              {groups.map((g) => (
                 <optgroup key={g.title} label={g.title}>
                   {g.items.map((i) => <option key={i.id} value={i.id}>{i.label}</option>)}
                 </optgroup>
@@ -318,7 +335,7 @@ export default function Dashboard({ name, email, onSignOut }: { name: string; em
         </div>
 
         <nav aria-label="Admin sections" className="hidden min-h-0 flex-1 overflow-y-auto px-3 pb-6 lg:block">
-          {GROUPS.map((g) => (
+          {groups.map((g) => (
             <div key={g.title} className="mt-5 first:mt-0">
               <p className="px-3 pb-2 font-mono text-[.66rem] uppercase tracking-[.18em] text-slate-500 select-none">{g.title}</p>
               <ul className="space-y-0.5">
@@ -336,6 +353,7 @@ export default function Dashboard({ name, email, onSignOut }: { name: string; em
                         <span className={`absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r bg-accent transition-[transform,opacity] duration-300 ease-out-quint ${on ? "scale-y-100 opacity-100" : "scale-y-0 opacity-0"}`} aria-hidden="true" />
                         <Icon className={`h-4 w-4 shrink-0 transition-colors duration-150 ${on ? "text-accent" : "text-slate-500 group-hover:text-slate-300"}`} aria-hidden="true" />
                         {i.label}
+                        {i.id === "tasks-assign" && pending > 0 && <span className="tk-pop ml-auto rounded-full bg-accent px-1.5 py-0.5 font-mono text-[.62rem] font-bold leading-none text-accent-ink" aria-label={`${pending} competition tasks to assign`}>{pending}</span>}
                       </button>
                     </li>
                   );
@@ -369,6 +387,7 @@ export default function Dashboard({ name, email, onSignOut }: { name: string; em
             {view === "overview" && <Overview name={name} go={go} />}
             {view === "registrations" && <Registrations />}
             {view === "accounts" && <Accounts />}
+            {((view === "tasks-assign" && canAssign) || view === "tasks-todo") && <Tasks mode={view === "tasks-assign" ? "assign" : "todo"} />}
             {view === "team-players" && <TeamPlayersPanel startNew={startNew} />}
             {(view === "media-team" || view === "members" || view === "coaches") && <PeoplePanel key={view} kind={view === "media-team" ? "media" : view} startNew={startNew} />}
             {view === "sponsors" && <SponsorsPanel />}

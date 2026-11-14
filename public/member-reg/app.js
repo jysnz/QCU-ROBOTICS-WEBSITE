@@ -6,7 +6,9 @@
   const ROLE_LABELS = { member: "Member", media: "Media", player: "Player" };
   const HOBBIES = ["Robotics", "Gaming", "Coding", "Drawing", "Music", "Sports", "Reading", "Photography"];
   const LIKES = ["Anime", "Movies", "Coffee", "Tech gadgets", "Pets", "K-pop", "Space", "Basketball"];
-  const state = { step: 1, photos: [], files: [], hobbies: new Set(), likes: new Set(), role: "" };
+  const ROLE_ORDER = ["member", "media", "player"];
+  const state = { step: 1, photos: [], files: [], hobbies: new Set(), likes: new Set(), roles: new Set() };
+  const rolesList = () => ROLE_ORDER.filter((r) => state.roles.has(r));
 
   const screens = { welcome: $("#welcome"), flow: $("#flow"), done: $("#done") };
   const show = (name) => {
@@ -292,7 +294,7 @@
 
     $$("#pvStrip i").forEach((el, i) => { el.style.backgroundImage = photos[i] ? `url(${photos[i]})` : ""; });
     $("#pvCount").textContent = `${photos.length} / ${PHOTOS} photos`;
-    $("#pvRole").textContent = ROLE_LABELS[state.role] || "Member";
+    $("#pvRole").textContent = rolesList().map((r) => ROLE_LABELS[r]).join(" \u00b7 ") || "Member";
 
     const tags = $("#pvTags"); tags.innerHTML = "";
     (generic ? [] : [...state.hobbies, ...state.likes]).slice(0, 6).forEach((t) => {
@@ -304,7 +306,8 @@
 
   /* ---------- role picker (welcome) ---------- */
   $$('input[name="role"]').forEach((i) => i.addEventListener("change", () => {
-    state.role = i.value; $("#role-err").textContent = ""; updatePreview();
+    if (i.checked) state.roles.add(i.value); else state.roles.delete(i.value);
+    $("#role-err").textContent = ""; updatePreview();
   }));
 
   /* ---------- chips ---------- */
@@ -486,7 +489,7 @@
   }
 
   $("#continueBtn").addEventListener("click", () => {
-    if (!state.role) { $("#role-err").textContent = "Please choose Member, Media or Player."; return; }
+    if (!state.roles.size) { $("#role-err").textContent = "Please choose at least one: Member, Media or Player."; return; }
     show("flow"); go(1);
   });
   $("#backBtn").addEventListener("click", () => (state.step === 1 ? show("welcome") : go(state.step - 1)));
@@ -631,7 +634,7 @@
       firstName: val("firstName"), lastName: val("lastName"),
       gender: genderVal(), birthday: val("birthday"), email: val("email").toLowerCase(),
       studentId: val("studentId"), program: val("program"), year: yearVal(), section: val("section"),
-      role: state.role,
+      roles: rolesList(),
       photos: state.photos, thumb: await makeThumb(state.photos[0]),
       hobbies: [...state.hobbies], likes: [...state.likes], about: val("about"),
       captchaToken: hc.token,
@@ -663,7 +666,7 @@
     $("#flow").reset();
     bdInput.value = ""; // a hidden input keeps its value through form.reset()
     state.photos = []; state.files = []; state.hobbies.clear(); state.likes.clear();
-    state.role = ""; $$('input[name="role"]').forEach((i) => (i.checked = false));
+    state.roles.clear(); $$('input[name="role"]').forEach((i) => (i.checked = false));
     buildChips($("#hobbyChips"), HOBBIES, state.hobbies);
     buildChips($("#likeChips"), LIKES, state.likes);
     $("#stageCap").textContent = "Live preview. Your card fills in as you type.";

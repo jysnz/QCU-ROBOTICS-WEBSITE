@@ -25,11 +25,13 @@ type Person = {
   about: string | null;
   registration_status: string | null;
   role: string;
+  roles?: string[];
   submitted_at: string | null;
   photos: string[];
 };
 type RoleFilter = "all" | "member" | "media" | "player";
 
+const rolesOf = (r: { role: string; roles?: string[] }) => (r.roles?.length ? r.roles : [r.role]); // everything they signed up as
 const ROLE_LABEL: Record<string, string> = { member: "Member", media: "Media team", player: "Player" };
 const ROLE_TONE: Record<string, string> = { member: "text-accent border-accent/40 bg-accent/10", media: "text-violet-300 border-violet-400/40 bg-violet-400/10", player: "text-sky-300 border-sky-400/40 bg-sky-400/10" };
 const PAGE = 24;
@@ -90,11 +92,11 @@ export default function InformationPanel() {
     load();
   }, [load]);
 
-  const count = (r: RoleFilter) => (people ?? []).filter((p) => r === "all" || p.role === r).length;
+  const count = (r: RoleFilter) => (people ?? []).filter((p) => r === "all" || rolesOf(p).includes(r)).length;
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return (people ?? []).filter((p) =>
-      (role === "all" || p.role === role) &&
+      (role === "all" || rolesOf(p).includes(role)) &&
       (status === "all" || (status === "pending") === (p.registration_status === "pending")) &&
       (!q || [p.name, p.email, p.student_id, p.program, p.section].some((v) => (v ?? "").toLowerCase().includes(q))),
     ).sort((a, b) => a.name.localeCompare(b.name));
@@ -169,7 +171,7 @@ export default function InformationPanel() {
                   className="relative block aspect-[4/5] w-full overflow-hidden rounded-2xl border border-slate-700 bg-slate-800 text-left outline-none transition-[transform,border-color,box-shadow] duration-300 ease-out-quint hover:-translate-y-1 hover:border-slate-500 hover:shadow-[0_18px_40px_rgba(0,0,0,.45)] focus-visible:border-accent focus-visible:shadow-[0_0_0_3px_rgba(200,245,96,.3)]">
                   <Cover p={p} />
                   <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-slate-950/20" aria-hidden="true" />
-                  <span className={`absolute left-3 top-3 rounded-full border px-2.5 py-1 font-mono text-[.62rem] uppercase tracking-[.12em] backdrop-blur ${ROLE_TONE[p.role] ?? "border-slate-600 text-slate-300"}`}>{ROLE_LABEL[p.role] ?? p.role}</span>
+                  <span className="absolute left-3 top-3 flex flex-wrap gap-1">{rolesOf(p).map((k) => <span key={k} className={`rounded-full border px-2.5 py-1 font-mono text-[.62rem] uppercase tracking-[.12em] backdrop-blur ${ROLE_TONE[k] ?? "border-slate-600 text-slate-300"}`}>{ROLE_LABEL[k] ?? k}</span>)}</span>
                   {p.registration_status === "pending" && <span className="absolute right-3 top-3 rounded-full border border-[#fbbf24]/50 bg-slate-950/70 px-2.5 py-1 font-mono text-[.62rem] uppercase tracking-[.12em] text-[#fbbf24] backdrop-blur">Pending</span>}
                   <span className="absolute inset-x-0 bottom-0 p-4">
                     <span className="block break-words font-display text-lg font-semibold leading-tight text-white">{p.name}</span>
@@ -247,7 +249,7 @@ function PersonDialog({ person, onClose }: { person: Person | null; onClose: () 
               <div className="min-w-0 flex-1">
                 <Dialog.Title className="break-words font-display text-xl font-semibold text-white">{person?.name}</Dialog.Title>
                 <Dialog.Description className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-400">
-                  {person && <span className={`rounded-full border px-2.5 py-0.5 font-mono text-[.62rem] uppercase tracking-[.12em] ${ROLE_TONE[person.role] ?? ""}`}>{ROLE_LABEL[person.role] ?? person.role}</span>}
+                  {person && rolesOf(person).map((k) => <span key={k} className={`rounded-full border px-2.5 py-0.5 font-mono text-[.62rem] uppercase tracking-[.12em] ${ROLE_TONE[k] ?? ""}`}>{ROLE_LABEL[k] ?? k}</span>)}
                   {person?.registration_status === "pending" && <span className="rounded-full border border-[#fbbf24]/50 px-2.5 py-0.5 font-mono text-[.62rem] uppercase tracking-[.12em] text-[#fbbf24]">Pending review</span>}
                   {person?.submitted_at && <span>Registered {new Date(person.submitted_at).toLocaleDateString()}</span>}
                 </Dialog.Description>
@@ -316,7 +318,7 @@ function PersonDialog({ person, onClose }: { person: Person | null; onClose: () 
                     ["Year level", person?.year_level, false],
                     ["Program", person?.program, true],
                     ["Section", person?.section, false],
-                    ["Registered as", person ? ROLE_LABEL[person.role] ?? person.role : null, false],
+                    ["Registered as", person ? rolesOf(person).map((k) => ROLE_LABEL[k] ?? k).join(" · ") : null, false],
                   ] as [string, string | null | undefined, boolean][]).map(([k, v, wide]) => (
                     <div key={k} className={wide ? "col-span-2" : ""}>
                       <dt className="font-mono text-[.64rem] uppercase tracking-[.14em] text-slate-500">{k}</dt>

@@ -27,12 +27,14 @@ export default function CommandPalette({
           <Dialog.Popup className="w-full max-w-lg overflow-hidden rounded-2xl border border-slate-600 bg-slate-900 outline-none transition-[opacity,transform] duration-150 ease-out-quint data-[starting-style]:-translate-y-2 data-[starting-style]:scale-[.98] data-[starting-style]:opacity-0 data-[ending-style]:scale-[.98] data-[ending-style]:opacity-0">
             <Dialog.Title className="sr-only">Jump to</Dialog.Title>
             <Command loop label="Jump to a section or action">
-              <div className="flex items-center gap-3 border-b border-slate-700 px-4">
-                <Search className="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
+              <div className="group/search flex items-center gap-3 border-b border-slate-700 px-4 transition-colors focus-within:border-accent/60">
+                <Search className="h-4 w-4 shrink-0 text-slate-400 transition-colors group-focus-within/search:text-accent" aria-hidden="true" />
                 <Command.Input
                   autoFocus
+                  autoComplete="off"
+                  spellCheck={false}
                   placeholder="Jump to a section or action…"
-                  className="h-14 w-full bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
+                  className="h-14 w-full rounded-none bg-transparent text-sm text-white outline-none! placeholder:text-slate-500"
                 />
                 <kbd className="shrink-0 rounded-md border border-slate-600 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">Esc</kbd>
               </div>

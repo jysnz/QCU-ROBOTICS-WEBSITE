@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Camera, ImagePlus, Loader2 } from "lucide-react";
-import { sb } from "./supabase";
+import { adminFetch, sb } from "./supabase";
 
 const PICTURES = "member-pictures";
 const initials = (n: string) => { const p = n.trim().split(/\s+/); return ((p[0]?.[0] ?? "") + (p.length > 1 ? p[p.length - 1][0] : "")).toUpperCase() || "?"; };
@@ -23,6 +23,23 @@ export default function PhotoDropzone({ value, onChange, name, folder, bucket = 
     if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { setErr("Use a JPG, PNG or WebP image."); return; }
     if (file.size > MAX_PHOTO) { setErr(`That image is ${(file.size / 1048576).toFixed(1)} MB. The limit is 5 MB.`); return; }
     setBusy(true);
+    // Pictures go to Cloudflare R2 (the "otherphotos" bucket, one folder per kind): the server hands out a short-lived
+    // upload link and the browser sends the file straight there. If R2 isn't switched on yet, Supabase Storage is used.
+    try {
+      const t = await adminFetch<{ fallback?: boolean; uploadUrl?: string; publicUrl?: string }>("/api/admin/media", { method: "POST", body: JSON.stringify({ folder, type: file.type, size: file.size }) });
+      if (t.uploadUrl && t.publicUrl) {
+        const put = await fetch(t.uploadUrl, { method: "PUT", headers: { "Content-Type": file.type }, body: file });
+        if (!put.ok) throw new Error(`the storage answered ${put.status}`);
+        setBusy(false);
+        setInfo({ name: file.name, size: file.size });
+        onChange(t.publicUrl);
+        return;
+      }
+    } catch (e) {
+      setBusy(false);
+      setErr(`Upload failed: ${e instanceof Error ? e.message : "try again"}`);
+      return;
+    }
     const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
     const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
     const { error } = await sb.storage.from(bucket).upload(path, file, { contentType: file.type, upsert: false });

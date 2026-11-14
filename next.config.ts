@@ -2,6 +2,14 @@ import type { NextConfig } from "next";
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
+// Public addresses of the Cloudflare R2 buckets (otherphotos, matches). *.r2.dev is allowed below already; this also
+// covers a custom domain if one is connected to a bucket later.
+const r2Hosts = ['NEXT_PUBLIC_R2_URL_OTHERPHOTOS', 'NEXT_PUBLIC_R2_URL_MATCHES']
+  .map((k) => process.env[k])
+  .filter((u): u is string => !!u)
+  .map((u) => { try { return new URL(u).hostname; } catch { return ''; } })
+  .filter(Boolean);
+
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
@@ -19,6 +27,7 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: '*.r2.dev',
       },
+      ...r2Hosts.map((hostname) => ({ protocol: 'https' as const, hostname })),
     ],
     // r2.dev public URLs are rate-limited by Cloudflare and stall under bursts,
     // so route thumbnails through the image optimizer and cache them for 31 days.

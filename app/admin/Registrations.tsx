@@ -22,11 +22,13 @@ type Registration = {
   about: string | null;
   registration_status: string | null;
   role: string;
+  roles?: string[];
   is_accepted: boolean;
   submitted_at: string | null;
   photos: string[];
 };
 
+const rolesOf = (r: { role: string; roles?: string[] }) => (r.roles?.length ? r.roles : [r.role]); // everything they signed up as
 const ROLE_LABEL: Record<string, string> = { member: "Member", media: "Media team", player: "Player" };
 const ROLE_TONE: Record<string, string> = { member: "text-accent border-accent/40", media: "text-violet-300 border-violet-400/40", player: "text-sky-300 border-sky-400/40" };
 const PROGRAM_SHORT = (p: string | null) => (p ?? "").replace(/^Bachelor of (Science in|Early)\s*/i, "").trim();
@@ -112,7 +114,7 @@ function RegCard({
               <span className="min-w-0 flex-1">
                 <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <span className="nm truncate font-display text-base font-semibold text-white transition-colors">{r.name}</span>
-                  <span className={`rounded-md border px-2 py-0.5 font-mono text-[.64rem] uppercase tracking-[.14em] ${ROLE_TONE[r.role] ?? "text-slate-300 border-slate-600"}`}>{ROLE_LABEL[r.role] ?? r.role}</span>
+                  {rolesOf(r).map((k) => <span key={k} className={`rounded-md border px-2 py-0.5 font-mono text-[.64rem] uppercase tracking-[.14em] ${ROLE_TONE[k] ?? "text-slate-300 border-slate-600"}`}>{ROLE_LABEL[k] ?? k}</span>)}
                 </span>
                 <span className="mt-1 block truncate text-xs text-slate-400">
                   {[PROGRAM_SHORT(r.program), r.year_level, r.student_id].filter(Boolean).join(" · ") || r.email}
@@ -196,11 +198,11 @@ export default function Registrations() {
   const reviewedAll = useMemo(() => rows.filter((r) => r.registration_status !== "pending"), [rows]);
   const base = tab === "pending" ? pendingAll : reviewedAll;
 
-  const roleCount = (k: string) => base.filter((r) => k === "all" || r.role === k).length;
+  const roleCount = (k: string) => base.filter((r) => k === "all" || rolesOf(r).includes(k)).length;
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     return base.filter((r) =>
-      (role === "all" || r.role === role) &&
+      (role === "all" || rolesOf(r).includes(role)) &&
       (!q || [r.name, r.email, r.student_id, r.program].some((v) => (v ?? "").toLowerCase().includes(q))),
     );
   }, [base, role, query]);

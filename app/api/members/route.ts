@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
 import { makeTicket, r2Enabled } from "../_r2";
+import { deleteKeys, mediaReady, putBytes } from "../_media";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -66,6 +67,7 @@ const GENDERS = ["Male", "Female", "LGBTQIA+", "Prefer not to say"];
 const YEARS = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year+"];
 
 const ROLES = ["member", "media", "player"];
+const ROLE_PRIORITY = ["player", "media", "member"]; // which one counts as the person's main role (the `role` column)
 
 type Img = { buf: Buffer; ext: "jpg" | "png"; type: string };
 function decodeImage(v: unknown, maxBytes: number): Img | { tooLarge: true } | null {
@@ -161,8 +163,11 @@ async function handle(req: NextRequest, ip: string): Promise<NextResponse> {
   if (!m.firstName || !m.lastName || !PROGRAMS.includes(m.program) || !m.section || !YEARS.includes(m.year))
     return json({ error: "Please complete all required fields." }, 400);
   if (!m.hobbies.length || !m.likes.length) return json({ error: "Choose at least one hobby and one like." }, 400);
-  const role = str(b.role, 10);
-  if (!ROLES.includes(role)) return json({ error: "Please choose Member, Media or Player." }, 400);
+  // A person can be several things at once (a player who also does media). Older pages send a single `role`.
+  const picked = (Array.isArray(b.roles) ? b.roles : b.role ? [b.role] : []).map((x: unknown) => str(x, 10));
+  const roles = ROLE_PRIORITY.filter((r) => picked.includes(r));
+  if (!roles.length || picked.some((x: string) => !ROLES.includes(x))) return json({ error: "Please choose at least one: Member, Media or Player." }, 400);
+  const role = roles[0];
 
   const photoList = Array.isArray(b.photos) ? b.photos : [];
   if (photoList.length !== PHOTO_COUNT) return json({ error: `Please add exactly ${PHOTO_COUNT} photos.` }, 400);
@@ -185,7 +190,13 @@ async function handle(req: NextRequest, ip: string): Promise<NextResponse> {
   const id = crypto.randomUUID();
   const folder = `registrations/${id}`;
   const paths: string[] = [];
-  const cleanup = async () => { if (paths.length) { try { await sb.storage.from(BUCKET).remove(paths); } catch {} } };
+  // With Cloudflare R2 on, the 5 submitted photos go to the private "memberpictures" bucket. The public profile picture
+  // is only published (to "otherphotos") when an admin approves the registration. Otherwise they go to Supabase as before.
+  const useR2 = mediaReady;
+  const cleanup = async () => {
+    if (!paths.length) return;
+    try { if (useR2) await deleteKeys("memberpictures", paths); else await sb.storage.from(BUCKET).remove(paths); } catch {}
+  };
 
   try {
     const { data: dup, error: dupErr } = await sb.schema("website").from("members").select("id").ilike("student_id", m.studentId).limit(1);
@@ -193,16 +204,21 @@ async function handle(req: NextRequest, ip: string): Promise<NextResponse> {
     if (dup && dup.length) return duplicate();
 
     const jobs = imgs.map((img, i) => ({ path: `${folder}/${i + 1}.${img.ext}`, img }));
-    if (thumb) jobs.push({ path: `${folder}/thumb.jpg`, img: thumb });
+    if (thumb && !useR2) jobs.push({ path: `${folder}/thumb.jpg`, img: thumb });
     const failure = await mapLimit(jobs, UPLOAD_CONCURRENCY, async (j) => {
-      const { error } = await sb.storage.from(BUCKET).upload(j.path, j.img.buf, { contentType: j.img.type, upsert: false });
-      if (error) throw new Error("storage: " + error.message);
+      if (useR2) {
+        await putBytes("memberpictures", j.path, j.img.buf, j.img.type);
+      } else {
+        const { error } = await sb.storage.from(BUCKET).upload(j.path, j.img.buf, { contentType: j.img.type, upsert: false });
+        if (error) throw new Error("storage: " + error.message);
+      }
       paths.push(j.path);
     });
     if (failure) throw failure;
 
     const photoPaths = jobs.slice(0, PHOTO_COUNT).map((j) => j.path);
-    const imageUrl = sb.storage.from(BUCKET).getPublicUrl(thumb ? `${folder}/thumb.jpg` : photoPaths[0]).data.publicUrl;
+    // The 800 px profile photo, not the 192 px thumb: this is the picture the site shows once the registration is approved.
+    const imageUrl = useR2 ? null : sb.storage.from(BUCKET).getPublicUrl(photoPaths[0]).data.publicUrl; // R2: nothing public until approval
     const { data, error } = await sb.schema("website").from("members").insert({
       name: `${m.firstName} ${m.lastName}`,
       image_url: imageUrl,
@@ -220,8 +236,10 @@ async function handle(req: NextRequest, ip: string): Promise<NextResponse> {
       likes: m.likes,
       about: m.about,
       photo_paths: photoPaths,
+      photo_store: useR2 ? "r2" : "supabase",
       registration_status: "pending",
       role,
+      roles,
       is_accepted: false, // every new registration waits for approval
     }).select("id").single();
     if (error) {

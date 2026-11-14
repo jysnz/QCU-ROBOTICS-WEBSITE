@@ -416,6 +416,7 @@ body.flying .topbar .logo{opacity:0;animation:show-failsafe 0s 7s forwards}
 }
 
 .role-pick{margin:26px 0 22px;max-width:460px}
+.role-hint{font-weight:400;text-transform:none;letter-spacing:0;opacity:.7}
 .chips.role{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px}
 .chips.role .chip span{width:100%;justify-content:center;min-height:52px;border-radius:14px}
 .chips.gender{grid-template-columns:repeat(4,1fr)}

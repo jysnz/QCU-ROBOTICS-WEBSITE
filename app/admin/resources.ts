@@ -1,6 +1,6 @@
 /* Declarative description of the website tables the admin can edit (from the QCUR-Apex docs/03-database-schema.md).
    CrudPanel renders a list + create/edit/delete UI for each entry. */
-export type FieldType = "text" | "textarea" | "number" | "boolean" | "date" | "select" | "relation" | "image";
+export type FieldType = "text" | "textarea" | "number" | "boolean" | "date" | "select" | "relation" | "image" | "video";
 
 export type Field = {
   key: string;
@@ -21,6 +21,15 @@ export type Field = {
   bucket?: string;
   folder?: string;
   hint?: string;
+  /** Worked out by the database (a generated column): shown in lists and filters but never in the form or saved. */
+  readOnly?: boolean;
+  /** Faint example text inside the empty box. */
+  placeholder?: string;
+  /** Always take the full width of the form (otherwise two short fields share a row). */
+  wide?: boolean;
+  /** Letters are saved in capitals (codes). */
+  upper?: boolean;
+  maxLength?: number;
   /** Only offered when the table already has this column. */
   optional?: boolean;
   /** SQL that adds the missing column; shown (with a copy button) when an optional image field's column doesn't exist yet. */
@@ -153,10 +162,10 @@ export const RESOURCES: Resource[] = [
     table: "teams", orderBy: "id", ascending: false, titleKey: "team_name",
     icon: "team", groupKey: "season_id", filterKeys: ["season_id"], toggleKey: "is_active", leadKey: "team_number",
     fields: [
-      { key: "team_name", label: "Team name", type: "text", required: true },
-      { key: "team_number", label: "Team number", type: "number", required: true, list: true },
-      { key: "team_code", label: "Team code", type: "text", list: true, hint: "e.g. 1234A" },
-      { key: "season_id", label: "Season", type: "relation", list: true, relation: { table: "seasons", labelKey: "season_name", orderBy: "id" } },
+      { key: "team_name", label: "Team name", type: "text", required: true, placeholder: "e.g. Alpha" },
+      { key: "team_code", label: "Team code", type: "text", list: true, placeholder: "TNTN", hint: "e.g. TNTN", upper: true, maxLength: 8 },
+      { key: "team_number", label: "Team number", type: "number", required: true, list: true, placeholder: "e.g. 1" },
+      { key: "season_id", label: "Season", type: "relation", list: true, wide: true, relation: { table: "seasons", labelKey: "season_name", orderBy: "id" } },
       { key: "is_active", label: "Active", type: "boolean", list: true },
     ],
   },
@@ -182,12 +191,12 @@ export const RESOURCES: Resource[] = [
     fields: [
       { key: "name", label: "Match name", type: "text", required: true },
       { key: "competition_id", label: "Competition", type: "relation", required: true, list: true, hint: "Only competitions listed on the website. Add the competition under Competitions first.", relation: { table: "competitions", labelKey: "title", orderBy: "id", groupBy: { key: "season_id", table: "seasons", labelKey: "season_name" } } },
-      { key: "team_id", label: "Team", type: "relation", list: true, relation: { table: "teams", labelKey: "team_name", orderBy: "team_number" } },
+      { key: "team_id", label: "Team", type: "relation", list: true, hint: "Only teams that took part in the chosen competition.", relation: { table: "teams", labelKey: "team_name", orderBy: "team_number" }, limitBy: { field: "competition_id", table: "team_competitions", matchKey: "competition_id", valueKey: "team_id", chooseHint: "Choose a competition first", emptyHint: "No teams are linked to this competition" } },
       { key: "our_score", label: "Our score", type: "number", list: true },
       { key: "opponent_score", label: "Opponent score", type: "number", list: true },
       { key: "opponent_name", label: "Opponent", type: "text" },
-      { key: "result", label: "Result", type: "select", list: true, options: ["Win", "Loss", "Tie"] },
-      { key: "video_url", label: "Video URL", type: "text" },
+      { key: "result", label: "Result", type: "select", list: true, readOnly: true, options: ["Win", "Loss", "Draw"] }, // the database works it out from the two scores
+      { key: "video_url", label: "Video", type: "video" }, // a video file, converted to streaming pieces in the background
       { key: "sequence", label: "Display order", type: "number" },
     ],
   },

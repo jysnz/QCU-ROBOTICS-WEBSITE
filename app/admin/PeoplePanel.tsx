@@ -10,6 +10,8 @@ import Dropdown from "../components/Dropdown";
 import { notify } from "./notify";
 import PhotoDropzone from "./PhotoDropzone";
 import { sb } from "./supabase";
+import { AssignHeadDialog, clearMediaHead, HeadBadge, HeadMenu, useMediaHead } from "./MediaHeadMenu";
+import { useAdminRole } from "./useAdminRole";
 
 /* One manager for the three public rosters that share the same shape:
    media team (has a position), members and coaches. Grid or list view, sorting, bulk actions. */
@@ -76,6 +78,10 @@ function Tick({ on, label, onToggle, className = "" }: { on: boolean; label: str
 
 export default function PeoplePanel({ kind, startNew = false }: { kind: Kind; startNew?: boolean }) {
   const cfg = KINDS[kind];
+  const adminRole = useAdminRole();
+  const sup = kind === "media" && adminRole === "super_admin"; // only the super admin can assign the media head
+  const { head, reload: reloadHead } = useMediaHead(kind === "media");
+  const [assigning, setAssigning] = useState<{ id: number; name: string } | null>(null);
   const tone = TONES[cfg.tone];
   const [rows, setRows] = useState<Person[] | null>(null);
   const [error, setError] = useState("");
@@ -320,8 +326,10 @@ export default function PeoplePanel({ kind, startNew = false }: { kind: Kind; st
                     <div className="min-w-0 flex-1">
                       <h2 className="break-words font-display text-lg font-semibold leading-tight text-white">{m.name}</h2>
                       <p className={`mt-1 break-words font-mono text-[.68rem] uppercase leading-snug tracking-[.14em] ${tone.text}`}>{role}</p>
+                      {kind === "media" && head?.media_team_id === m.id && <HeadBadge className="mt-2" />}
                     </div>
                     <span className="flex shrink-0 translate-y-2 gap-1 opacity-0 transition-[opacity,transform] duration-200 ease-out-quint focus-within:translate-y-0 focus-within:opacity-100 group-hover:translate-y-0 group-hover:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100">
+                      {sup && <HeadMenu variant="grid" name={m.name} isHead={head?.media_team_id === m.id} onAssign={() => setAssigning({ id: m.id, name: m.name })} onRemove={() => clearMediaHead(m.name, reloadHead)} />}
                       <button type="button" onClick={() => setEdit(m)} aria-label={`Edit ${m.name}`} className="grid h-9 w-9 place-items-center rounded-lg bg-slate-950/70 text-white backdrop-blur transition-colors hover:bg-accent hover:text-accent-ink"><Pencil className="h-4 w-4" aria-hidden="true" /></button>
                       <button type="button" onClick={() => setToDelete([m])} aria-label={`Delete ${m.name}`} className="grid h-9 w-9 place-items-center rounded-lg bg-slate-950/70 text-white backdrop-blur transition-colors hover:bg-[#ef4444]"><Trash2 className="h-4 w-4" aria-hidden="true" /></button>
                     </span>
@@ -333,7 +341,7 @@ export default function PeoplePanel({ kind, startNew = false }: { kind: Kind; st
         </ul>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-slate-700 bg-slate-900" key={`l-${status}-${position}-${sort}`}>
-          <div className="hidden grid-cols-[1.5rem_2.75rem_1fr_9rem_6rem] items-center gap-4 border-b border-slate-700 bg-slate-950/50 px-4 py-2.5 font-mono text-[.66rem] uppercase tracking-[.16em] text-slate-500 sm:grid">
+          <div className={`hidden ${sup ? "grid-cols-[1.5rem_2.75rem_1fr_9rem_8.5rem]" : "grid-cols-[1.5rem_2.75rem_1fr_9rem_6rem]"} items-center gap-4 border-b border-slate-700 bg-slate-950/50 px-4 py-2.5 font-mono text-[.66rem] uppercase tracking-[.16em] text-slate-500 sm:grid`}>
             <span /><span /><span>Name</span><span>Status</span><span className="text-right">Actions</span>
           </div>
           <ul className="divide-y divide-slate-800">
@@ -341,12 +349,13 @@ export default function PeoplePanel({ kind, startNew = false }: { kind: Kind; st
               const on = m.is_active !== false;
               const sel = selected.has(m.id);
               return (
-                <li key={m.id} className={`group grid grid-cols-[1.5rem_2.75rem_1fr_auto] items-center gap-4 px-4 py-3 transition-colors duration-150 sm:grid-cols-[1.5rem_2.75rem_1fr_9rem_6rem] ${sel ? "bg-accent/[.07]" : "hover:bg-slate-800/50"}`} style={{ animation: "rise .4s var(--ease) both", animationDelay: `${Math.min(i, 14) * 25}ms` }}>
+                <li key={m.id} className={`group grid grid-cols-[1.5rem_2.75rem_1fr_auto] items-center gap-4 px-4 py-3 transition-colors duration-150 ${sup ? "sm:grid-cols-[1.5rem_2.75rem_1fr_9rem_8.5rem]" : "sm:grid-cols-[1.5rem_2.75rem_1fr_9rem_6rem]"} ${sel ? "bg-accent/[.07]" : "hover:bg-slate-800/50"}`} style={{ animation: "rise .4s var(--ease) both", animationDelay: `${Math.min(i, 14) * 25}ms` }}>
                   <Tick on={sel} label={`Select ${m.name}`} onToggle={() => toggleSel(m.id)} />
                   <span className={`h-11 w-11 overflow-hidden rounded-xl border border-slate-600 bg-slate-800 text-sm transition-[filter,opacity] ${on ? "" : "opacity-60 saturate-0"}`}><Photo m={m} className="h-full w-full object-cover" /></span>
                   <span className="min-w-0">
                     <span className={`block break-words text-sm font-semibold ${on ? "text-white" : "text-slate-400"}`}>{m.name}</span>
                     <span className={`block break-words font-mono text-[.68rem] uppercase tracking-[.12em] ${tone.text}`}>{cfg.position ? (m.position?.trim() || "No position") : cfg.role}</span>
+                    {kind === "media" && head?.media_team_id === m.id && <HeadBadge className="mt-1.5" />}
                   </span>
                   <label className="hidden cursor-pointer items-center gap-2.5 text-xs text-slate-400 sm:flex">
                     <Switch.Root checked={on} disabled={toggling === m.id} onCheckedChange={(v) => toggleActive(m, v)} aria-label={`${m.name} is active`} className={`${switchRoot} h-5 w-9`}>
@@ -355,6 +364,7 @@ export default function PeoplePanel({ kind, startNew = false }: { kind: Kind; st
                     {on ? "Active" : "Inactive"}
                   </label>
                   <span className="flex justify-end gap-1">
+                    {sup && <HeadMenu variant="list" name={m.name} isHead={head?.media_team_id === m.id} onAssign={() => setAssigning({ id: m.id, name: m.name })} onRemove={() => clearMediaHead(m.name, reloadHead)} />}
                     <button type="button" onClick={() => setEdit(m)} aria-label={`Edit ${m.name}`} className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"><Pencil className="h-4 w-4" aria-hidden="true" /></button>
                     <button type="button" onClick={() => setToDelete([m])} aria-label={`Delete ${m.name}`} className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-[#f87171]"><Trash2 className="h-4 w-4" aria-hidden="true" /></button>
                   </span>
@@ -391,6 +401,8 @@ export default function PeoplePanel({ kind, startNew = false }: { kind: Kind; st
         </div>
       )}
 
+      {kind === "media" && <AssignHeadDialog member={assigning} currentName={(rows ?? []).find((r) => r.id === head?.media_team_id)?.name ?? null} onClose={() => setAssigning(null)} onDone={reloadHead} />}
+
       <PersonDialog kind={kind} person={edit} positions={positions.map(([p]) => p)} onClose={() => setEdit(null)} onSaved={load} />
 
       <Dialog.Root open={toDelete !== null} onOpenChange={(o) => { if (!o && !deleting) setToDelete(null); }}>
@@ -400,7 +412,7 @@ export default function PeoplePanel({ kind, startNew = false }: { kind: Kind; st
             <Dialog.Popup className="w-full max-w-sm rounded-2xl border border-slate-600 bg-slate-900 p-6 outline-none transition-[opacity,transform] duration-200 ease-out-quint data-[starting-style]:scale-[.97] data-[starting-style]:opacity-0 data-[ending-style]:scale-[.97] data-[ending-style]:opacity-0">
               <Dialog.Title className="font-display text-xl font-semibold text-white">{toDelete && toDelete.length > 1 ? `Delete ${toDelete.length} ${cfg.plural}?` : `Delete this ${cfg.singular}?`}</Dialog.Title>
               <Dialog.Description className="mt-3 text-sm text-slate-400">
-                <span className="text-white">{toDelete && toDelete.length > 1 ? `${toDelete.length} ${cfg.plural}` : toDelete?.[0]?.name}</span> will be removed from the live website. This can&rsquo;t be undone. To keep them here without showing them on the site, mark them inactive instead.
+                <span className="text-white">{toDelete && toDelete.length > 1 ? `${toDelete.length} ${cfg.plural}` : toDelete?.[0]?.name}</span>{" "}will be removed from the live website. This can&rsquo;t be undone. To keep them here without showing them on the site, mark them inactive instead.
               </Dialog.Description>
               <div className="mt-6 flex justify-end gap-3">
                 <Dialog.Close className="btn btn-ghost" disabled={deleting}>Cancel</Dialog.Close>

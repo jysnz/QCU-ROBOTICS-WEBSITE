@@ -54,11 +54,11 @@
       <h1 id="welcome-title" class="hero-title"><span class="soft">Welcome to</span><br><span class="accent">QCU Robotics</span></h1>
       <p class="lead">Four quick steps and you're on the roster. Your card builds itself as you go.</p>
       <div class="field role-pick">
-        <span class="label" id="roleLabel">I'm joining as a</span>
-        <div class="chips role" role="radiogroup" aria-labelledby="roleLabel" id="roleChips">
-          <label class="chip"><input type="radio" name="role" value="member"><span>Member</span></label>
-          <label class="chip"><input type="radio" name="role" value="media"><span>Media</span></label>
-          <label class="chip"><input type="radio" name="role" value="player"><span>Player</span></label>
+        <span class="label" id="roleLabel">I'm joining as <span class="role-hint">(pick all that apply)</span></span>
+        <div class="chips role" role="group" aria-labelledby="roleLabel" id="roleChips">
+          <label class="chip"><input type="checkbox" name="role" value="member"><span>Member</span></label>
+          <label class="chip"><input type="checkbox" name="role" value="media"><span>Media</span></label>
+          <label class="chip"><input type="checkbox" name="role" value="player"><span>Player</span></label>
         </div>
                 <p class="error" id="role-err" role="alert"></p>
       </div>
