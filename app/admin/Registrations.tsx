@@ -53,7 +53,41 @@ const daysLeft = (iso?: string | null) => (iso ? Math.max(0, Math.ceil((new Date
 
 const chip = "rounded-md border border-slate-600 px-2 py-0.5 text-[.72rem] text-slate-300";
 
-function Details({ r, onOpenPhoto }: { r: Registration; onOpenPhoto: (i: number) => void }) {
+/* What the person is registered as. Pick one or more, then Save: this decides where they show up (Members, Media team, and the player picker). */
+function RoleEditor({ r, onSave }: { r: Registration; onSave: (roles: string[]) => Promise<boolean> }) {
+  const current = rolesOf(r);
+  const key = current.join(",");
+  const [sel, setSel] = useState<string[]>(current);
+  const [seen, setSeen] = useState(key);
+  const [saving, setSaving] = useState(false);
+  if (seen !== key) { setSeen(key); setSel(current); } // follow the saved value after it changes
+  const same = sel.length === current.length && sel.every((k) => current.includes(k));
+  const toggle = (k: string) => setSel((v) => (v.includes(k) ? (v.length > 1 ? v.filter((x) => x !== k) : v) : [...v, k])); // at least one stays picked
+  async function save() { setSaving(true); await onSave(sel); setSaving(false); }
+  return (
+    <div className="mb-5">
+      <p className="font-mono text-[.66rem] uppercase tracking-[.14em] text-slate-500" id={`ra-${r.id}`}>Registered as</p>
+      <div className="mt-2 flex flex-wrap items-center gap-2" role="group" aria-labelledby={`ra-${r.id}`}>
+        {Object.keys(ROLE_LABEL).map((k) => {
+          const on = sel.includes(k);
+          return (
+            <button key={k} type="button" aria-pressed={on} disabled={saving} onClick={() => toggle(k)} className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3.5 text-sm transition-colors disabled:opacity-60 ${on ? `${ROLE_TONE[k]} bg-white/5` : "border-slate-600 text-slate-400 hover:border-slate-500 hover:text-white"}`}>
+              {on && <Check className="h-3.5 w-3.5" aria-hidden="true" />} {ROLE_LABEL[k]}
+            </button>
+          );
+        })}
+        {!same && (
+          <span className="ml-1 inline-flex items-center gap-2">
+            <button type="button" onClick={save} disabled={saving} className="btn btn-primary btn-sm disabled:opacity-60">{saving && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />} Save</button>
+            <button type="button" onClick={() => setSel(current)} disabled={saving} className="btn btn-ghost btn-sm">Undo</button>
+          </span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Details({ r, onOpenPhoto, onRoles }: { r: Registration; onOpenPhoto: (i: number) => void; onRoles?: (roles: string[]) => Promise<boolean> }) {
   const rows: [string, string | null | undefined][] = [
     ["Email", r.email], ["Student ID", r.student_id], ["Program", r.program],
     ["Year / section", [r.year_level, r.section].filter(Boolean).join(" · ")],
@@ -78,6 +112,7 @@ function Details({ r, onOpenPhoto }: { r: Registration; onOpenPhoto: (i: number)
         )}
       </div>
       <div className="min-w-0">
+        {onRoles && <RoleEditor r={r} onSave={onRoles} />}
         <dl className="grid gap-x-8 gap-y-2.5 text-sm sm:grid-cols-2">
           {rows.map(([k, v]) => v ? (
             <div key={k} className="min-w-0"><dt className="font-mono text-[.66rem] uppercase tracking-[.14em] text-slate-500">{k}</dt><dd className="mt-0.5 break-words text-slate-200">{v}</dd></div>
@@ -96,11 +131,12 @@ function Details({ r, onOpenPhoto }: { r: Registration; onOpenPhoto: (i: number)
 }
 
 function RegCard({
-  r, open, leaving, busy, status, delay, onToggle, onApprove, onReject, onRestore, onOpenPhoto,
+  r, open, leaving, busy, status, delay, onToggle, onApprove, onReject, onRestore, onOpenPhoto, onRoles,
 }: {
   delay: number;
   r: Registration; open: boolean; leaving: boolean; busy: boolean; status: string | null;
   onToggle: () => void; onApprove: () => void; onReject: () => void; onRestore: () => void; onOpenPhoto: (i: number) => void;
+  onRoles: (roles: string[]) => Promise<boolean>; // not offered for a rejected registration
 }) {
   return (
     // the grid-rows trick collapses the card smoothly when it is decided (leaving) and again when it is opened/closed
@@ -150,7 +186,7 @@ function RegCard({
           </div>
 
           <div className={`grid transition-[grid-template-rows] duration-300 ease-out-quint ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`} inert={!open}>
-            <div className="min-h-0 overflow-hidden"><Details r={r} onOpenPhoto={onOpenPhoto} /></div>
+            <div className="min-h-0 overflow-hidden"><Details r={r} onOpenPhoto={onOpenPhoto} onRoles={status === "rejected" ? undefined : onRoles} /></div>
           </div>
         </article>
       </div>
@@ -187,6 +223,19 @@ export default function Registrations() {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     load();
   }, [load]);
+
+  async function changeRoles(row: Registration, roles: string[]) {
+    try {
+      const res = await adminFetch<{ role: string; roles: string[] }>("/api/admin/registrations", { method: "PATCH", body: JSON.stringify({ id: row.id, action: "roles", roles }) });
+      setRows((prev) => prev.map((x) => (x.id === row.id ? { ...x, role: res.role, roles: res.roles } : x)));
+      bustContent(); // Members, Media team and Informations reload fresh
+      notify.updated(`${row.name}'s roles updated`, { description: res.roles.map((k) => ROLE_LABEL[k] ?? k).join(" · ") });
+      return true;
+    } catch (e) {
+      notify.error(e instanceof Error ? e.message : "Couldn't change the roles.");
+      return false;
+    }
+  }
 
   async function decide(row: Registration, action: "approve" | "reject" | "restore") {
     setBusy(row.id);
@@ -325,6 +374,7 @@ export default function Registrations() {
                 onApprove={() => decide(r, "approve")}
                 onReject={() => setConfirm(r)}
                 onRestore={() => decide(r, "restore")}
+                onRoles={(roles) => changeRoles(r, roles)}
                 onOpenPhoto={(idx) => setPhotoView({ photos: r.photos, i: idx, name: r.name })}
               />
           ))}

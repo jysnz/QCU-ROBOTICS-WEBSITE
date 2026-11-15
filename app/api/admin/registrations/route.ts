@@ -13,6 +13,8 @@ const BUCKET = "member-pictures";
 const COLUMNS =
   "id, name, first_name, last_name, gender, birthday, email, phone, student_id, program, year_level, section, hobbies, likes, about, photo_paths, registration_status, role, roles, is_accepted, submitted_at, photo_store, rejected_at";
 const ARCHIVE_DAYS = 30;
+const ROLES = ["member", "media", "player"];
+const ROLE_PRIORITY = ["player", "media", "member"]; // which one counts as the person's main role (the `role` column), as on the sign-up form
 
 export async function GET(req: NextRequest) {
   const admin = await requireAdmin(req);
@@ -63,12 +65,24 @@ export async function GET(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   const admin = await requireAdmin(req);
   if (!admin.ok) return admin.res;
-  let b: { id?: unknown; action?: unknown };
+  let b: { id?: unknown; action?: unknown; roles?: unknown };
   try { b = await req.json(); } catch { return json({ error: "Bad request." }, 400); }
   const id = Number(b.id);
-  if (!Number.isInteger(id) || (b.action !== "approve" && b.action !== "reject" && b.action !== "restore")) return json({ error: "Bad request." }, 400);
+  if (!Number.isInteger(id) || (b.action !== "approve" && b.action !== "reject" && b.action !== "restore" && b.action !== "roles")) return json({ error: "Bad request." }, 400);
 
   const members = service!.schema("website").from("members");
+
+  // Change what a person is registered as (Member, Media team, Player: one or more). `role` stays the main one, same priority as the sign-up form.
+  if (b.action === "roles") {
+    const picked = Array.isArray(b.roles) ? b.roles.filter((x): x is string => typeof x === "string") : [];
+    if (!picked.length || picked.some((x) => !ROLES.includes(x))) return json({ error: "Choose at least one: Member, Media team or Player." }, 400);
+    const roles = ROLE_PRIORITY.filter((r) => picked.includes(r));
+    const { data: updated, error } = await members.update({ role: roles[0], roles }).eq("id", id).in("registration_status", ["pending", "approved"]).select("id, registration_status").maybeSingle();
+    if (error) return json({ error: "Couldn't change the roles." }, 500);
+    if (!updated) return json({ error: "That registration can't be edited any more." }, 404);
+    if (updated.registration_status === "approved") await syncMediaTeam().catch((e) => console.error("Media team sync failed:", (e as Error).message));
+    return json({ ok: true, role: roles[0], roles });
+  }
   if (b.action === "approve") {
     // The site shows image_url on its portrait cards. A new sign-up saves a tiny 192 px preview there, which looks
     // blurry once it goes live, so approving swaps in the 800 px profile photo (the first of the person's photos).
