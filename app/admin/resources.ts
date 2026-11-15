@@ -57,6 +57,8 @@ export type Resource = {
   /* ── how the admin lays the list out (all optional) ── */
   /** "rows" (default), "cards" (picture banner) or "scores" (match results). */
   layout?: "rows" | "cards" | "scores" | "chips" | "links" | "text";
+  /** Hide every "Add ..." button: the rows are fixed (they already exist) and can only be edited. */
+  noAdd?: boolean;
   /** Icon name, see ICONS in CrudPanel. */
   icon?: string;
   /** Field to group the list by (relation, select, text, or a date to group by year). */
@@ -254,7 +256,7 @@ export const RESOURCES: Resource[] = [
     id: "descriptions", group: "Site", label: "Page text", singular: "text block",
     description: "The wording that appears in sections of the website, such as About us. Edit it here and the site updates.",
     table: "descriptions", orderBy: "id", titleKey: "section",
-    icon: "text", layout: "text",
+    icon: "text", layout: "text", noAdd: true,
     fields: [
       { key: "section", label: "Section", type: "text", required: true },
       { key: "description", label: "Text", type: "textarea" },

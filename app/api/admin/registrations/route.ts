@@ -8,14 +8,17 @@ export const dynamic = "force-dynamic";
 
 /* Review member registrations submitted from /member-reg.
    Pending rows are hidden from every database role except the service role, so this route (approved admins only)
-   is the only way to see or decide them. Approve = visible on the site; reject = row and photos deleted. */
+   is the only way to see or decide them. Approve = visible on the site; reject = moved to the archive for 30 days, then deleted with its photos. */
 const BUCKET = "member-pictures";
 const COLUMNS =
-  "id, name, first_name, last_name, gender, birthday, email, student_id, program, year_level, section, hobbies, likes, about, photo_paths, registration_status, role, roles, is_accepted, submitted_at, photo_store";
+  "id, name, first_name, last_name, gender, birthday, email, student_id, program, year_level, section, hobbies, likes, about, photo_paths, registration_status, role, roles, is_accepted, submitted_at, photo_store, rejected_at";
+const ARCHIVE_DAYS = 30;
 
 export async function GET(req: NextRequest) {
   const admin = await requireAdmin(req);
   if (!admin.ok) return admin.res;
+
+  await purgeExpired().catch((e) => console.error("Archive purge failed:", (e as Error).message));
 
   const { data, error } = await service!
     .schema("website")
@@ -62,7 +65,7 @@ export async function PATCH(req: NextRequest) {
   let b: { id?: unknown; action?: unknown };
   try { b = await req.json(); } catch { return json({ error: "Bad request." }, 400); }
   const id = Number(b.id);
-  if (!Number.isInteger(id) || (b.action !== "approve" && b.action !== "reject")) return json({ error: "Bad request." }, 400);
+  if (!Number.isInteger(id) || (b.action !== "approve" && b.action !== "reject" && b.action !== "restore")) return json({ error: "Bad request." }, 400);
 
   const members = service!.schema("website").from("members");
   if (b.action === "approve") {
@@ -90,15 +93,32 @@ export async function PATCH(req: NextRequest) {
     return json({ ok: true });
   }
 
-  const { data: row } = await service!.schema("website").from("members").select("photo_paths, photo_store").eq("id", id).maybeSingle();
-  const { error } = await service!.schema("website").from("members").delete().eq("id", id);
-  if (error) return json({ error: "Couldn't reject that registration." }, 500);
-  const paths = Array.isArray(row?.photo_paths) ? (row!.photo_paths as string[]) : [];
-  if (paths.length) {
-    if (row?.photo_store === "r2") { try { await deleteKeys("memberpictures", paths); } catch (e) { console.error("R2 delete failed:", (e as Error).message); } }
-    else await service!.storage.from(BUCKET).remove(paths);
+  if (b.action === "restore") {
+    const { error } = await members.update({ registration_status: "pending", is_accepted: false, rejected_at: null }).eq("id", id).eq("registration_status", "rejected");
+    if (error) return json({ error: "Couldn't restore that registration." }, 500);
+    return json({ ok: true });
   }
-  const folder = folderOf(paths[0]);
-  if (r2Enabled && folder) { try { await deleteOriginals(folder); } catch (e) { console.error("R2 delete failed:", (e as Error).message); } }
+
+  // Reject = move to the archive. Photos stay until the 30 days are up (purgeExpired).
+  const { error } = await members.update({ registration_status: "rejected", is_accepted: false, rejected_at: new Date().toISOString() }).eq("id", id).eq("registration_status", "pending");
+  if (error) return json({ error: "Couldn't reject that registration." }, 500);
   return json({ ok: true });
+}
+
+/* Permanently deletes rejected registrations that have been in the archive for more than 30 days, with their photos. */
+async function purgeExpired() {
+  const cutoff = new Date(Date.now() - ARCHIVE_DAYS * 86_400_000).toISOString();
+  const { data: old } = await service!.schema("website").from("members").select("id, photo_paths, photo_store").eq("registration_status", "rejected").lt("rejected_at", cutoff);
+  for (const row of old ?? []) {
+    const paths = Array.isArray(row.photo_paths) ? (row.photo_paths as string[]) : [];
+    try {
+      if (paths.length) {
+        if (row.photo_store === "r2") await deleteKeys("memberpictures", paths);
+        else await service!.storage.from(BUCKET).remove(paths);
+      }
+      const folder = folderOf(paths[0]);
+      if (r2Enabled && folder) await deleteOriginals(folder);
+    } catch (e) { console.error("Archive photo purge failed:", (e as Error).message); continue; } // keep the row so the purge retries next time
+    await service!.schema("website").from("members").delete().eq("id", row.id);
+  }
 }

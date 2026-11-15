@@ -396,7 +396,7 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
 
   // Arriving from a dashboard quick action: open the "add" form straight away.
   useEffect(() => {
-    if (startNew) openNew();
+    if (startNew && !res.noAdd) openNew();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -614,11 +614,11 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
     ) : layout === "chips" ? (
       <ul className="grid grid-cols-[minmax(0,1fr)] gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {items.map((r, i) => <Item key={r.id} ctx={ctx} row={r} i={i} />)}
-        <li style={{ animation: "rise .45s var(--ease) both", animationDelay: `${Math.min(items.length, 12) * 45}ms` }}>
+        {!res.noAdd && <li style={{ animation: "rise .45s var(--ease) both", animationDelay: `${Math.min(items.length, 12) * 45}ms` }}>
           <button type="button" onClick={openNew} className="flex h-full min-h-[7.5rem] w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-600 text-sm font-medium text-slate-400 transition-[border-color,color,background-color] duration-200 hover:border-accent/60 hover:bg-accent/5 hover:text-accent">
             <Plus className="h-4 w-4" aria-hidden="true" /> Add {res.singular}
           </button>
-        </li>
+        </li>}
       </ul>
     ) : layout === "links" ? (
       <ul className="grid gap-3 md:grid-cols-2">{items.map((r, i) => <Item key={r.id} ctx={ctx} row={r} i={i} />)}</ul>
@@ -707,9 +707,9 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
         <div className="grid place-items-center rounded-3xl border border-dashed border-slate-600 px-6 py-20 text-center">
           <span className="grid h-14 w-14 place-items-center rounded-2xl border border-accent/40 bg-accent/10 text-accent"><Icon className="h-6 w-6" aria-hidden="true" /></span>
           <p className="mt-5 font-display text-lg font-semibold text-white">{rows.length === 0 ? `No ${res.label.toLowerCase()} yet` : "Nothing matches those filters"}</p>
-          <p className="mt-1 max-w-sm text-sm text-slate-400">{rows.length === 0 ? `Add the first ${res.singular} to get started.` : "Try a different search or filter."}</p>
+          <p className="mt-1 max-w-sm text-sm text-slate-400">{rows.length === 0 ? (res.noAdd ? "There is nothing to edit here yet." : `Add the first ${res.singular} to get started.`) : "Try a different search or filter."}</p>
           {rows.length === 0 ? (
-            <button type="button" onClick={openNew} className="btn btn-primary btn-sm mt-6"><Plus className="h-4 w-4" aria-hidden="true" /> Add {res.singular}</button>
+            res.noAdd ? null : <button type="button" onClick={openNew} className="btn btn-primary btn-sm mt-6"><Plus className="h-4 w-4" aria-hidden="true" /> Add {res.singular}</button>
           ) : hasFilters ? (
             <button type="button" onClick={() => { setQuery(""); setFilters({}); }} className="btn btn-ghost btn-sm mt-6">Clear filters</button>
           ) : null}
@@ -763,7 +763,7 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
       )}
 
       {/* Add button: rendered into <body> so it sits flush in the screen corner */}
-      {typeof document !== "undefined" && createPortal(
+      {!res.noAdd && typeof document !== "undefined" && createPortal(
         <button type="button" onClick={openNew} className="btn btn-primary animate-fadeIn shadow-[0_10px_30px_rgba(0,0,0,.5)]" style={{ position: "fixed", right: 12, bottom: 12, zIndex: 30 }}>
           <Plus className="h-4 w-4" aria-hidden="true" /> Add {res.singular}
         </button>,

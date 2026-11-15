@@ -2,6 +2,9 @@
    A slim dark track with a rounded thumb that brightens on hover and turns lime while dragged.
    Chromium/Safari use the ::-webkit-scrollbar rules (this also removes the white track and the arrow buttons);
    Firefox gets the same colours through scrollbar-color. */
+/* Always reserve the scrollbar's width so the layout doesn't shift sideways when a short tab (e.g. Accounts "Approved")
+   removes the page scrollbar and a long one brings it back. */
+html { scrollbar-gutter: stable; }
 :root { color-scheme: dark; --sb-thumb: #2c3242; --sb-thumb-hover: #475069; }
 @supports not selector(::-webkit-scrollbar) {
   * { scrollbar-width: thin; scrollbar-color: var(--sb-thumb) transparent; }

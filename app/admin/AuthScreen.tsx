@@ -130,13 +130,13 @@ export default function AuthScreen() {
   const rise = (i: number): React.CSSProperties => ({ animation: "rise .7s var(--ease) both", animationDelay: `${i * 80 + 150}ms` });
 
   return (
-    <div className="relative min-h-screen overflow-hidden" style={{ background: C.bg, color: "#f8fafc" }}>
+    <div className="relative h-dvh overflow-hidden" style={{ background: C.bg, color: "#f8fafc" }}>
       {/* backdrop: drifting grid + two soft glows (shared by every screen size) */}
       <div className="auth-grid pointer-events-none absolute -inset-10" aria-hidden="true" />
       <div className="auth-orb pointer-events-none absolute rounded-full blur-[80px] -left-24 -top-24 h-96 w-96 bg-[#22c55e]/25" aria-hidden="true" />
       <div className="auth-orb pointer-events-none absolute rounded-full blur-[80px] -bottom-32 right-0 h-[28rem] w-[28rem] bg-[#6366f1]/20" style={{ animationDelay: "-6s" }} aria-hidden="true" />
 
-      <div className="relative mx-auto grid min-h-screen max-w-[1280px] lg:grid-cols-[1.1fr_1fr]">
+      <div className="relative mx-auto grid h-dvh max-w-[1280px] lg:grid-cols-[1.1fr_1fr]">
         {/* Brand panel: only where there is room for it */}
         <section className="relative hidden flex-col justify-between overflow-hidden px-12 py-12 lg:flex xl:px-16" aria-label="About the admin area">
           <Lanes />
@@ -173,24 +173,24 @@ export default function AuthScreen() {
         </section>
 
         {/* Form */}
-        <main className="relative mx-auto flex w-full max-w-[480px] flex-col justify-center px-4 py-10 lg:max-w-none lg:px-12">
+        <main className="relative mx-auto flex h-dvh w-full max-w-[480px] flex-col justify-center overflow-hidden px-4 py-3 lg:max-w-none lg:px-12">
           <div className="mx-auto w-full max-w-[440px]">
-            <Link href="/" className="mb-6 inline-flex items-center gap-1 text-xs text-[#94a3b8] transition-colors hover:text-white" style={rise(0)}>
+            <Link href="/" className="mb-2 inline-flex items-center gap-1 text-xs text-[#94a3b8] transition-colors hover:text-white" style={rise(0)}>
               <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Back to site
             </Link>
 
-            <div className="lg:hidden" style={rise(1)}>
-              <Image src="/logo-96.png" alt="QCU Robotics" width={72} height={72} className="site-logo mx-auto" priority />
+            <div className="[@media(max-height:700px)]:hidden lg:hidden" style={rise(1)}>
+              <Image src="/logo-96.png" alt="QCU Robotics" width={56} height={56} className="site-logo mx-auto" priority />
             </div>
             <div key={mode} className="animate-fadeIn text-center lg:text-left">
-              <h1 className="mt-4 text-lg font-semibold lg:mt-0 lg:font-display lg:text-3xl lg:font-bold lg:tracking-[-0.03em]">{isLogin ? "Welcome Back" : "Request Access"}</h1>
+              <h1 className="mt-2 text-lg font-semibold lg:mt-0 lg:font-display lg:text-3xl lg:font-bold lg:tracking-[-0.03em]">{isLogin ? "Welcome Back" : "Request Access"}</h1>
               <p className="mt-1 text-xs text-[#94a3b8] lg:mt-2 lg:text-sm">
                 {isLogin ? "Please sign in to continue" : "An existing admin approves new accounts"}
               </p>
             </div>
 
-            <div className="auth-card mt-6 rounded-2xl border p-4 shadow-[0_8px_30px_rgba(0,0,0,.35)] sm:p-5" style={{ background: `${C.surface}f2`, borderColor: `${C.border}80` }}>
-              <form onSubmit={submit} noValidate className="space-y-3">
+            <div className="auth-card mt-3 rounded-2xl border p-3.5 shadow-[0_8px_30px_rgba(0,0,0,.35)] sm:p-5" style={{ background: `${C.surface}f2`, borderColor: `${C.border}80` }}>
+              <form onSubmit={submit} noValidate className="space-y-2.5">
                 <div className={`auth-swap ${isLogin ? "" : "is-open"}`} inert={isLogin}>
                   <div>
                     <div className="pb-3">
@@ -234,7 +234,7 @@ export default function AuthScreen() {
                   <div className={`auth-swap ${isLogin ? "" : "is-open"}`}><div><p className="pt-1.5 text-[11px] text-[#64748b]">At least 8 characters.</p></div></div>
                 </div>
 
-                <div className="pt-1"><Turnstile onToken={setToken} resetKey={resetKey} /></div>
+                <div><Turnstile onToken={setToken} resetKey={resetKey} /></div>
 
                 <p role="alert" className={`text-sm text-[#f87171] ${error ? "animate-fadeIn" : "hidden"}`}>{error}</p>
                 {notice && <p role="status" className="animate-fadeIn rounded-xl border border-[#22c55e]/40 bg-[#22c55e]/10 p-3 text-sm text-[#4ade80]">{notice}</p>}
@@ -250,9 +250,9 @@ export default function AuthScreen() {
                 </button>
               </form>
 
-              <div className="my-4 flex items-center gap-3" role="separator">
+              <div className="my-3 flex items-center gap-3" role="separator">
                 <span className="h-px flex-1" style={{ background: `${C.border}80` }} />
-                <span className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#94a3b8]">Or continue with</span>
+                <span className="text-[10px] font-semibold uppercase tracking-[.14em] text-[#94a3b8]">Or</span>
                 <span className="h-px flex-1" style={{ background: `${C.border}80` }} />
               </div>
 
@@ -264,11 +264,11 @@ export default function AuthScreen() {
                 style={{ background: C.elevated, borderColor: `${C.border}80` }}
               >
                 {googleBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <GoogleMark />}
-                Google
+                Continue with Google
               </button>
             </div>
 
-            <p className="mt-4 text-center text-xs text-[#94a3b8]" style={rise(6)}>
+            <p className="mt-3 text-center text-xs text-[#94a3b8]" style={rise(6)}>
               {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
               <button type="button" onClick={() => switchMode(isLogin ? "register" : "login")} className="font-semibold text-[#22c55e] hover:underline">
                 {isLogin ? "Create Account" : "Sign In"}

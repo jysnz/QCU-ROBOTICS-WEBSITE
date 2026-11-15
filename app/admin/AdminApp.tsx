@@ -5,11 +5,12 @@ import type { Session } from "@supabase/supabase-js";
 import { Loader2 } from "lucide-react";
 import AuthScreen from "./AuthScreen";
 import Dashboard from "./Dashboard";
-import { sb } from "./supabase";
+import { adminFetch, sb } from "./supabase";
 
 type Gate =
   | { kind: "loading" }
   | { kind: "signed-out" }
+  | { kind: "unregistered"; email: string }
   | { kind: "pending"; email: string }
   | { kind: "migrate" }
   | { kind: "ready"; name: string; email: string };
@@ -42,6 +43,13 @@ export default function AdminApp() {
     }
     let cancelled = false;
     (async () => {
+      // First: has this email been used to register at /member-reg? If not, stop here and say so.
+      // A failed check (network, server not configured) doesn't lock anyone out; approval below is still required.
+      try {
+        const r = await adminFetch<{ registered: boolean }>("/api/admin/registered");
+        if (cancelled) return;
+        if (r.registered === false) { setGate({ kind: "unregistered", email: sessionEmail }); return; }
+      } catch { if (cancelled) return; }
       const { data, error } = await sb.schema("public").from("user_accounts").select("is_approved, full_name, email").eq("id", uid).maybeSingle();
       if (cancelled) return;
       if (error) {
@@ -72,6 +80,23 @@ export default function AdminApp() {
           Run <code className="rounded bg-slate-800 px-1.5 py-0.5 text-sm text-white">supabase/admin-approval.sql</code> in the Supabase SQL editor, then reload this page.
         </p>
         <button type="button" onClick={signOut} className="btn btn-ghost mt-8 self-start">Sign out</button>
+      </Centered>
+    );
+  }
+
+  if (gate.kind === "unregistered") {
+    return (
+      <Centered>
+        <p className="kicker mb-3">One step first</p>
+        <h1 className="font-display text-3xl font-bold text-white">Register before you sign in</h1>
+        <p className="mt-3 text-slate-400">
+          The email <span className="text-white">{gate.email}</span> hasn&rsquo;t been used to register yet. You need to register on the member registration page with this same email before you can enter the admin area.
+        </p>
+        <div className="mt-8 flex flex-wrap gap-3">
+          <a href="/member-reg" className="btn btn-primary">Go to registration</a>
+          <button type="button" onClick={() => setRecheck((n) => n + 1)} className="btn btn-ghost">I&rsquo;ve registered, check again</button>
+          <button type="button" onClick={signOut} className="btn btn-ghost">Sign out</button>
+        </div>
       </Centered>
     );
   }

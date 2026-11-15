@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import NumberFlow from "@number-flow/react";
 import { notify } from "./notify";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, ImageOff, Inbox, Loader2, Search, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, ImageOff, Inbox, Loader2, RotateCcw, Search, Trash2, X } from "lucide-react";
 import { adminFetch } from "./supabase";
 
 type Registration = {
@@ -25,6 +25,7 @@ type Registration = {
   roles?: string[];
   is_accepted: boolean;
   submitted_at: string | null;
+  rejected_at?: string | null;
   photos: string[];
 };
 
@@ -44,6 +45,9 @@ function ago(iso: string | null) {
   while (i < units.length - 1 && abs >= units[i + 1][0]) i++;
   return rtf.format(Math.round(diff / units[i][0]), units[i][1]);
 }
+
+const ARCHIVE_DAYS = 30;
+const daysLeft = (iso?: string | null) => (iso ? Math.max(0, Math.ceil((new Date(iso).getTime() + ARCHIVE_DAYS * 86_400_000 - Date.now()) / 86_400_000)) : ARCHIVE_DAYS);
 
 const chip = "rounded-md border border-slate-600 px-2 py-0.5 text-[.72rem] text-slate-300";
 
@@ -90,11 +94,11 @@ function Details({ r, onOpenPhoto }: { r: Registration; onOpenPhoto: (i: number)
 }
 
 function RegCard({
-  r, open, leaving, busy, pending, delay, onToggle, onApprove, onReject, onOpenPhoto,
+  r, open, leaving, busy, status, delay, onToggle, onApprove, onReject, onRestore, onOpenPhoto,
 }: {
   delay: number;
-  r: Registration; open: boolean; leaving: boolean; busy: boolean; pending: boolean;
-  onToggle: () => void; onApprove: () => void; onReject: () => void; onOpenPhoto: (i: number) => void;
+  r: Registration; open: boolean; leaving: boolean; busy: boolean; status: string | null;
+  onToggle: () => void; onApprove: () => void; onReject: () => void; onRestore: () => void; onOpenPhoto: (i: number) => void;
 }) {
   return (
     // the grid-rows trick collapses the card smoothly when it is decided (leaving) and again when it is opened/closed
@@ -124,11 +128,18 @@ function RegCard({
               <ChevronDown className={`h-4 w-4 shrink-0 text-slate-500 transition-transform duration-300 ease-out-quint ${open ? "rotate-180" : ""}`} aria-hidden="true" />
             </button>
 
-            {pending ? (
+            {status === "pending" ? (
               <div className="flex w-full shrink-0 gap-2 sm:w-auto [&>button]:flex-1 sm:[&>button]:flex-none">
                 <button type="button" disabled={busy} onClick={onReject} className="btn btn-ghost btn-sm disabled:opacity-60"><Trash2 className="h-4 w-4" aria-hidden="true" /> Reject</button>
                 <button type="button" disabled={busy} onClick={onApprove} className="btn btn-primary btn-sm disabled:opacity-60">
                   {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Check className="h-4 w-4" aria-hidden="true" />} Approve
+                </button>
+              </div>
+            ) : status === "rejected" ? (
+              <div className="flex w-full shrink-0 items-center gap-3 sm:w-auto">
+                <span className="font-mono text-[.68rem] text-slate-400">Deleted in {daysLeft(r.rejected_at)} {daysLeft(r.rejected_at) === 1 ? "day" : "days"}</span>
+                <button type="button" disabled={busy} onClick={onRestore} className="btn btn-ghost btn-sm disabled:opacity-60">
+                  {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <RotateCcw className="h-4 w-4" aria-hidden="true" />} Restore
                 </button>
               </div>
             ) : (
@@ -149,7 +160,7 @@ export default function Registrations() {
   const [rows, setRows] = useState<Registration[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [tab, setTab] = useState<"pending" | "approved">("pending");
+  const [tab, setTab] = useState<"pending" | "approved" | "archived">("pending");
   const [role, setRole] = useState<"all" | "member" | "media" | "player">("all");
   const [query, setQuery] = useState("");
   const [openId, setOpenId] = useState<number | null>(null);
@@ -175,16 +186,20 @@ export default function Registrations() {
     load();
   }, [load]);
 
-  async function decide(row: Registration, action: "approve" | "reject") {
+  async function decide(row: Registration, action: "approve" | "reject" | "restore") {
     setBusy(row.id);
     try {
       await adminFetch("/api/admin/registrations", { method: "PATCH", body: JSON.stringify({ id: row.id, action }) });
       if (action === "approve") notify.updated(`${row.name} approved`, { description: "They now appear on the site." });
-      else notify.deleted(`${row.name}'s registration rejected`, { description: "The registration and photos were deleted." });
+      else if (action === "restore") notify.updated(`${row.name} restored`, { description: "Back in Needs review." });
+      else notify.deleted(`${row.name}'s registration rejected`, { description: `Moved to the archive. It's deleted permanently after ${ARCHIVE_DAYS} days.` });
       // collapse the card first, then update the list so the rows below slide up instead of jumping
       setLeaving((s) => new Set(s).add(row.id));
       setTimeout(() => {
-        setRows((prev) => action === "reject" ? prev.filter((x) => x.id !== row.id) : prev.map((x) => x.id === row.id ? { ...x, registration_status: "approved", is_accepted: true } : x));
+        setRows((prev) => prev.map((x) => x.id !== row.id ? x
+          : action === "approve" ? { ...x, registration_status: "approved", is_accepted: true }
+          : action === "reject" ? { ...x, registration_status: "rejected", is_accepted: false, rejected_at: new Date().toISOString() }
+          : { ...x, registration_status: "pending", is_accepted: false, rejected_at: null }));
         setLeaving((s) => { const n = new Set(s); n.delete(row.id); return n; });
         setOpenId((o) => (o === row.id ? null : o));
       }, 380);
@@ -195,8 +210,9 @@ export default function Registrations() {
   }
 
   const pendingAll = useMemo(() => rows.filter((r) => r.registration_status === "pending"), [rows]);
-  const reviewedAll = useMemo(() => rows.filter((r) => r.registration_status !== "pending"), [rows]);
-  const base = tab === "pending" ? pendingAll : reviewedAll;
+  const reviewedAll = useMemo(() => rows.filter((r) => r.registration_status !== "pending" && r.registration_status !== "rejected"), [rows]);
+  const archivedAll = useMemo(() => rows.filter((r) => r.registration_status === "rejected"), [rows]);
+  const base = tab === "pending" ? pendingAll : tab === "approved" ? reviewedAll : archivedAll;
 
   const roleCount = (k: string) => base.filter((r) => k === "all" || rolesOf(r).includes(k)).length;
   const shown = useMemo(() => {
@@ -231,8 +247,8 @@ export default function Registrations() {
       </div>
 
       <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="relative grid w-full grid-cols-2 gap-1 rounded-xl border border-slate-600 bg-slate-900 p-1 sm:inline-flex sm:w-fit" role="tablist" aria-label="Registration status">
-          {(["pending", "approved"] as const).map((f) => (
+        <div className="relative grid w-full grid-cols-3 gap-1 rounded-xl border border-slate-600 bg-slate-900 p-1 sm:inline-flex sm:w-fit" role="tablist" aria-label="Registration status">
+          {(["pending", "approved", "archived"] as const).map((f) => (
             <button
               key={f}
               type="button"
@@ -241,8 +257,8 @@ export default function Registrations() {
               onClick={() => { setTab(f); setOpenId(null); }}
               className={`relative h-11 rounded-lg px-3 text-sm font-semibold sm:h-10 sm:px-5 transition-colors duration-200 ${tab === f ? "bg-accent text-accent-ink" : "text-slate-300 hover:text-white"}`}
             >
-              {f === "pending" ? "Needs review" : "Approved"}
-              <span className={`ml-2 font-mono text-xs ${tab === f ? "text-accent-ink/70" : "text-slate-500"}`}>{f === "pending" ? pendingAll.length : reviewedAll.length}</span>
+              {f === "pending" ? "Needs review" : f === "approved" ? "Approved" : "Archive"}
+              <span className={`ml-2 font-mono text-xs ${tab === f ? "text-accent-ink/70" : "text-slate-500"}`}>{f === "pending" ? pendingAll.length : f === "approved" ? reviewedAll.length : archivedAll.length}</span>
             </button>
           ))}
         </div>
@@ -283,10 +299,10 @@ export default function Registrations() {
         <div className="grid place-items-center rounded-2xl border border-dashed border-slate-600 px-6 py-16 text-center">
           <Inbox className="h-8 w-8 text-slate-500" aria-hidden="true" />
           <p className="mt-4 font-medium text-white">
-            {query || role !== "all" ? "No registrations match your filters" : tab === "pending" ? "You're all caught up" : "Nothing approved yet"}
+            {query || role !== "all" ? "No registrations match your filters" : tab === "pending" ? "You're all caught up" : tab === "approved" ? "Nothing approved yet" : "The archive is empty"}
           </p>
           <p className="mt-1 max-w-sm text-sm text-slate-400">
-            {query || role !== "all" ? "Try a different search or role." : tab === "pending" ? "New sign-ups from /member-reg will show up here for review." : "Approved registrations are listed here."}
+            {query || role !== "all" ? "Try a different search or role." : tab === "pending" ? "New sign-ups from /member-reg will show up here for review." : tab === "approved" ? "Approved registrations are listed here." : `Rejected registrations are kept here for ${ARCHIVE_DAYS} days, then deleted permanently.`}
           </p>
           {(query || role !== "all") && <button type="button" onClick={() => { setQuery(""); setRole("all"); }} className="btn btn-ghost btn-sm mt-5">Clear filters</button>}
         </div>
@@ -300,10 +316,11 @@ export default function Registrations() {
                 open={openId === r.id}
                 leaving={leaving.has(r.id)}
                 busy={busy === r.id}
-                pending={r.registration_status === "pending"}
+                status={r.registration_status}
                 onToggle={() => setOpenId((o) => (o === r.id ? null : r.id))}
                 onApprove={() => decide(r, "approve")}
                 onReject={() => setConfirm(r)}
+                onRestore={() => decide(r, "restore")}
                 onOpenPhoto={(idx) => setPhotoView({ photos: r.photos, i: idx, name: r.name })}
               />
           ))}
@@ -318,11 +335,11 @@ export default function Registrations() {
             <Dialog.Popup className="w-full max-w-sm rounded-2xl border border-slate-600 bg-slate-900 p-6 outline-none transition-[opacity,transform] duration-200 ease-out-quint data-[starting-style]:scale-[.97] data-[starting-style]:opacity-0 data-[ending-style]:scale-[.97] data-[ending-style]:opacity-0">
               <Dialog.Title className="font-display text-xl font-semibold text-white">Reject this registration?</Dialog.Title>
               <Dialog.Description className="mt-3 text-sm text-slate-400">
-                <span className="text-white">{confirm?.name}</span>&rsquo;s registration and uploaded photos will be permanently deleted. This can&rsquo;t be undone.
+                <span className="text-white">{confirm?.name}</span>&rsquo;s registration will move to the archive and be permanently deleted, with its photos, after 30 days. You can restore it until then.
               </Dialog.Description>
               <div className="mt-6 flex justify-end gap-3">
                 <Dialog.Close className="btn btn-ghost">Cancel</Dialog.Close>
-                <button type="button" onClick={() => { const r = confirm; setConfirm(null); if (r) decide(r, "reject"); }} className="btn bg-[#ef4444] text-white hover:bg-[#f87171]">Reject &amp; delete</button>
+                <button type="button" onClick={() => { const r = confirm; setConfirm(null); if (r) decide(r, "reject"); }} className="btn bg-[#ef4444] text-white hover:bg-[#f87171]">Reject</button>
               </div>
             </Dialog.Popup>
           </Dialog.Viewport>

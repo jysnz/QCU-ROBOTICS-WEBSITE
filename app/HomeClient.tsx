@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from './lib/supabasePublic';
 import { LoadingSpinner, SkeletonCompetitionCard } from './components/LoadingSpinner';
 import {
   Trophy,
@@ -36,16 +36,8 @@ export type HomeClientProps = {
 };
 
 // ─── Supabase Client ──────────────────────────────────────────────────────────
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
-const supabase = createClient(supabaseUrl, supabaseKey, {
-  db: { schema: 'website' },
-});
 
-console.log('[Init] Supabase URL:', supabaseUrl);
-console.log('[Init] Supabase Key valid:', supabaseKey !== 'placeholder-key');
-
-if (supabaseUrl === 'https://placeholder.supabase.co' || supabaseKey === 'placeholder-key') {
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
   console.warn('[Init] ⚠️ SUPABASE CREDENTIALS MISSING - using placeholders');
 }
 
@@ -931,22 +923,22 @@ const SponsorSection = ({ initialSponsors }: { initialSponsors?: SponsorCompany[
   const [loading, setLoading] = useState(!initialSponsors?.length);
 
   useEffect(() => {
-    // Skip fetch if server already provided initial data
-    if (initialSponsors?.length) return;
-
+    // The server only prefetches companies; sponsor people are always fetched here.
     const fetchSponsors = async () => {
       try {
         const cachedCompanies = getCachedData('sponsor-companies');
         const cachedSponsors = getCachedData('sponsors');
 
-        if (cachedCompanies && cachedSponsors) {
-          setSponsorCompanies(cachedCompanies);
+        if (cachedSponsors && (initialSponsors?.length || cachedCompanies)) {
+          if (!initialSponsors?.length) setSponsorCompanies(cachedCompanies);
           setSponsors(cachedSponsors);
           return;
         }
 
         const [companiesResult, sponsorsResult] = await Promise.all([
-          supabase.from('sponsor_company').select('id, image_url, company_name').order('id', { ascending: true }),
+          initialSponsors?.length
+            ? Promise.resolve({ data: initialSponsors, error: null })
+            : supabase.from('sponsor_company').select('id, image_url, company_name').order('id', { ascending: true }),
           supabase.from('sponsors').select('id, name, image_url, company_id').order('id', { ascending: true }),
         ]);
 
@@ -963,7 +955,7 @@ const SponsorSection = ({ initialSponsors }: { initialSponsors?: SponsorCompany[
         setCachedData('sponsor-companies', companyRows);
         setCachedData('sponsors', sponsorRows);
 
-        setSponsorCompanies(companyRows);
+        setSponsorCompanies(companyRows as any[]);
         setSponsors(sponsorRows);
       } catch (err: any) {
         console.error('[Sponsors] Exception:', err?.message || err);
@@ -1941,6 +1933,10 @@ const Footer = () => {
 
         <div className="pt-8 border-t border-slate-800 flex flex-col md:flex-row items-center justify-between gap-4">
           <p className="text-slate-500 text-sm">© 2026 QCU Robotics. All rights reserved.</p>
+          <nav aria-label="Legal" className="flex gap-5 text-sm">
+            <a href="/privacy" className="text-slate-500 underline-offset-4 transition-colors hover:text-white hover:underline">Privacy Policy</a>
+            <a href="/terms" className="text-slate-500 underline-offset-4 transition-colors hover:text-white hover:underline">Terms of Service</a>
+          </nav>
         </div>
       </div>
     </footer>

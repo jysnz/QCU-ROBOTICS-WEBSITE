@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import NumberFlow from "@number-flow/react";
-import { CalendarClock, Cake, Check, CheckCircle2, ChevronDown, ChevronRight, ClipboardList, Download, FileImage, FileText, Loader2, Minus, Paperclip, Pencil, Plus, Search, Settings2, Trash2, Trophy, X } from "lucide-react";
+import { CalendarClock, Cake, Check, CheckCircle2, ChevronDown, ChevronRight, ClipboardList, Download, FileImage, FileText, Loader2, Minus, Paperclip, Pencil, Plus, Search, Settings2, Trash2, Trophy, Upload, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { notify } from "./notify";
 import { adminFetch, sb } from "./supabase";
 import Assigners from "./Assigners";
+import DateTimeField from "./DateTimeField";
 import { canAssignTasks, isHead, useAdminRole } from "./useAdminRole";
 
 type Person = { id: string; email: string; full_name: string | null; avatar_url: string | null };
@@ -20,6 +21,8 @@ type Todo = Task & { status: Status; done_at: string | null; files: number }; //
 const nameOf = (p?: Person) => p?.full_name || p?.email || "Someone";
 const fmtDay = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 const overdue = (t: { due_at: string | null }) => !!t.due_at && new Date(t.due_at).getTime() < Date.now();
+/** True when a "YYYY-MM-DDTHH:mm" local time is still ahead of now. */
+const isFuture = (v: string) => new Date(v).getTime() > Date.now();
 const toLocalInput = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 
 function Avatar({ p, size = 9 }: { p?: Person; size?: 7 | 9 }) {
@@ -40,13 +43,14 @@ function Modal({ open, onClose, title, children, wide }: { open: boolean; onClos
     <Dialog.Root open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-40 bg-black/70 transition-opacity duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0" />
-        <Dialog.Viewport className="fixed inset-0 z-50 grid place-items-center overflow-y-auto p-4">
-          <Dialog.Popup className={`w-full ${wide ? "max-w-xl" : "max-w-sm"} rounded-2xl border border-slate-600 bg-slate-900 p-6 outline-none transition-[opacity,transform] duration-200 ease-out-quint data-[starting-style]:scale-[.97] data-[starting-style]:opacity-0 data-[ending-style]:scale-[.97] data-[ending-style]:opacity-0`}>
-            <div className="flex items-start justify-between gap-4">
+        <Dialog.Viewport className="fixed inset-0 z-50 grid place-items-center overflow-clip p-4">
+          <Dialog.Popup className={`flex max-h-[calc(100svh-2rem)] w-full flex-col ${wide ? "max-w-xl" : "max-w-sm"} rounded-2xl border border-slate-600 bg-slate-900 p-6 outline-none transition-[opacity,transform] duration-200 ease-out-quint data-[starting-style]:scale-[.97] data-[starting-style]:opacity-0 data-[ending-style]:scale-[.97] data-[ending-style]:opacity-0`}>
+            <div className="flex shrink-0 items-start justify-between gap-4">
               <Dialog.Title className="font-display text-xl font-semibold text-white">{title}</Dialog.Title>
               <Dialog.Close aria-label="Close" className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"><X className="h-4 w-4" aria-hidden="true" /></Dialog.Close>
             </div>
-            {children}
+            {/* only the body scrolls, so the popup can never be scrolled off the screen */}
+            <div className="-mx-1 min-h-0 flex-1 overflow-y-auto overscroll-contain px-1">{children}</div>
           </Dialog.Popup>
         </Dialog.Viewport>
       </Dialog.Portal>
@@ -82,21 +86,23 @@ function Skeleton() {
 function usePeople() {
   const [people, setPeople] = useState<Person[]>([]);
   const [me, setMe] = useState("");
+  const [mediaIds, setMediaIds] = useState<Set<string>>(new Set()); // accounts that belong to the Media team
   const [error, setError] = useState("");
   useEffect(() => {
-    adminFetch<{ people: Person[]; me: string }>("/api/admin/people")
-      .then((b) => { setPeople(b.people); setMe(b.me); })
+    adminFetch<{ people: Person[]; me: string; mediaIds?: string[] }>("/api/admin/people")
+      .then((b) => { setPeople(b.people); setMe(b.me); setMediaIds(new Set(b.mediaIds ?? [])); })
       .catch((e) => setError(e instanceof Error ? e.message : "Couldn't load teammates."));
   }, []);
   const byId = useMemo(() => new Map(people.map((p) => [p.id, p])), [people]);
-  return { people, me, byId, error };
+  return { people, me, byId, error, mediaIds };
 }
 
 /* ───────────── Attachments (private Supabase Storage bucket "task-files") ───────────── */
 const FILES_BUCKET = "task-files";
 const MAX_FILES = 10;
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
-const BLOCKED = /\.(exe|msi|bat|cmd|com|scr|ps1|vbs|js|jar|apk|dll|sh|app|dmg)$/i; // programs aren't something to hand around as a task file
+const ALLOWED = /\.(png|jpe?g|gif|webp|avif|heic|heif|pdf|docx?)$/i; // pictures, PDFs and Word documents only
+const ACCEPT = "image/*,.pdf,.doc,.docx";
 const isImage = (mime: string | null, name = "") => (mime ?? "").startsWith("image/") || /\.(png|jpe?g|gif|webp|avif)$/i.test(name);
 const fmtSize = (b: number) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 const safeName = (n: string) => n.normalize("NFKD").replace(/[^\w.\- ]+/g, "").replace(/\s+/g, "-").replace(/^[-.]+/, "").slice(-120) || "file";
@@ -183,16 +189,95 @@ function Attachments({ taskId }: { taskId: string }) {
   );
 }
 
+/* ───────────── Submissions: files an assignee hands in when marking a task done ───────────── */
+type Submission = TaskFile & { user_id: string };
+
+/** Uploads one submitted file (Cloudflare R2 when it's on, otherwise Supabase Storage) and records it. Returns false if anything failed. */
+async function uploadSubmission(taskId: string, uid: string, f: File): Promise<boolean> {
+  const type = f.type || "application/octet-stream";
+  let path = "";
+  let store: "supabase" | "r2" = "supabase";
+  try {
+    const t = await adminFetch<{ r2?: boolean; key?: string; uploadUrl?: string }>("/api/admin/task-files", { method: "POST", body: JSON.stringify({ taskId, name: f.name, type, size: f.size, submission: true }) });
+    if (t.r2 && t.uploadUrl && t.key) {
+      const put = await fetch(t.uploadUrl, { method: "PUT", headers: { "Content-Type": type }, body: f });
+      if (!put.ok) return false;
+      path = t.key; store = "r2";
+    } else {
+      path = `${taskId}/submissions/${uid}/${crypto.randomUUID()}-${safeName(f.name)}`;
+      const up = await sb.storage.from(FILES_BUCKET).upload(path, f, { contentType: f.type || undefined });
+      if (up.error) return false;
+    }
+  } catch { return false; }
+  const rec = await sb.from("task_submissions").insert({ task_id: taskId, user_id: uid, path, name: f.name.slice(0, 255), size: f.size, mime: f.type || null, store });
+  if (rec.error) { await removeStored(taskId, [{ path, store }]); return false; }
+  return true;
+}
+
+/** Submitted files of a task: you see your own, the person who assigned the task sees everyone's (with names). */
+function Submissions({ taskId, byId, showWho, title }: { taskId: string; byId: Map<string, Person>; showWho?: boolean; title: string }) {
+  const [rows, setRows] = useState<(Submission & { url: string; dl: string })[] | null>(null);
+  useEffect(() => {
+    let off = false;
+    (async () => {
+      const { data } = await sb.from("task_submissions").select("id, user_id, path, name, size, mime, store").eq("task_id", taskId).order("created_at");
+      const list = (data ?? []) as Submission[];
+      if (!list.length) { if (!off) setRows([]); return; }
+      const links = new Map<string, { url: string; dl: string }>();
+      const supa = list.filter((r) => r.store !== "r2");
+      await Promise.all([
+        (async () => {
+          if (!supa.length) return;
+          const paths = supa.map((r) => r.path);
+          const [view, dl] = await Promise.all([
+            sb.storage.from(FILES_BUCKET).createSignedUrls(paths, 3600),
+            sb.storage.from(FILES_BUCKET).createSignedUrls(paths, 3600, { download: true }),
+          ]);
+          supa.forEach((r, i) => links.set(r.id, { url: view.data?.[i]?.signedUrl ?? "", dl: dl.data?.[i]?.signedUrl ?? "" }));
+        })(),
+        (async () => {
+          if (!list.some((r) => r.store === "r2")) return;
+          try {
+            const res = await adminFetch<{ files: { id: string; url: string; dl: string }[] }>(`/api/admin/task-files?taskId=${taskId}`);
+            res.files.forEach((f) => links.set(f.id, { url: f.url, dl: f.dl }));
+          } catch { /* listed without links */ }
+        })(),
+      ]);
+      if (!off) setRows(list.map((r) => ({ ...r, ...(links.get(r.id) ?? { url: "", dl: "" }) })));
+    })();
+    return () => { off = true; };
+  }, [taskId]);
+  if (!rows?.length) return null;
+  return (
+    <div className="mt-5">
+      <h3 className="mb-2 flex items-center gap-1.5 font-mono text-[.66rem] uppercase tracking-[.18em] text-slate-500"><Paperclip className="h-3 w-3" aria-hidden="true" /> {title} · {rows.length}</h3>
+      <ul className="space-y-1.5">
+        {rows.map((f) => (
+          <li key={f.id}>
+            <a href={isImage(f.mime, f.name) ? f.url : f.dl} target={isImage(f.mime, f.name) ? "_blank" : undefined} rel="noreferrer" className="tk-card flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-950/50 px-3 py-2.5">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-800 text-slate-300">{isImage(f.mime, f.name) ? <FileImage className="h-4 w-4" aria-hidden="true" /> : <FileText className="h-4 w-4" aria-hidden="true" />}</span>
+              <span className="min-w-0 flex-1"><span className="block truncate text-sm text-white">{f.name}</span><span className="block truncate text-xs text-slate-500">{showWho ? `${nameOf(byId.get(f.user_id))} · ` : ""}{fmtSize(f.size)}</span></span>
+              <Download className="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 const TASK_COLS = "id, title, instructions, due_at, created_at, created_by";
 
 /* ───────────── Assign: tasks I created, with who has finished them ───────────── */
 type Draft = { key: number; title: string; instructions: string; due: string; suggestionId?: string; edit?: Mine };
 
-function CreateDialog({ open, onClose, teammates, onCreated, draft }: { open: boolean; onClose: () => void; teammates: Person[]; onCreated: () => void; draft: Draft }) {
+function CreateDialog({ open, onClose, teammates: everyone, mediaIds, onCreated, draft }: { open: boolean; onClose: () => void; teammates: Person[]; mediaIds: Set<string>; onCreated: () => void; draft: Draft }) {
   const [title, setTitle] = useState(draft.title);
   const [instructions, setInstructions] = useState(draft.instructions);
   const [due, setDue] = useState(draft.due);
   const edit = draft.edit;
+  // Tasks go to Media team members only. When editing, anyone already on the task stays listed so they can still be taken off.
+  const teammates = useMemo(() => everyone.filter((p) => mediaIds.has(p.id) || !!edit?.assignees.some((a) => a.user_id === p.id)), [everyone, mediaIds, edit]);
   const [picked, setPicked] = useState<Set<string>>(new Set(edit?.assignees.map((a) => a.user_id) ?? []));
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState(false);
@@ -213,7 +298,7 @@ function CreateDialog({ open, onClose, teammates, onCreated, draft }: { open: bo
   function addFiles(list: FileList | File[]) {
     const next = [...files];
     for (const f of Array.from(list)) {
-      if (BLOCKED.test(f.name)) { notify.error(`${f.name} can't be attached`, { description: "Programs and scripts aren't allowed." }); continue; }
+      if (!ALLOWED.test(f.name)) { notify.error(`${f.name} can't be attached`, { description: "Only pictures, PDF and Word (.docx) files are allowed." }); continue; }
       if (f.size > MAX_FILE_BYTES) { notify.error(`${f.name} is too large`, { description: `Files can be up to ${fmtSize(MAX_FILE_BYTES)}.` }); continue; }
       if (f.size === 0) continue;
       if (next.length + existing.length >= MAX_FILES) { notify.info(`Up to ${MAX_FILES} files per task`); break; }
@@ -231,11 +316,13 @@ function CreateDialog({ open, onClose, teammates, onCreated, draft }: { open: bo
   const allShown = shown.length > 0 && shown.every((p) => picked.has(p.id));
   const toggleAll = () => setPicked((s) => { const n = new Set(s); shown.forEach((p) => (allShown ? n.delete(p.id) : n.add(p.id))); return n; });
   const reset = () => { setTitle(""); setInstructions(""); setDue(""); setPicked(new Set()); setQuery(""); setFiles([]); };
-  const can = title.trim().length > 0 && picked.size > 0 && !busy;
+  // a due date must be in the future; an existing task may keep the (possibly passed) one it already has
+  const dueOk = due.length > 0 && ((!!edit && due === draft.due) || isFuture(due));
+  const can = title.trim().length > 0 && instructions.trim().length > 0 && dueOk && picked.size > 0 && !busy;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!can) return;
+    if (!can) { if (due && !dueOk) notify.error("Pick a due time that hasn't passed yet."); return; }
     setBusy(true);
     const fields = { title: title.trim(), instructions: instructions.trim() || null, due_at: due ? new Date(due).toISOString() : null };
     let taskId: string;
@@ -309,27 +396,28 @@ function CreateDialog({ open, onClose, teammates, onCreated, draft }: { open: bo
     <Modal open={open} onClose={onClose} title={edit ? "Edit task" : "Assign a task"} wide>
       <form onSubmit={submit} className="mt-5 space-y-4">
         <label className="block">
-          <span className="mb-1.5 block text-xs font-medium text-slate-400">Title</span>
-          <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} autoFocus placeholder="e.g. Edit the match recap video" className={`${inputCls} h-11`} />
+          <span className="mb-1.5 block text-xs font-medium text-slate-400">Title <span className="text-[#f87171]" aria-hidden="true">*</span></span>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} autoFocus required aria-required="true" placeholder="e.g. Edit the match recap video" className={`${inputCls} h-11`} />
         </label>
         <label className="block">
-          <span className="mb-1.5 block text-xs font-medium text-slate-400">Instructions <span className="text-slate-600">(optional)</span></span>
-          <textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} maxLength={5000} rows={4} placeholder="What needs to be done?" className={`${inputCls} resize-y py-3`} />
+          <span className="mb-1.5 block text-xs font-medium text-slate-400">Instructions <span className="text-[#f87171]" aria-hidden="true">*</span></span>
+          <textarea value={instructions} onChange={(e) => setInstructions(e.target.value)} maxLength={5000} rows={4} required aria-required="true" placeholder="What needs to be done?" className={`${inputCls} resize-y py-3`} />
         </label>
-        <label className="block">
-          <span className="mb-1.5 block text-xs font-medium text-slate-400">Due <span className="text-slate-600">(optional)</span></span>
-          <input type="datetime-local" value={due} min={edit ? undefined : toLocalInput(new Date())} onChange={(e) => setDue(e.target.value)} className={`${inputCls} h-11 [color-scheme:dark]`} />
-        </label>
+        <div>
+          <label htmlFor="task-due" className="mb-1.5 block text-xs font-medium text-slate-400">Due <span className="text-[#f87171]" aria-hidden="true">*</span></label>
+          <DateTimeField id="task-due" value={due} onChange={setDue} minToday required />
+          {due && !dueOk && <p role="alert" className="mt-1.5 text-xs text-[#f87171]">That time has already passed. Pick a later time.</p>}
+        </div>
 
         <div>
-          <span className="mb-1.5 block text-xs font-medium text-slate-400">Attachments <span className="text-slate-600">(optional · pictures, documents, anything up to {fmtSize(MAX_FILE_BYTES)})</span></span>
+          <span className="mb-1.5 block text-xs font-medium text-slate-400">Attachments <span className="text-slate-600">(optional · pictures, PDF or Word files, up to {fmtSize(MAX_FILE_BYTES)} each)</span></span>
           <label
             onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
             onDragLeave={() => setDragging(false)}
             onDrop={(e) => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer.files); }}
-            className={`flex cursor-pointer flex-col items-center gap-1 rounded-xl border border-dashed px-4 py-5 text-center transition-[border-color,background-color] duration-200 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${dragging ? "border-accent bg-accent/[.06]" : "border-slate-600 hover:border-slate-400"}`}
+            className={`relative flex cursor-pointer flex-col items-center gap-1 rounded-xl border border-dashed px-4 py-5 text-center transition-[border-color,background-color] duration-200 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${dragging ? "border-accent bg-accent/[.06]" : "border-slate-600 hover:border-slate-400"}`}
           >
-            <input type="file" multiple className="sr-only" onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ""; }} />
+            <input type="file" multiple accept={ACCEPT} className="sr-only" onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ""; }} />
             <Paperclip className={`h-5 w-5 transition-transform duration-200 ${dragging ? "-translate-y-0.5 text-accent" : "text-slate-400"}`} aria-hidden="true" />
             <span className="text-sm text-slate-300"><span className="font-medium text-accent">Choose files</span> or drop them here</span>
           </label>
@@ -366,10 +454,10 @@ function CreateDialog({ open, onClose, teammates, onCreated, draft }: { open: bo
           </legend>
           <div className="relative">
             <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
-            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search teammates" aria-label="Search teammates" className={`${inputCls} h-10 pl-10`} />
+            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search media team" aria-label="Search media team" className={`${inputCls} h-10 pl-10`} />
           </div>
           <ul className="mt-2 max-h-56 space-y-0.5 overflow-y-auto rounded-xl border border-slate-700 bg-slate-950/50 p-1.5">
-            {shown.length === 0 && <li className="px-3 py-6 text-center text-sm text-slate-500">{teammates.length === 0 ? "No other teammates yet." : "No one matches."}</li>}
+            {shown.length === 0 && <li className="px-3 py-6 text-center text-sm text-slate-500">{teammates.length === 0 ? "No Media team accounts yet. A media member's registration email must match their admin account's email." : "No one matches."}</li>}
             {shown.map((p) => {
               const on = picked.has(p.id);
               return (
@@ -456,10 +544,10 @@ function BirthdayPanel({ titles, onDraft }: { titles: Set<string>; onDraft: (d: 
   }
 
   return (
-    <section aria-label="Birthdays" className="mb-8 rounded-2xl border border-slate-700 bg-slate-900/60 p-5">
+    <Collapsible icon={Cake} title="Birthdays" badge={soon.length} summary={soon.length ? `${soon.length} in the next 30 days · monthly celebration post` : "None in the next 30 days · monthly celebration post"}>
       <div className="flex flex-col gap-4 lg:flex-row">
         <div className="min-w-0 flex-1">
-          <h2 className="flex items-center gap-2 font-display text-base font-semibold text-white"><Cake className="h-4 w-4 text-accent" aria-hidden="true" /> Birthdays coming up</h2>
+          <h2 className="flex items-center gap-2 font-display text-base font-semibold text-white">Birthdays coming up</h2>
           <p className="mt-0.5 text-xs text-slate-400">Next 30 days. Make a pubmat task for each.</p>
           {soon.length === 0 ? <p className="mt-4 text-sm text-slate-500">No birthdays in the next 30 days.</p> : (
             <ul className="mt-3 space-y-1">
@@ -489,7 +577,7 @@ function BirthdayPanel({ titles, onDraft }: { titles: Set<string>; onDraft: (d: 
             : <button type="button" disabled={inMonth.length === 0} onClick={bulk} className="btn btn-primary btn-sm mt-3 w-full disabled:opacity-50">Create bulk post task</button>}
         </div>
       </div>
-    </section>
+    </Collapsible>
   );
 }
 
@@ -583,6 +671,27 @@ function Stat({ label, value, tone }: { label: string; value: number; tone?: "la
   );
 }
 
+/* A compact, collapsed-by-default card: header shows what's inside, the body opens on demand. */
+function Collapsible({ icon: Icon, title, summary, badge, accent, children }: { icon: LucideIcon; title: string; summary: string; badge?: number; accent?: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section aria-label={title} className={`mb-3 overflow-hidden rounded-2xl border ${accent ? "border-accent/40 bg-accent/[.04]" : "border-slate-700 bg-slate-900/60"}`}>
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex w-full items-center gap-3 p-4 text-left outline-none transition-colors hover:bg-white/[.02] focus-visible:bg-white/[.04]">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/15 text-accent"><Icon className="h-4 w-4" aria-hidden="true" /></span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-display text-base font-semibold text-white">{title}</span>
+          <span className="block truncate text-xs text-slate-400">{summary}</span>
+        </span>
+        {badge ? <span className="shrink-0 rounded-full bg-accent px-2 py-0.5 font-mono text-[.68rem] font-bold leading-none text-accent-ink">{badge}</span> : null}
+        <ChevronDown className={`h-4 w-4 shrink-0 text-slate-500 transition-transform duration-300 ease-out-quint ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+      </button>
+      <div className={`grid transition-[grid-template-rows] duration-300 ease-out-quint ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`} inert={!open}>
+        <div className="min-h-0 overflow-hidden"><div className="border-t border-slate-700/70 p-4 pt-3">{children}</div></div>
+      </div>
+    </section>
+  );
+}
+
 /* ───────────── Competition tasks the system prepared, waiting for the media head ───────────── */
 type Suggestion = { id: string; title: string; instructions: string | null; due_at: string | null; competitions: { title: string; date: string | null } | null };
 
@@ -617,15 +726,8 @@ function SuggestionsPanel({ bump, onAssign }: { bump: number; onAssign: (s: Sugg
 
   let n = 0;
   return (
-    <section aria-label="Competition tasks" className="tk-rise mb-8 overflow-hidden rounded-2xl border border-accent/40 bg-accent/[.04]">
-      <div className="flex items-start gap-3 border-b border-accent/20 p-5">
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-accent/15 text-accent"><Trophy className="h-4 w-4" aria-hidden="true" /></span>
-        <div>
-          <h2 className="font-display text-base font-semibold text-white">Competition coming up</h2>
-          <p className="mt-0.5 text-xs text-slate-400">The system prepared {rows.length} {rows.length === 1 ? "task" : "tasks"} for the media team. Pick who does each one.</p>
-        </div>
-      </div>
-      <div className="p-4 pb-1">
+    <Collapsible icon={Trophy} accent title="Competition coming up" badge={rows.length} summary={`The system prepared ${rows.length} ${rows.length === 1 ? "task" : "tasks"} for the media team. Pick who does each one.`}>
+      <div>
         {groups.map(([title, g]) => (
           <div key={title} className="mb-2">
             <h3 className="mb-2 px-1 text-sm font-medium text-white">{title}{g.date && <span className="ml-2 font-mono text-xs font-normal text-slate-500">{g.date}</span>}</h3>
@@ -646,7 +748,7 @@ function SuggestionsPanel({ bump, onAssign }: { bump: number; onAssign: (s: Sugg
           </div>
         ))}
       </div>
-    </section>
+    </Collapsible>
   );
 }
 
@@ -865,7 +967,7 @@ function TemplatesDialog({ open, onClose }: { open: boolean; onClose: () => void
 type Filter = "active" | "done" | "all";
 
 function AssignView() {
-  const { people, me, byId, error: pErr } = usePeople();
+  const { people, me, byId, error: pErr, mediaIds } = usePeople();
   const [tasks, setTasks] = useState<Mine[] | null>(null);
   const [error, setError] = useState("");
   const [creating, setCreating] = useState(false);
@@ -1005,7 +1107,7 @@ function AssignView() {
 
       {isHead(role) && <TemplatesDialog open={templates} onClose={() => setTemplates(false)} />}
 
-      <CreateDialog key={draft.key} draft={draft} open={creating} onClose={() => setCreating(false)} teammates={teammates} onCreated={() => { setFilter("active"); load(); setBump((b) => b + 1); }} />
+      <CreateDialog key={draft.key} draft={draft} open={creating} onClose={() => setCreating(false)} teammates={teammates} mediaIds={mediaIds} onCreated={() => { setFilter("active"); load(); setBump((b) => b + 1); }} />
 
       <Modal open={current !== null} onClose={() => { setOpen(null); setConfirmDel(false); }} title={current?.title ?? ""} wide>
         {current && (
@@ -1013,6 +1115,7 @@ function AssignView() {
             <Chip due={current.due_at} finished={finished(current)} />
             {current.instructions && <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-slate-300">{current.instructions}</p>}
             {current.files > 0 && <Attachments taskId={current.id} />}
+            <Submissions taskId={current.id} byId={byId} showWho title="Submitted files" />
             <div className="mt-6">
               <div className="mb-2 flex items-baseline justify-between">
                 <h3 className="font-mono text-[.66rem] uppercase tracking-[.18em] text-slate-500">Assigned to · {current.assignees.length}</h3>
@@ -1057,12 +1160,101 @@ function AssignView() {
 /* ───────────── To do: tasks assigned to me ───────────── */
 type Tab = "assigned" | "missing" | "done";
 
-function CheckCircle({ checked, label, onClick }: { checked: boolean; label: string; onClick: () => void }) {
+/* Marking a task done: attach what you made (pictures, PDF or Word files; optional), then confirm. */
+function CompleteForm({ task, me, onDone, onSubmitted }: { task: Todo; me: string; onDone: () => void; onSubmitted: () => void }) {
+  const [files, setFiles] = useState<File[]>([]);
+  const [dragging, setDragging] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [stage, setStage] = useState("");
+  const [action, setAction] = useState<"submit" | "done">("submit");
+
+  function addFiles(list: FileList | File[]) {
+    const next = [...files];
+    for (const f of Array.from(list)) {
+      if (!ALLOWED.test(f.name)) { notify.error(`${f.name} can't be attached`, { description: "Only pictures, PDF and Word (.docx) files are allowed." }); continue; }
+      if (f.size > MAX_FILE_BYTES) { notify.error(`${f.name} is too large`, { description: `Files can be up to ${fmtSize(MAX_FILE_BYTES)}.` }); continue; }
+      if (f.size === 0) continue;
+      if (next.length >= MAX_FILES) { notify.info(`Up to ${MAX_FILES} files`); break; }
+      if (!next.some((x) => x.name === f.name && x.size === f.size)) next.push(f);
+    }
+    setFiles(next);
+  }
+
+  /** Uploads the picked files. Whatever fails stays in the list so nothing is uploaded twice. Returns true when all went through. */
+  async function upload() {
+    const left: File[] = [];
+    for (let i = 0; i < files.length; i++) {
+      setStage(`Uploading ${i + 1} of ${files.length}…`);
+      if (!(await uploadSubmission(task.id, me, files[i]))) left.push(files[i]);
+    }
+    setStage("");
+    setFiles(left);
+    if (left.length) notify.error(`${left.length} ${left.length === 1 ? "file" : "files"} didn't upload`, { description: "Try again with the files left." });
+    return left.length === 0;
+  }
+
+  /** Submit: hand the files in. The task stays open until you press Mark as done. */
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (busy || files.length === 0) return;
+    setAction("submit"); setBusy(true);
+    const n = files.length;
+    if (await upload()) { notify.created("Submitted", { description: `${n} ${n === 1 ? "file" : "files"} handed in.` }); onSubmitted(); }
+    setBusy(false);
+  }
+
+  /** Mark as done: finishes the task (any files you picked are submitted first). */
+  async function finish() {
+    if (busy) return;
+    setAction("done"); setBusy(true);
+    if (files.length && !(await upload())) { setBusy(false); return; }
+    setBusy(false);
+    onDone();
+  }
+
   return (
-    <button type="button" onClick={onClick} aria-pressed={checked} aria-label={label} title={checked ? "Unmark as done" : "Mark as done"}
-      className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border-2 transition-[background-color,border-color,color,transform] duration-200 active:scale-90 motion-reduce:transition-none ${checked ? "border-accent bg-accent text-accent-ink" : "border-slate-500 text-transparent hover:border-accent hover:text-accent/60"}`}>
-      <svg key={String(checked)} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={`h-4 w-4 ${checked ? "tk-check tk-pop" : ""}`} aria-hidden="true"><path pathLength={1} d="M20 6 9 17l-5-5" /></svg>
-    </button>
+    <form onSubmit={submit} className="mt-6 space-y-4 border-t border-slate-700 pt-5">
+      <div>
+        <div className="mb-2 flex items-baseline justify-between gap-3">
+          <h3 className="font-display text-sm font-semibold text-white">Your work <span className="text-[#f87171]" aria-hidden="true">*</span></h3>
+          <span className="font-mono text-xs text-slate-500">{files.length}/{MAX_FILES} files</span>
+        </div>
+        <label
+          onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={(e) => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer.files); }}
+          className={`relative flex cursor-pointer flex-col items-center gap-1 rounded-xl border border-dashed px-4 py-5 text-center transition-[border-color,background-color] duration-200 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent ${dragging ? "border-accent bg-accent/[.06]" : "border-slate-600 hover:border-slate-400"}`}
+        >
+          <input type="file" multiple accept={ACCEPT} className="sr-only" onChange={(e) => { if (e.target.files) addFiles(e.target.files); e.target.value = ""; }} />
+          <Paperclip className={`h-5 w-5 transition-transform duration-200 ${dragging ? "-translate-y-0.5 text-accent" : "text-slate-400"}`} aria-hidden="true" />
+          <span className="text-sm text-slate-300"><span className="font-medium text-accent">Choose files</span> or drop them here</span>
+          <span className="text-xs text-slate-500">PNG, JPG, GIF, WebP, PDF, DOC, DOCX · up to {fmtSize(MAX_FILE_BYTES)} each</span>
+        </label>
+        {files.length > 0 && (
+          <ul className="mt-2 max-h-48 space-y-1.5 overflow-y-auto">
+            {files.map((f) => (
+              <li key={`${f.name}-${f.size}`} className="flex items-center gap-3 rounded-xl border border-slate-700 bg-slate-950/50 px-3 py-2">
+                {isImage(f.type, f.name) ? <FileImage className="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" /> : <FileText className="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />}
+                <span className="min-w-0 flex-1 truncate text-sm text-white">{f.name}</span>
+                <span className="shrink-0 font-mono text-xs text-slate-500">{fmtSize(f.size)}</span>
+                <button type="button" disabled={busy} onClick={() => setFiles((x) => x.filter((y) => y !== f))} aria-label={`Remove ${f.name}`} className="grid h-6 w-6 shrink-0 place-items-center rounded-md text-slate-500 transition-colors hover:bg-slate-800 hover:text-white disabled:opacity-40"><X className="h-3.5 w-3.5" aria-hidden="true" /></button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-xs text-slate-500" aria-live="polite">{files.length === 0 ? "Attach a file to enable Submit." : `${files.length} ${files.length === 1 ? "file" : "files"} ready to submit.`}</p>
+        <div className="flex shrink-0 flex-col gap-2 sm:flex-row">
+          <button type="submit" disabled={busy || files.length === 0} className="btn btn-ghost disabled:cursor-not-allowed disabled:opacity-40">
+            {busy && action === "submit" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Upload className="h-4 w-4" aria-hidden="true" />} {busy && action === "submit" ? stage || "Submitting…" : "Submit"}
+          </button>
+          <button type="button" onClick={finish} disabled={busy} className="btn btn-primary disabled:opacity-50">
+            {busy && action === "done" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Check className="h-4 w-4" aria-hidden="true" />} {busy && action === "done" ? stage || "Finishing…" : "Mark as done"}
+          </button>
+        </div>
+      </div>
+    </form>
   );
 }
 
@@ -1075,6 +1267,7 @@ function TodoView() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [leaving, setLeaving] = useState<Set<string>>(new Set());
   const [picked, setPicked] = useState(false); // chose the starting tab once
+  const [subKey, setSubKey] = useState(0); // bumps to reload "Your submission" after a Submit
 
   const load = useCallback(async () => {
     const { data: auth } = await sb.auth.getSession();
@@ -1176,7 +1369,6 @@ function TodoView() {
                   return (
                     <Row key={t.id} i={n++} leaving={leaving.has(t.id)}>
                       <div className={`tk-card group flex items-center gap-3 rounded-2xl border border-slate-700 bg-slate-900 p-4 ${edge}`}>
-                        <CheckCircle checked={checked} label={checked ? `Mark ${t.title} as not done` : `Mark ${t.title} as done`} onClick={() => setDone(t, t.status !== "done")} />
                         <button type="button" onClick={() => setOpenId(t.id)} className="flex min-w-0 flex-1 items-center gap-4 text-left">
                           <span className="min-w-0 flex-1">
                             <span className="block min-w-0">
@@ -1210,11 +1402,12 @@ function TodoView() {
             <div className="mt-3"><Chip due={current.due_at} finished={eff(current) === "done"} /></div>
             <p className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-slate-300">{current.instructions || "No instructions."}</p>
             <Attachments taskId={current.id} />
-            <div className="mt-6 flex justify-end">
-              {eff(current) === "done"
-                ? <button type="button" onClick={() => setDone(current, false)} className="btn btn-ghost">Unmark as done</button>
-                : <button type="button" onClick={() => setDone(current, true)} className="btn btn-primary"><Check className="h-4 w-4" aria-hidden="true" /> Mark as done</button>}
-            </div>
+            <Submissions key={`${current.id}-${subKey}`} taskId={current.id} byId={byId} title="Your submission" />
+            {eff(current) === "done" ? (
+              <div className="mt-6 flex justify-end"><button type="button" onClick={() => setDone(current, false)} className="btn btn-ghost">Unmark as done</button></div>
+            ) : (
+              <CompleteForm key={current.id} task={current} me={me} onSubmitted={() => setSubKey((k) => k + 1)} onDone={() => { const t = current; setOpenId(null); setDone(t, true); }} />
+            )}
           </div>
         )}
       </Modal>

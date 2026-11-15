@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useId, useRef } from 'react';
 import Hls from 'hls.js';
 import { useSearchParams } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabasePublic';
 import { LoadingSpinner, SkeletonMatchCard } from '../components/LoadingSpinner';
 import { ChevronLeft, Settings, Trophy, Download, Loader2, AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
@@ -13,11 +13,6 @@ import CompetitionFilters from '../components/CompetitionFilters';
 import CountUp from '../components/CountUp';
 
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
-const supabase = createClient(supabaseUrl, supabaseKey, {
-  db: { schema: 'website' },
-});
 let activeVideoElement: HTMLVideoElement | null = null;
 
 const CACHE_DURATION = 5 * 60 * 1000;

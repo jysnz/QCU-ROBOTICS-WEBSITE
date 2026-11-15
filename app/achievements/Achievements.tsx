@@ -2,17 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabasePublic';
 import Link from 'next/link';
 import { ChevronLeft, Trophy, Star, Zap, Award } from 'lucide-react';
 import { LoadingSpinner } from '../components/LoadingSpinner';
 import CompetitionFilters from '../components/CompetitionFilters';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
-const supabase = createClient(supabaseUrl, supabaseKey, {
-  db: { schema: 'website' },
-});
 
 const CACHE_DURATION = 5 * 60 * 1000;
 const dataCache = new Map<string, { data: any; timestamp: number }>();

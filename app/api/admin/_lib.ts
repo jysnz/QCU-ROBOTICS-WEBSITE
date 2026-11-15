@@ -69,6 +69,23 @@ export async function verifyHuman(token: unknown, ip: string): Promise<{ ok: boo
   }
 }
 
+/* Whether this login may use /admin at all: the email must have been used to register at /member-reg (a rejected
+   registration doesn't count). Accounts that hold an admin role (super admin, media head, assistant) are exempt, so the
+   people who run the site can't be locked out. Matching ignores upper/lower case. */
+export async function isRegistered(userId: string, email: string): Promise<boolean> {
+  if (!service) return false;
+  const { data: role } = await service.schema("website").from("admin_roles").select("role").eq("user_id", userId).maybeSingle();
+  if (role) return true;
+  const mail = email.trim();
+  if (!mail) return false;
+  const pattern = mail.replace(/[\%_]/g, (c) => "\\" + c); // "_" and "%" are ilike wildcards: match them literally
+  const { data } = await service.schema("website").from("members").select("id")
+    .ilike("email", pattern)
+    .or("registration_status.is.null,registration_status.neq.rejected")
+    .limit(1);
+  return !!data?.length;
+}
+
 /* Caller must send "Authorization: Bearer <supabase access token>" for an account with is_approved = true. */
 export async function requireAdmin(req: NextRequest): Promise<
   { ok: true; userId: string; email: string } | { ok: false; res: NextResponse }
@@ -78,6 +95,7 @@ export async function requireAdmin(req: NextRequest): Promise<
   if (!token) return { ok: false, res: json({ error: "Please sign in." }, 401) };
   const { data, error } = await service.auth.getUser(token);
   if (error || !data.user) return { ok: false, res: json({ error: "Please sign in again." }, 401) };
+  if (!(await isRegistered(data.user.id, data.user.email ?? ""))) return { ok: false, res: json({ error: "Register first at /member-reg with this email.", code: "not-registered" }, 403) };
   const { data: acct } = await service.from("user_accounts").select("is_approved").eq("id", data.user.id).maybeSingle();
   if (!acct?.is_approved) return { ok: false, res: json({ error: "Your account hasn't been approved yet." }, 403) };
   return { ok: true, userId: data.user.id, email: data.user.email ?? "" };

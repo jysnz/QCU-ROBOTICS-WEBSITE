@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Dialog } from "@base-ui/react/dialog";
 import { Switch } from "@base-ui/react/switch";
 import { Tabs } from "@base-ui/react/tabs";
-import StatNumber from "./StatNumber";
+import NumberFlow from "@number-flow/react";
 import { notify } from "./notify";
-import { Check, ChevronDown, Info, Loader2, Lock, Pencil, Plus, Search, Trash2, UserPlus, UserX, X } from "lucide-react";
+import { Camera, Check, ChevronDown, Info, LayoutGrid, List, Loader2, Lock, Pencil, Plus, Search, Trash2, UserPlus, UserX, X } from "lucide-react";
 import Dropdown from "../components/Dropdown";
 import PhotoDropzone from "./PhotoDropzone";
 import { sb } from "./supabase";
@@ -561,49 +562,96 @@ function PlayerDialog({ playerId, ctx, open, data, onClose, onChanged, onCreated
   );
 }
 
-/* ───────── Card ───────── */
-function PlayerCard({ p, roles, otherSeasons, duplicate, delay, onEdit }: {
-  p: Player; roles: string[]; otherSeasons: string[]; duplicate: boolean; delay: number; onEdit: () => void;
-}) {
+/* ───────── Card (same look as the Media team / Members / Coaches pages) ───────── */
+function PlayerPhoto({ p }: { p: Player }) {
   const [broken, setBroken] = useState(false);
-  // One fixed line for the small print so every card is the same height, whatever the player has.
-  const meta = [
-    p.is_active === false ? "Inactive" : "",
-    p.is_graduated ? "Graduated" : "",
-    otherSeasons.length > 0 ? `Also: ${otherSeasons.join(", ")}` : "",
-  ].filter(Boolean).join(" · ") || " ";
+  return p.profile_image_url && !broken ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={p.profile_image_url} alt="" loading="lazy" onError={() => setBroken(true)} className="h-full w-full object-cover" />
+  ) : (
+    <span className="grid h-full w-full place-items-center font-display font-semibold text-slate-600" aria-hidden="true"><span className="text-[1.6em]">{initials(p.name)}</span></span>
+  );
+}
+
+type CardProps = { p: Player; roles: string[]; otherSeasons: string[]; duplicate: boolean; delay: number; onEdit: () => void };
+
+function PlayerCard({ p, roles, otherSeasons, duplicate, delay, onEdit }: CardProps) {
+  const on = p.is_active !== false;
+  const meta = [p.is_graduated ? "Graduated" : "", otherSeasons.length > 0 ? `Also: ${otherSeasons.join(", ")}` : ""].filter(Boolean).join(" · ");
   return (
-    <li className="h-full min-w-0" style={{ animation: "rise .5s var(--ease) both", animationDelay: `${delay}ms` }}>
-      <button type="button" onClick={onEdit} className="lift group relative flex h-[5.5rem] w-full items-center gap-3 rounded-xl border border-slate-700 bg-slate-900 p-3 text-left hover:border-slate-500">
-        <span className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl border border-slate-600 bg-slate-800 font-display text-base font-semibold text-slate-400">
-          {p.profile_image_url && !broken ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={p.profile_image_url} alt="" loading="lazy" onError={() => setBroken(true)} className="h-full w-full object-cover" />
-          ) : initials(p.name)}
+    <li className="group min-w-0" style={{ animation: "rise .55s var(--ease) both", animationDelay: `${delay}ms` }}>
+      <article className="relative aspect-[4/5] overflow-hidden rounded-2xl border border-slate-700 bg-slate-800 transition-[transform,border-color,box-shadow] duration-300 ease-out-quint hover:-translate-y-1 hover:border-slate-500 hover:shadow-[0_18px_40px_rgba(0,0,0,.45)]">
+        <div className={`absolute inset-0 transition-[filter,opacity] duration-500 ${on ? "" : "opacity-60 saturate-0"}`}>
+          <div className="h-full w-full text-sm transition-transform duration-700 ease-out group-hover:scale-[1.05]"><PlayerPhoto p={p} /></div>
+        </div>
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-slate-950/30" aria-hidden="true" />
+
+        {duplicate && <span title="Another player entry has this exact name" className="absolute left-3 top-3 rounded-md border border-[#fbbf24]/50 bg-slate-950/70 px-1.5 py-0.5 font-mono text-[.58rem] uppercase tracking-[.12em] text-[#fbbf24] backdrop-blur">Same name</span>}
+        <span className={`absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full border bg-slate-950/70 px-2.5 py-1 font-mono text-[.62rem] uppercase tracking-[.12em] backdrop-blur ${on ? "border-accent/40 text-accent" : "border-slate-600 text-slate-400"}`}>
+          <span className={`h-1.5 w-1.5 rounded-full ${on ? "bg-accent" : "bg-slate-500"}`} aria-hidden="true" />{on ? "Active" : "Inactive"}
         </span>
-        <span className="min-w-0 flex-1">
+
+        <div className="absolute inset-x-0 bottom-0 flex items-end gap-2 p-4">
+          <div className="min-w-0 flex-1">
+            <h3 className="break-words font-display text-base font-semibold leading-tight text-white sm:text-lg">{p.name}</h3>
+            <p className="mt-1 break-words font-mono text-[.68rem] uppercase leading-snug tracking-[.14em] text-accent">{roles.length ? roles.join(" · ") : "Player"}</p>
+            {meta && <p className="mt-1 truncate text-[.7rem] text-slate-400" title={meta}>{meta}</p>}
+          </div>
+          <span className="grid h-9 w-9 shrink-0 translate-y-2 place-items-center rounded-lg bg-slate-950/70 text-white opacity-0 backdrop-blur transition-[opacity,transform,background-color,color] duration-200 ease-out-quint group-focus-within:translate-y-0 group-focus-within:opacity-100 group-hover:translate-y-0 group-hover:bg-accent group-hover:text-accent-ink group-hover:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100" aria-hidden="true"><Pencil className="h-4 w-4" /></span>
+        </div>
+
+        {/* the whole card opens the player */}
+        <button type="button" onClick={onEdit} aria-label={`Edit ${p.name}`} className="absolute inset-0 z-10 rounded-2xl outline-none focus-visible:shadow-[inset_0_0_0_2px_rgba(200,245,96,.6)]" />
+      </article>
+    </li>
+  );
+}
+
+function PlayerRow({ p, roles, otherSeasons, duplicate, delay, onEdit }: CardProps) {
+  const on = p.is_active !== false;
+  const meta = [p.is_graduated ? "Graduated" : "", otherSeasons.length > 0 ? `Also: ${otherSeasons.join(", ")}` : ""].filter(Boolean).join(" · ");
+  return (
+    <li style={{ animation: "rise .4s var(--ease) both", animationDelay: `${delay}ms` }}>
+      <button type="button" onClick={onEdit} aria-label={`Edit ${p.name}`} className="group grid w-full grid-cols-[2.75rem_1fr_auto] items-center gap-4 px-4 py-3 text-left outline-none transition-colors duration-150 hover:bg-slate-800/50 focus-visible:bg-slate-800/60 sm:grid-cols-[2.75rem_1fr_7rem_2.25rem]">
+        <span className={`h-11 w-11 overflow-hidden rounded-xl border border-slate-600 bg-slate-800 text-sm transition-[filter,opacity] ${on ? "" : "opacity-60 saturate-0"}`}><PlayerPhoto p={p} /></span>
+        <span className="min-w-0">
           <span className="flex items-center gap-2">
-            <span className="truncate text-sm font-semibold text-white">{p.name}</span>
+            <span className={`truncate text-sm font-semibold ${on ? "text-white" : "text-slate-400"}`}>{p.name}</span>
             {duplicate && <span title="Another player entry has this exact name" className="shrink-0 rounded-md border border-[#fbbf24]/50 px-1.5 py-0.5 font-mono text-[.58rem] uppercase tracking-[.12em] text-[#fbbf24]">Same name</span>}
           </span>
-          <span className="mt-0.5 block truncate font-mono text-[.68rem] uppercase tracking-[.1em] text-accent">{roles.length ? roles.join(" · ") : "Player"}</span>
-          <span className="mt-1 block h-4 truncate text-[.7rem] leading-4 text-slate-500" title={meta}>{meta}</span>
+          <span className="block truncate font-mono text-[.68rem] uppercase tracking-[.12em] text-accent">{roles.length ? roles.join(" · ") : "Player"}</span>
+          {meta && <span className="block truncate text-[.7rem] text-slate-500">{meta}</span>}
         </span>
-        <Pencil className="h-4 w-4 shrink-0 text-slate-600 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100" aria-hidden="true" />
+        <span className={`hidden items-center gap-2 text-xs sm:inline-flex ${on ? "text-slate-300" : "text-slate-500"}`}><span className={`h-1.5 w-1.5 rounded-full ${on ? "bg-accent" : "bg-slate-500"}`} aria-hidden="true" />{on ? "Active" : "Inactive"}</span>
+        <span className="grid h-9 w-9 place-items-center justify-self-end rounded-lg text-slate-500 transition-colors group-hover:bg-slate-800 group-hover:text-white" aria-hidden="true"><Pencil className="h-4 w-4" /></span>
       </button>
     </li>
   );
 }
 
+/* Players in one team (or the "not on a team" group), as portrait cards or a list. */
+function PlayerList({ view, children }: { view: "grid" | "list"; children: React.ReactNode }) {
+  return view === "grid" ? (
+    <ul className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">{children}</ul>
+  ) : (
+    <ul className="divide-y divide-slate-800 overflow-hidden rounded-xl border border-slate-700 bg-slate-900">{children}</ul>
+  );
+}
+
 /* ───────── Panel ───────── */
-export default function TeamPlayersPanel({ startNew = false, embedded = false }: { startNew?: boolean; embedded?: boolean }) {
+export default function TeamPlayersPanel({ startNew = false }: { startNew?: boolean }) {
   const [data, setData] = useState<Data | null>(null);
   const [error, setError] = useState("");
   const [season, setSeason] = useState("all");
+  const [status, setStatus] = useState<"all" | "active" | "inactive">("all");
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState<Set<number>>(new Set());
   const [dialog, setDialog] = useState<number | "new" | null>(startNew ? "new" : null);
   const [dialogTeam, setDialogTeam] = useState<Team | null>(null); // the team whose roster the open player came from
+  const [layout, setLayout] = useState<"grid" | "list">(() => {
+    try { return localStorage.getItem("admin-people-view") === "list" ? "list" : "grid"; } catch { return "grid"; }
+  });
+  const changeLayout = (v: "grid" | "list") => { setLayout(v); try { localStorage.setItem("admin-people-view", v); } catch { /* private window */ } };
 
   const load = useCallback(async () => {
     let seasonRes = await sb.from("seasons").select("id, season_name, is_active").order("id", { ascending: false });
@@ -642,6 +690,8 @@ export default function TeamPlayersPanel({ startNew = false, embedded = false }:
     const order = new Map(data.seasons.map((s, i) => [s.id, i])); // seasons arrive newest first
     const playerById = new Map(data.players.map((p) => [p.id, p]));
     const q = query.trim().toLowerCase();
+    const passes = (p: Player) => (!q || p.name.toLowerCase().includes(q)) && (status === "all" || (status === "active") === (p.is_active !== false));
+    const filtering = !!q || status !== "all";
 
     const nameCount = new Map<string, number>();
     for (const p of data.players) { const k = p.name.trim().toLowerCase(); nameCount.set(k, (nameCount.get(k) ?? 0) + 1); }
@@ -652,16 +702,20 @@ export default function TeamPlayersPanel({ startNew = false, embedded = false }:
 
     const groups = teams.map((t) => {
       const ids = [...new Set(data.assigns.filter((a) => a.team_id === t.id).map((a) => a.member_id))];
-      const members = ids.map((id) => playerById.get(id)).filter((p): p is Player => !!p && (!q || p.name.toLowerCase().includes(q))).sort((a, b) => a.name.localeCompare(b.name));
+      const members = ids.map((id) => playerById.get(id)).filter((p): p is Player => !!p && passes(p)).sort((a, b) => a.name.localeCompare(b.name));
       return { team: t, seasonName: seasonName(t.season_id), members, total: ids.length };
-    }).filter((g) => (q ? g.members.length > 0 : true));
+    }).filter((g) => (filtering ? g.members.length > 0 : true));
 
     const assignedIds = new Set(data.assigns.map((a) => a.member_id));
-    const unassigned = season === "all" ? data.players.filter((p) => !assignedIds.has(p.id) && (!q || p.name.toLowerCase().includes(q))) : [];
+    const unassigned = season === "all" ? data.players.filter((p) => !assignedIds.has(p.id) && passes(p)) : [];
 
-    const playersIn = new Set(groups.flatMap((g) => g.members.map((m) => m.id)));
-    return { groups, unassigned, seasonName, nameCount, uniquePlayers: playersIn.size + unassigned.length };
-  }, [data, season, query]);
+    const shownPlayers = new Map<number, Player>();
+    for (const g of groups) for (const m of g.members) shownPlayers.set(m.id, m);
+    for (const p of unassigned) shownPlayers.set(p.id, p);
+    const uniquePlayers = shownPlayers.size;
+    const activePlayers = [...shownPlayers.values()].filter((p) => p.is_active !== false).length;
+    return { groups, unassigned, seasonName, nameCount, uniquePlayers, activePlayers };
+  }, [data, season, query, status]);
 
   const rolesFor = (memberId: number, seasonId: number | null) =>
     (data?.memberRoles ?? []).filter((r) => r.member_id === memberId && r.season_id === seasonId).map((r) => data!.roles.find((x) => x.id === r.role_id)?.role_name ?? "").filter(Boolean);
@@ -672,137 +726,202 @@ export default function TeamPlayersPanel({ startNew = false, embedded = false }:
   const toggle = (id: number) => setCollapsed((s) => { const n = new Set(s); if (!n.delete(id)) n.add(id); return n; });
   const allIds = view?.groups.map((g) => g.team.id) ?? [];
   const allCollapsed = allIds.length > 0 && allIds.every((id) => collapsed.has(id));
+  const Item = layout === "grid" ? PlayerCard : PlayerRow;
+
+  const total = view?.uniquePlayers ?? 0;
+  const active = view?.activePlayers ?? 0;
+  const pct = total ? Math.round((active / total) * 100) : 0;
+  const stack = (data?.players ?? []).filter((p) => p.profile_image_url).slice(0, 5);
+  const filtered = !!query.trim() || status !== "all";
 
   return (
-    <section aria-labelledby="panel-title">
-      <div className="mb-6 flex flex-col gap-4 sm:mb-8 sm:flex-row sm:items-end sm:justify-between">
-        <div className="max-w-2xl">
-          {!embedded && <h1 id="panel-title" className="font-display text-2xl font-bold sm:text-3xl tracking-[-0.03em] text-white">Team players</h1>}
-          <p className={embedded ? "text-sm text-slate-400" : "mt-2 text-slate-400"}>Players grouped by team. Someone who played in several seasons appears under each team, labelled with the season.</p>
+    <section aria-labelledby="panel-title" className="pb-16">
+      {/* ───── Header ───── */}
+      <header className="relative mb-6 overflow-hidden rounded-3xl border border-slate-700 bg-slate-900/60 p-6 sm:p-8" style={{ animation: "rise .6s var(--ease) both" }}>
+        <span className="pointer-events-none absolute -right-16 -top-20 h-64 w-64 rounded-full bg-accent/15 blur-3xl" aria-hidden="true" />
+        <div className="relative flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+          <div className="max-w-xl">
+            <p className="font-mono text-[.7rem] uppercase tracking-[.2em] text-accent">Website roster</p>
+            <h1 id="panel-title" className="mt-2 font-display text-3xl font-bold tracking-[-0.03em] text-white sm:text-4xl">Team players</h1>
+            <p className="mt-3 text-slate-400">Players grouped by team. Someone who played in several seasons appears under each team, labelled with the season.</p>
+            {stack.length > 0 && (
+              <div className="mt-5 flex items-center gap-3">
+                <div className="flex -space-x-2.5" aria-hidden="true">
+                  {stack.map((p, i) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img key={p.id} src={p.profile_image_url!} alt="" loading="lazy" className="h-9 w-9 rounded-full border-2 border-slate-900 object-cover" style={{ animation: "rise .5s var(--ease) both", animationDelay: `${i * 70 + 250}ms` }} />
+                  ))}
+                </div>
+                {(data?.players.length ?? 0) > stack.length && <span className="text-sm text-slate-400">+{(data?.players.length ?? 0) - stack.length} more</span>}
+              </div>
+            )}
+          </div>
+
+          <div className="w-full max-w-md lg:w-[22rem]">
+            <dl className="grid grid-cols-3 gap-2 sm:gap-3">
+              {([["Players", total, "text-white"], ["Active", active, "text-accent"], ["Teams", view?.groups.length ?? 0, "text-slate-300"]] as const).map(([k, n, c]) => (
+                <div key={k} className="min-w-0 rounded-2xl border border-slate-700 bg-slate-950/50 px-3 py-3 sm:px-4">
+                  <dt className="text-xs text-slate-400">{k}</dt>
+                  <dd className={`mt-1 font-display text-2xl font-bold leading-none tabular-nums sm:text-3xl ${c}`}><NumberFlow value={n} /></dd>
+                </div>
+              ))}
+            </dl>
+            <div className="mt-4 flex items-center gap-3">
+              <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-800" role="img" aria-label={`${pct}% of players are active`}>
+                <div className="h-full rounded-full bg-accent transition-[width] duration-[900ms] ease-out-quint" style={{ width: `${pct}%` }} />
+              </div>
+              <span className="w-24 shrink-0 text-right text-xs text-slate-400"><span className="font-mono tabular-nums text-white">{pct}%</span> active</span>
+            </div>
+          </div>
         </div>
-        <button type="button" onClick={() => { setDialogTeam(null); setDialog("new"); }} className="btn btn-primary w-full shrink-0 sm:w-auto"><UserPlus className="h-4 w-4" aria-hidden="true" /> Assign team player</button>
+      </header>
+
+      {/* ───── Toolbar (stays in view while you scroll) ───── */}
+      <div className="mb-4 rounded-2xl border border-slate-700 bg-slate-950/85 p-2 shadow-[0_10px_30px_rgba(0,0,0,.35)] backdrop-blur lg:sticky lg:top-3 lg:z-20" style={{ animation: "rise .6s var(--ease) both", animationDelay: "80ms" }}>
+        <div className="grid grid-cols-[1fr_auto] gap-2 lg:grid-cols-[1fr_auto_13rem_auto] lg:items-center">
+          <label className="relative col-span-2 block lg:col-span-1">
+            <span className="sr-only">Search players</span>
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+            <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by name" className="h-11 w-full rounded-xl bg-slate-900 pl-11 pr-4 text-sm font-medium text-white outline-none transition-shadow placeholder:text-slate-500 focus-visible:shadow-[0_0_0_2px_rgba(200,245,96,.5)]" />
+          </label>
+          <div className="relative col-span-2 flex w-full gap-1 rounded-xl bg-slate-900 p-1 lg:col-span-1 lg:inline-flex lg:w-fit" role="group" aria-label="Status">
+            {(["all", "active", "inactive"] as const).map((k) => (
+              <button key={k} type="button" aria-pressed={status === k} onClick={() => setStatus(k)}
+                className={`h-10 flex-1 rounded-lg px-4 text-sm font-semibold capitalize transition-[background-color,color] duration-200 lg:h-9 lg:flex-none ${status === k ? "bg-accent text-accent-ink" : "text-slate-300 hover:text-white"}`}>{k}</button>
+            ))}
+          </div>
+          <Dropdown
+            className="w-full"
+            hideLabel
+            label="Season"
+            items={[{ label: "All seasons", value: "all" }, ...(data?.seasons ?? []).map((s) => ({ label: String(s.season_name), value: String(s.id) }))]}
+            value={season}
+            onValueChange={setSeason}
+            disabled={!data}
+          />
+          <div className="inline-flex w-fit gap-1 self-stretch rounded-xl bg-slate-900 p-1" role="group" aria-label="View">
+            {([["grid", LayoutGrid, "Grid view"], ["list", List, "List view"]] as const).map(([k, Icon, label]) => (
+              <button key={k} type="button" aria-pressed={layout === k} aria-label={label} title={label} onClick={() => changeLayout(k)}
+                className={`grid h-10 w-10 place-items-center rounded-lg transition-[background-color,color] duration-200 lg:h-9 lg:w-9 ${layout === k ? "bg-slate-700 text-white" : "text-slate-400 hover:text-white"}`}><Icon className="h-4 w-4" aria-hidden="true" /></button>
+            ))}
+          </div>
+        </div>
       </div>
 
-      <div className="mb-6 grid gap-4 md:grid-cols-[14rem_1fr_auto] md:items-end">
-        <Dropdown
-          label="Season"
-          items={[{ label: "All seasons", value: "all" }, ...(data?.seasons ?? []).map((s) => ({ label: String(s.season_name), value: String(s.id) }))]}
-          value={season}
-          onValueChange={setSeason}
-          disabled={!data}
-        />
-        <label className="relative block">
-          <span className="sr-only">Search players</span>
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
-          <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search players" className={`${input} h-12 pl-11`} />
-        </label>
-        <dl className="grid grid-cols-2 gap-3 md:flex">
-          <div className="min-w-20 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2"><dt className="text-xs text-slate-400">Players</dt><dd className="font-display text-xl font-bold tabular-nums text-white"><StatNumber value={view?.uniquePlayers ?? 0} /></dd></div>
-          <div className="min-w-20 rounded-xl border border-slate-700 bg-slate-900 px-4 py-2"><dt className="text-xs text-slate-400">Teams</dt><dd className="font-display text-xl font-bold tabular-nums text-white"><StatNumber value={view?.groups.length ?? 0} /></dd></div>
-        </dl>
-      </div>
+      {view && view.groups.length > 0 && (
+        <div className="mb-4 flex items-center justify-between px-1 text-sm text-slate-400" aria-live="polite">
+          <p><span className="font-mono tabular-nums text-white">{String(total).padStart(2, "0")}</span> {total === 1 ? "player" : "players"}{filtered && <> match</>}</p>
+          <button type="button" onClick={() => setCollapsed(allCollapsed ? new Set() : new Set(allIds))} className="font-medium text-slate-300 underline-offset-4 transition-colors hover:text-white hover:underline">
+            {allCollapsed ? "Show all teams" : "Hide all teams"}
+          </button>
+        </div>
+      )}
 
       {error && <p role="alert" className="mb-5 rounded-xl border border-[#ef4444]/40 p-3 text-sm text-[#f87171]">{error}</p>}
 
+      {/* ───── Results ───── */}
       {!view ? (
         <div className="space-y-8" aria-hidden="true">
           {[...Array(2)].map((_, i) => (
             <div key={i}>
               <div className="mb-4 h-6 w-48 animate-pulse rounded bg-slate-800" />
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{[...Array(3)].map((__, j) => <div key={j} className="h-20 animate-pulse rounded-xl border border-slate-700 bg-slate-900" />)}</div>
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-4">{[...Array(4)].map((__, j) => <div key={j} className="aspect-[4/5] animate-pulse rounded-2xl border border-slate-700 bg-slate-900" style={{ animationDelay: `${j * 80}ms` }} />)}</div>
             </div>
           ))}
         </div>
       ) : (
-        <>
-          {view.groups.length > 0 && (
-            <div className="mb-4 flex justify-end">
-              <button type="button" onClick={() => setCollapsed(allCollapsed ? new Set() : new Set(allIds))} className="text-sm font-medium text-slate-300 underline-offset-4 transition-colors hover:text-white hover:underline">
-                {allCollapsed ? "Show all teams" : "Hide all teams"}
-              </button>
-            </div>
-          )}
-
-          <div key={`${season}-${query ? "q" : ""}`} className="space-y-4">
-            {view.groups.map((g, gi) => {
-              const open = !collapsed.has(g.team.id);
-              return (
-                <section key={g.team.id} className="overflow-hidden rounded-2xl border border-slate-700 bg-slate-950/40" style={{ animation: "rise .5s var(--ease) both", animationDelay: `${Math.min(gi, 6) * 60}ms` }}>
-                  {/* one aligned row: team name, player count, Assign, expand. The global focus outline is replaced by a soft ring. */}
-                  <div className="flex items-center gap-2 px-3 py-3 sm:gap-3 sm:px-5 sm:py-4">
-                    <button type="button" onClick={() => toggle(g.team.id)} aria-expanded={open} aria-controls={`tp-${g.team.id}`} className="group flex min-w-0 flex-1 items-center gap-3 rounded-lg sm:gap-4 text-left outline-none! focus-visible:shadow-[0_0_0_3px_rgba(200,245,96,.3)]">
-                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-600 bg-slate-900 font-mono text-xs font-semibold text-accent">{g.team.team_number}</span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-display text-base font-semibold text-white sm:text-lg">{teamLabel(g.team)}{g.team.team_name && g.team.team_code ? <span className="ml-2 text-sm font-normal text-slate-400">{g.team.team_name}</span> : null}</span>
-                        <span className="block font-mono text-[.7rem] uppercase tracking-[.14em] text-slate-400">{g.seasonName}</span>
-                      </span>
-                    </button>
-                    <span className="inline-flex h-8 shrink-0 items-center rounded-full border border-slate-600 px-3 font-mono text-xs tabular-nums text-slate-300">{g.total}<span className="hidden sm:inline">&nbsp;{g.total === 1 ? "player" : "players"}</span></span>
-                    {(() => {
-                      const live = (data?.seasons ?? []).some((x) => x.id === g.team.season_id && x.is_active); // new entries only go into active seasons
-                      return (
-                        <button
-                          type="button"
-                          disabled={!live}
-                          onClick={() => { setDialogTeam(g.team); setDialog("new"); }}
-                          aria-label={`Assign a player to ${teamLabel(g.team)}`}
-                          title={live ? `Assign a player to ${teamLabel(g.team)}` : "This season isn't active, so no one can be added"}
-                          className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-2.5 text-sm font-semibold text-accent transition-colors outline-none! focus-visible:shadow-[0_0_0_3px_rgba(200,245,96,.3)] enabled:hover:bg-accent enabled:hover:text-accent-ink disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-transparent disabled:text-slate-600 sm:px-3.5"
-                        >
-                          <UserPlus className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Assign</span>
-                        </button>
-                      );
-                    })()}
-                    <button type="button" onClick={() => toggle(g.team.id)} aria-expanded={open} aria-controls={`tp-${g.team.id}`} aria-label={open ? `Hide ${teamLabel(g.team)} players` : `Show ${teamLabel(g.team)} players`} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-500 transition-colors hover:bg-slate-800/70 hover:text-white outline-none! focus-visible:shadow-[0_0_0_3px_rgba(200,245,96,.3)]">
-                      <ChevronDown className={`h-4 w-4 transition-transform duration-300 ease-out-quint ${open ? "rotate-180" : ""}`} aria-hidden="true" />
-                    </button>
-                  </div>
-                  <div id={`tp-${g.team.id}`} inert={!open} className={`grid transition-[grid-template-rows] duration-300 ease-out-quint ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
-                    <div className="min-h-0 overflow-hidden">
-                      <div className="border-t border-slate-700 p-4">
-                        {g.members.length === 0 ? (
-                          <p className="py-4 text-center text-sm text-slate-500">No players on this team yet.</p>
-                        ) : (
-                          <ul className="grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                            {g.members.map((p, i) => (
-                              <PlayerCard
-                                key={p.id}
-                                p={p}
-                                roles={rolesFor(p.id, g.team.season_id)}
-                                otherSeasons={season === "all" ? otherSeasonsFor(p.id, g.team.season_id) : []}
-                                duplicate={(view.nameCount.get(p.name.trim().toLowerCase()) ?? 0) > 1}
-                                delay={Math.min(i, 9) * 35}
-                                onEdit={() => { setDialogTeam(g.team); setDialog(p.id); }}
-                              />
-                            ))}
-                          </ul>
-                        )}
-                      </div>
+        <div key={`${season}-${status}-${query ? "q" : ""}-${layout}`} className="space-y-4">
+          {view.groups.map((g, gi) => {
+            const open = !collapsed.has(g.team.id);
+            return (
+              <section key={g.team.id} className="overflow-hidden rounded-2xl border border-slate-700 bg-slate-900/60" style={{ animation: "rise .5s var(--ease) both", animationDelay: `${Math.min(gi, 6) * 60}ms` }}>
+                {/* one aligned row: team name, player count, Assign, expand. The global focus outline is replaced by a soft ring. */}
+                <div className="flex items-center gap-2 px-3 py-3 sm:gap-3 sm:px-5 sm:py-4">
+                  <button type="button" onClick={() => toggle(g.team.id)} aria-expanded={open} aria-controls={`tp-${g.team.id}`} className="group flex min-w-0 flex-1 items-center gap-3 rounded-lg text-left outline-none! focus-visible:shadow-[0_0_0_3px_rgba(200,245,96,.3)] sm:gap-4">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-slate-600 bg-slate-900 font-mono text-xs font-semibold text-accent">{g.team.team_number}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-display text-base font-semibold text-white sm:text-lg">{teamLabel(g.team)}{g.team.team_name && g.team.team_code ? <span className="ml-2 text-sm font-normal text-slate-400">{g.team.team_name}</span> : null}</span>
+                      <span className="block font-mono text-[.7rem] uppercase tracking-[.14em] text-slate-400">{g.seasonName}</span>
+                    </span>
+                  </button>
+                  <span className="inline-flex h-8 shrink-0 items-center rounded-full border border-slate-600 px-3 font-mono text-xs tabular-nums text-slate-300">{g.total}<span className="hidden sm:inline">&nbsp;{g.total === 1 ? "player" : "players"}</span></span>
+                  {(() => {
+                    const live = (data?.seasons ?? []).some((x) => x.id === g.team.season_id && x.is_active); // new entries only go into active seasons
+                    return (
+                      <button
+                        type="button"
+                        disabled={!live}
+                        onClick={() => { setDialogTeam(g.team); setDialog("new"); }}
+                        aria-label={`Assign a player to ${teamLabel(g.team)}`}
+                        title={live ? `Assign a player to ${teamLabel(g.team)}` : "This season isn't active, so no one can be added"}
+                        className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-accent/40 bg-accent/10 px-2.5 text-sm font-semibold text-accent outline-none! transition-colors focus-visible:shadow-[0_0_0_3px_rgba(200,245,96,.3)] enabled:hover:bg-accent enabled:hover:text-accent-ink disabled:cursor-not-allowed disabled:border-slate-700 disabled:bg-transparent disabled:text-slate-600 sm:px-3.5"
+                      >
+                        <UserPlus className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Assign</span>
+                      </button>
+                    );
+                  })()}
+                  <button type="button" onClick={() => toggle(g.team.id)} aria-expanded={open} aria-controls={`tp-${g.team.id}`} aria-label={open ? `Hide ${teamLabel(g.team)} players` : `Show ${teamLabel(g.team)} players`} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-slate-500 outline-none! transition-colors hover:bg-slate-800/70 hover:text-white focus-visible:shadow-[0_0_0_3px_rgba(200,245,96,.3)]">
+                    <ChevronDown className={`h-4 w-4 transition-transform duration-300 ease-out-quint ${open ? "rotate-180" : ""}`} aria-hidden="true" />
+                  </button>
+                </div>
+                <div id={`tp-${g.team.id}`} inert={!open} className={`grid transition-[grid-template-rows] duration-300 ease-out-quint ${open ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
+                  <div className="min-h-0 overflow-hidden">
+                    <div className="border-t border-slate-700 p-4">
+                      {g.members.length === 0 ? (
+                        <p className="py-4 text-center text-sm text-slate-500">No players on this team yet.</p>
+                      ) : (
+                        <PlayerList view={layout}>
+                          {g.members.map((p, i) => (
+                            <Item
+                              key={p.id}
+                              p={p}
+                              roles={rolesFor(p.id, g.team.season_id)}
+                              otherSeasons={season === "all" ? otherSeasonsFor(p.id, g.team.season_id) : []}
+                              duplicate={(view.nameCount.get(p.name.trim().toLowerCase()) ?? 0) > 1}
+                              delay={Math.min(i, 11) * 45}
+                              onEdit={() => { setDialogTeam(g.team); setDialog(p.id); }}
+                            />
+                          ))}
+                        </PlayerList>
+                      )}
                     </div>
                   </div>
-                </section>
-              );
-            })}
-
-            {view.unassigned.length > 0 && (
-              <section className="rounded-2xl border border-dashed border-slate-600 p-5" style={{ animation: "rise .5s var(--ease) both" }}>
-                <h2 className="flex items-center gap-2 font-display text-lg font-semibold text-white"><UserX className="h-4 w-4 text-slate-400" aria-hidden="true" /> Not on a team <span className="font-mono text-xs font-normal text-slate-400">{view.unassigned.length}</span></h2>
-                <p className="mt-1 text-sm text-slate-400">These players aren&rsquo;t assigned to any team, so they don&rsquo;t show on the site. Open one to assign a team.</p>
-                <ul className="mt-4 grid grid-cols-[minmax(0,1fr)] gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                  {view.unassigned.map((p, i) => (
-                    <PlayerCard key={p.id} p={p} roles={[]} otherSeasons={[]} duplicate={(view.nameCount.get(p.name.trim().toLowerCase()) ?? 0) > 1} delay={Math.min(i, 9) * 35} onEdit={() => { setDialogTeam(null); setDialog(p.id); }} />
-                  ))}
-                </ul>
+                </div>
               </section>
-            )}
+            );
+          })}
 
-            {view.groups.length === 0 && view.unassigned.length === 0 && (
-              <p className="rounded-2xl border border-dashed border-slate-600 py-14 text-center text-sm text-slate-400">
-                {query ? "No players match that search." : "No teams or players for this season yet."}
-              </p>
-            )}
-          </div>
-        </>
+          {view.unassigned.length > 0 && (
+            <section className="rounded-2xl border border-dashed border-slate-600 p-5" style={{ animation: "rise .5s var(--ease) both" }}>
+              <h2 className="flex items-center gap-2 font-display text-lg font-semibold text-white"><UserX className="h-4 w-4 text-slate-400" aria-hidden="true" /> Not on a team <span className="font-mono text-xs font-normal text-slate-400">{view.unassigned.length}</span></h2>
+              <p className="mt-1 text-sm text-slate-400">These players aren&rsquo;t assigned to any team, so they don&rsquo;t show on the site. Open one to assign a team.</p>
+              <div className="mt-4">
+                <PlayerList view={layout}>
+                  {view.unassigned.map((p, i) => (
+                    <Item key={p.id} p={p} roles={[]} otherSeasons={[]} duplicate={(view.nameCount.get(p.name.trim().toLowerCase()) ?? 0) > 1} delay={Math.min(i, 11) * 45} onEdit={() => { setDialogTeam(null); setDialog(p.id); }} />
+                  ))}
+                </PlayerList>
+              </div>
+            </section>
+          )}
+
+          {view.groups.length === 0 && view.unassigned.length === 0 && (
+            <div className="grid place-items-center rounded-3xl border border-dashed border-slate-600 px-6 py-20 text-center">
+              <span className="grid h-14 w-14 place-items-center rounded-2xl border border-accent/40 bg-accent/10 text-accent"><Camera className="h-6 w-6" aria-hidden="true" /></span>
+              <p className="mt-5 font-display text-lg font-semibold text-white">{filtered ? "No one matches those filters" : "No teams or players yet"}</p>
+              <p className="mt-1 max-w-sm text-sm text-slate-400">{filtered ? "Try a different search or status." : "There are no teams or players for this season yet."}</p>
+              {filtered && <button type="button" onClick={() => { setQuery(""); setStatus("all"); }} className="btn btn-ghost btn-sm mt-6">Clear filters</button>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Add button: pinned to the corner of the screen, rendered into <body> so no padded or animated parent can offset it. */}
+      {typeof document !== "undefined" && dialog === null && createPortal(
+        <button type="button" onClick={() => { setDialogTeam(null); setDialog("new"); }} className="btn btn-primary animate-fadeIn shadow-[0_10px_30px_rgba(0,0,0,.5)]" style={{ position: "fixed", right: 12, bottom: 12, zIndex: 30 }}>
+          <Plus className="h-4 w-4" aria-hidden="true" /> Assign team player
+        </button>,
+        document.body,
       )}
 
       {data && (

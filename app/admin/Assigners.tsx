@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ChevronDown, Crown, Loader2, ShieldCheck, UserMinus, UserPlus, Users } from "lucide-react";
+import { Check, ChevronDown, Crown, Loader2, Search, ShieldCheck, UserMinus, UserPlus, Users, X } from "lucide-react";
 import { notify } from "./notify";
 import { adminFetch, sb } from "./supabase";
 import { isHead, type AdminRole } from "./useAdminRole";
@@ -37,6 +37,7 @@ export default function Assigners({ role }: { role: AdminRole | undefined }) {
   const [people, setPeople] = useState<Person[]>([]);
   const [me, setMe] = useState("");
   const [pick, setPick] = useState("");
+  const [find, setFind] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const manage = isHead(role);
 
@@ -54,6 +55,9 @@ export default function Assigners({ role }: { role: AdminRole | undefined }) {
   const sorted = useMemo(() => [...(rows ?? [])].sort((a, b) => ORDER[a.role] - ORDER[b.role]), [rows]);
   const taken = new Set((rows ?? []).map((r) => r.user_id));
   const options = people.filter((p) => !taken.has(p.id));
+  const q = find.trim().toLowerCase();
+  const matches = useMemo(() => (q ? options.filter((p) => `${p.full_name ?? ""} ${p.email}`.toLowerCase().includes(q)) : options), [options, q]);
+  const picked = byId.get(pick);
   const assistants = sorted.filter((r) => r.role === "media_assistant").length;
   const hasHead = sorted.some((r) => r.role === "media_head");
 
@@ -65,6 +69,7 @@ export default function Assigners({ role }: { role: AdminRole | undefined }) {
     if (error) { notify.error("Couldn't add the assistant.", { description: error.message }); return; }
     notify.created(nameOf(byId.get(pick)), { description: "Can now assign tasks on the media head's behalf." });
     setPick("");
+    setFind("");
     load();
   }
   async function remove(id: string) {
@@ -120,17 +125,45 @@ export default function Assigners({ role }: { role: AdminRole | undefined }) {
             )}
 
             {manage && (
-              <div className="mt-4 flex flex-col gap-2 sm:flex-row">
-                <label className="min-w-0 flex-1">
-                  <span className="sr-only">Account to make assistant</span>
-                  <select value={pick} onChange={(e) => setPick(e.target.value)} className="h-11 w-full rounded-xl border border-slate-600 bg-slate-950 px-3 text-sm text-white outline-none! transition-colors hover:border-slate-500 focus-visible:border-accent">
-                    <option value="">Choose an account…</option>
-                    {options.map((p) => <option key={p.id} value={p.id}>{nameOf(p)}{p.full_name ? ` (${p.email})` : ""}</option>)}
-                  </select>
-                </label>
-                <button type="button" onClick={add} disabled={!pick || busy === "add"} className="btn btn-primary shrink-0 disabled:opacity-50">
-                  {busy === "add" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <UserPlus className="h-4 w-4" aria-hidden="true" />} Add assistant
-                </button>
+              <div className="mt-5 rounded-xl border border-slate-700 bg-slate-950/40 p-3 sm:p-4">
+                <div className="mb-3 flex items-baseline justify-between gap-3">
+                  <h3 className="font-display text-sm font-semibold text-white">Add an assistant</h3>
+                  <span className="font-mono text-xs text-slate-500">{q ? `${matches.length} of ${options.length}` : `${options.length}`} {options.length === 1 ? "account" : "accounts"}</span>
+                </div>
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+                  <input
+                    type="search" value={find} onChange={(e) => setFind(e.target.value)} placeholder="Search people by name" aria-label="Search people by name"
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (matches[0]) setPick(matches[0].id); } }}
+                    className="h-11 w-full rounded-xl border border-slate-600 bg-slate-950 pl-10 pr-4 text-sm text-white outline-none! transition-colors placeholder:text-slate-500 hover:border-slate-500 focus-visible:border-accent"
+                  />
+                </div>
+                <ul className="mt-2 max-h-60 space-y-0.5 overflow-y-auto overscroll-contain rounded-xl border border-slate-700 bg-slate-950/50 p-1.5" aria-label="Accounts">
+                  {matches.length === 0 && <li className="px-3 py-6 text-center text-sm text-slate-500">{options.length === 0 ? "Everyone is already on the list." : `No one matches “${find.trim()}”.`}</li>}
+                  {matches.map((p) => {
+                    const on = p.id === pick;
+                    return (
+                      <li key={p.id}>
+                        <button type="button" aria-pressed={on} onClick={() => setPick(on ? "" : p.id)} className={`flex w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left transition-colors ${on ? "bg-accent/[.1]" : "hover:bg-slate-800/70"}`}>
+                          <Face p={p} size={7} />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-sm text-white">{nameOf(p)}</span>
+                            {p.full_name && <span className="block truncate text-xs text-slate-500">{p.email}</span>}
+                          </span>
+                          <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border transition-colors ${on ? "border-accent bg-accent text-accent-ink" : "border-slate-600 text-transparent"}`}><Check className="h-3 w-3" aria-hidden="true" /></span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="min-w-0 truncate text-sm text-slate-400" aria-live="polite">
+                    {picked ? <>Selected: <span className="font-medium text-white">{nameOf(picked)}</span> <button type="button" onClick={() => setPick("")} aria-label="Clear selection" className="ml-1 inline-grid h-5 w-5 place-items-center rounded-md align-middle text-slate-500 hover:bg-slate-800 hover:text-white"><X className="h-3 w-3" aria-hidden="true" /></button></> : "Pick a person from the list."}
+                  </p>
+                  <button type="button" onClick={add} disabled={!pick || busy === "add"} className="btn btn-primary shrink-0 disabled:opacity-50">
+                    {busy === "add" ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <UserPlus className="h-4 w-4" aria-hidden="true" />} Add assistant
+                  </button>
+                </div>
               </div>
             )}
           </div>

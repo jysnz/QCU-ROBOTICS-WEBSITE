@@ -27,6 +27,16 @@ function loadScript() {
   return scriptPromise;
 }
 
+/* What Cloudflare's numeric error codes mean, so a setup problem says what to fix instead of just "failed". */
+const TS_ERRORS: Record<string, string> = {
+  "110200": "This website's address isn't allowed for the Turnstile widget. Add it under Hostnames in the Cloudflare dashboard.",
+  "110100": "The Turnstile site key isn't valid.",
+  "110110": "The Turnstile site key isn't valid.",
+  "400020": "The Turnstile site key isn't valid.",
+  "200100": "This device's date and time look wrong, which breaks the check.",
+  "110500": "This browser can't run the check.",
+};
+
 type Status = "loading" | "verifying" | "challenge" | "verified" | "error" | "off" | "failed";
 
 const COPY: Record<Status, string> = {
@@ -49,6 +59,7 @@ export default function Turnstile({ onToken, resetKey = 0 }: { onToken: (token: 
   const widget = useRef<string | null>(null);
   const cb = useRef(onToken);
   const [status, setStatus] = useState<Status>("loading");
+  const [why, setWhy] = useState("");
 
   useEffect(() => { cb.current = onToken; });
 
@@ -57,7 +68,7 @@ export default function Turnstile({ onToken, resetKey = 0 }: { onToken: (token: 
     (async () => {
       try {
         const cfg = await fetch("/api/config", { cache: "no-store" }).then((r) => r.json());
-        if (!cfg.turnstileSiteKey) { if (!cancelled) setStatus("off"); return; }
+        if (!cfg.turnstileSiteKey) { if (!cancelled) { setWhy("TURNSTILE_SITE_KEY isn't set on the server, so the check can't start. Add it in the hosting settings and redeploy."); setStatus("off"); } return; }
         await loadScript();
         if (cancelled || !box.current || !window.turnstile) return;
         setStatus("verifying");
@@ -69,10 +80,16 @@ export default function Turnstile({ onToken, resetKey = 0 }: { onToken: (token: 
           "before-interactive-callback": () => setStatus("challenge"),
           "after-interactive-callback": () => setStatus("verifying"),
           "expired-callback": () => { setStatus("verifying"); cb.current(""); },
-          "error-callback": () => { setStatus("error"); cb.current(""); },
+          "error-callback": (code: unknown) => {
+            const c = String(code ?? "");
+            console.warn("Turnstile error", c);
+            setWhy(TS_ERRORS[c] ?? (c ? `The check couldn't run (error ${c}).` : ""));
+            setStatus("error"); cb.current("");
+            return true; // we show the error ourselves
+          },
         });
       } catch {
-        if (!cancelled) setStatus("failed");
+        if (!cancelled) { setWhy("The Cloudflare check script couldn't load. An ad blocker or a network filter may be blocking challenges.cloudflare.com."); setStatus("failed"); }
       }
     })();
     return () => {
@@ -102,7 +119,7 @@ export default function Turnstile({ onToken, resetKey = 0 }: { onToken: (token: 
 
   return (
     <div
-      className={`relative overflow-hidden rounded-xl border bg-[#020617]/50 p-3 transition-colors duration-500 ${ok ? "border-[#22c55e]/60" : bad ? "border-[#f87171]/50" : "border-[#334155]"}`}
+      className={`relative overflow-hidden rounded-xl border bg-[#020617]/50 p-2.5 transition-colors duration-500 ${ok ? "border-[#22c55e]/60" : bad ? "border-[#f87171]/50" : "border-[#334155]"}`}
       role="status"
       aria-live="polite"
     >
@@ -127,6 +144,7 @@ export default function Turnstile({ onToken, resetKey = 0 }: { onToken: (token: 
 
         <span className="min-w-0 flex-1">
           <span key={status} className="animate-fadeIn block text-sm font-medium text-[#f8fafc]">{COPY[status]}</span>
+          {bad && why && <span className="mt-0.5 block text-[11px] leading-snug text-[#f87171]">{why}</span>}
           <span className="mt-0.5 flex items-center gap-1 text-[11px] text-[#64748b]">
             <Cloud className="h-3 w-3 text-[#f6821f]" aria-hidden="true" />
             Protected by <span className="font-semibold text-[#94a3b8]">Cloudflare Turnstile</span>
