@@ -2,7 +2,7 @@
 
 import type { MetadataRoute } from 'next'
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://qcu-robotics.vercel.app'
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.qcurobotics.website'
 
 export default function robots(): MetadataRoute.Robots {
   return {

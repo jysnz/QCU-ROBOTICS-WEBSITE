@@ -9,7 +9,7 @@ import SiteEffects from "./components/SiteEffects";
 const inter = Inter({ variable: "--font-body", subsets: ["latin"], weight: ["400", "500", "600"], display: "swap" });
 const grotesk = Space_Grotesk({ variable: "--font-display", subsets: ["latin"], weight: ["500", "600", "700"], display: "swap" });
 
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://qcu-robotics.vercel.app';
+const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.qcurobotics.website';
 
 export const viewport: Viewport = {
   themeColor: "#0a0b0f",
@@ -17,11 +17,13 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: {
-    default: "QCU Robotics",
+    default: "QCU Robotics | Quezon City University Robotics Team",
     template: "%s | QCU Robotics",
   },
   description:
-    "Official website of QCU Robotics — the robotics team of Quezon City University. Competitions, achievements, team members, and more.",
+    "QCU Robotics is the robotics team of Quezon City University. See our competitions, match results, achievements and the people behind the team.",
+  applicationName: "QCU Robotics",
+  alternates: { canonical: "/" },
   metadataBase: new URL(BASE_URL),
   keywords: [
     "QCU Robotics",
@@ -36,18 +38,25 @@ export const metadata: Metadata = {
     locale: "en_PH",
     url: BASE_URL,
     siteName: "QCU Robotics",
-    title: "QCU Robotics",
+    title: "QCU Robotics | Quezon City University Robotics Team",
     description:
-      "Official website of QCU Robotics — the robotics team of Quezon City University.",
+      "The robotics team of Quezon City University: competitions, match results, achievements and our team.",
+    images: [{ url: "/logo.png", width: 640, height: 640, alt: "QCU Robotics logo" }],
   },
   twitter: {
-    card: "summary_large_image",
-    title: "QCU Robotics",
+    card: "summary",
+    title: "QCU Robotics | Quezon City University Robotics Team",
     description:
-      "Official website of QCU Robotics — the robotics team of Quezon City University.",
+      "The robotics team of Quezon City University: competitions, match results, achievements and our team.",
+    images: ["/logo.png"],
   },
+  // Google wants a favicon whose size is a multiple of 48 px (the old 1.4 MB SVG is too heavy for it), so offer small PNGs first.
   icons: {
-    icon: "/logo1.svg",
+    icon: [
+      { url: "/logo-96.png", sizes: "96x96", type: "image/png" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    apple: [{ url: "/logo.png", sizes: "640x640", type: "image/png" }],
   },
   robots: {
     index: true,
@@ -68,6 +77,16 @@ export default function RootLayout({
       className={`${inter.variable} ${grotesk.variable} intro flying h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        {/* Tells Google the site's name and logo, so results show "QCU Robotics" and the logo instead of the bare domain. */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify([
+              { "@context": "https://schema.org", "@type": "WebSite", name: "QCU Robotics", alternateName: ["QCUR", "QCU Robotics Team"], url: BASE_URL },
+              { "@context": "https://schema.org", "@type": "Organization", name: "QCU Robotics", url: BASE_URL, logo: `${BASE_URL}/logo.png` },
+            ]),
+          }}
+        />
         <Splash />
         <div className="site-bg" aria-hidden="true" />
         <div id="site" className="flex min-h-screen flex-col">
