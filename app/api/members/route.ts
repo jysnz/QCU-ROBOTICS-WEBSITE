@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
 import { makeTicket, r2Enabled } from "../_r2";
+import { reportError } from "../_report";
 import { deleteKeys, mediaReady, putBytes } from "../_media";
 import { approvedAccountIds, notifyUsers } from "../_notify";
 import { findTaken, normalizePhone, TAKEN_MESSAGE, type Taken } from "./_dupes";
@@ -121,8 +122,8 @@ async function verifyHuman(token: unknown, ip: string) {
     }
     const j = await r.json().catch(() => ({}));
     const codes: string[] = j.errorCodes || j["error-codes"] || [];
-    if (codes.includes("not-configured")) { console.error("The edge function has no TURNSTILE_SECRET_KEY secret yet"); return { ok: false, misconfigured: true }; }
-    if (r.status === 401 || r.status === 403) { console.error("verify-turnstile rejected the key. Use the legacy service_role key (starts with eyJ)."); return { ok: false, unavailable: true }; }
+    if (codes.includes("not-configured")) { console.error("The edge function has no TURNSTILE_SECRET_KEY secret yet"); reportError("registration-human-check", "verify-turnstile has no TURNSTILE_SECRET_KEY"); return { ok: false, misconfigured: true }; }
+    if (r.status === 401 || r.status === 403) { console.error("verify-turnstile rejected the key. Use the legacy service_role key (starts with eyJ)."); reportError("registration-human-check", "verify-turnstile rejected the key"); return { ok: false, unavailable: true }; }
     if (r.status >= 500) return { ok: false, unavailable: true };
     return { ok: j.success === true };
   } catch {
@@ -281,6 +282,7 @@ async function handle(req: NextRequest, ip: string): Promise<NextResponse> {
     return json({ ok: true, id: data.id, ...(r2Enabled ? { upload: { ticket: makeTicket(id) } } : {}) }, 201);
   } catch (e) {
     console.error("Registration failed:", (e as Error).message);
+    reportError("registration", e);
     await cleanup();
     return json({ error: "We couldn't save your registration right now. Please try again in a moment." }, 502);
   }

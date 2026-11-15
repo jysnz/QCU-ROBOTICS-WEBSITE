@@ -1,5 +1,6 @@
 import { createHmac, randomBytes, randomInt, timingSafeEqual } from "node:crypto";
 import { codeEmail, sendMail } from "../_mail";
+import { reportError } from "../_report";
 import { service } from "./_lib";
 
 /* One-time codes for the admin area (forgot password, change email, set a password).
@@ -39,7 +40,7 @@ export async function issueCode(o: { purpose: Purpose; email: string; userId: st
     purpose: o.purpose, email, user_id: o.userId, code_hash: hash("code", o.purpose, email, code),
     payload: o.payload ?? null, expires_at: new Date(Date.now() + CODE_MINUTES * 60_000).toISOString(),
   });
-  if (error) { console.error("Saving the code failed:", error.message); return false; }
+  if (error) { console.error("Saving the code failed:", error.message); reportError("otp", error.message); return false; }
   const c = COPY[o.purpose];
   const mail = codeEmail({ code, heading: c.heading, intro: c.intro, minutes: CODE_MINUTES });
   return sendMail(email, c.subject(code), mail.html, mail.text);

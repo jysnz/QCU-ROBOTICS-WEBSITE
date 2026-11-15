@@ -1,6 +1,7 @@
 import { cert, getApp, getApps, initializeApp, type App } from "firebase-admin/app";
 import { getMessaging } from "firebase-admin/messaging";
 import { createClient } from "@supabase/supabase-js";
+import { reportError } from "./_report";
 
 /* Server-side notifications for the admin area.
    notifyUsers() does two things for each person: it saves the notification (shown in the bell panel, with a "read" state)
@@ -92,6 +93,7 @@ export async function notifyUsers(userIds: string[], n: Notice): Promise<void> {
     if (fresh.length) await push(fresh, n);
   } catch (e) {
     console.error("notifyUsers failed:", (e as Error).message);
+    reportError("notifications", e);
   }
 }
 

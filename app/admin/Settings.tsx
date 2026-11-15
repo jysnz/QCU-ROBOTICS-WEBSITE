@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import { Switch } from "@base-ui/react/switch";
-import { ArrowUp, AtSign, Bell, BellOff, BellRing, Cake, Check, ChevronRight, ClipboardList, Clock, ExternalLink, FileText, Info, LayoutDashboard, Loader2, Lock, LogOut, Mail, Send, Shield, ShieldCheck, Smartphone, User, UserCog, UserPlus } from "lucide-react";
+import { ArrowUp, AtSign, Bell, BellOff, BellRing, Cake, Check, ChevronRight, ClipboardList, Clock, ExternalLink, FileText, Info, LayoutDashboard, Loader2, Lock, LogOut, Mail, Shield, ShieldCheck, Smartphone, User, UserCog, UserPlus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { LEGAL_UPDATED, PrivacyText, TermsText } from "../components/LegalText";
 import { SuccessMark } from "./authBits";
@@ -304,7 +304,6 @@ const PERKS: { icon: LucideIcon; text: string }[] = [
 function NotificationsCard() {
   const [state, setState] = useState<PushState | null>(null);
   const [busy, setBusy] = useState(false);
-  const [testing, setTesting] = useState(false);
   useEffect(() => { getPushState().then(setState); }, []);
 
   async function toggle(on: boolean) {
@@ -319,20 +318,6 @@ function NotificationsCard() {
       notify.error("Couldn't change notifications on this device.");
     }
     setBusy(false);
-  }
-
-  async function sendTest() {
-    setTesting(true);
-    try {
-      const r = await adminFetch<{ configured: boolean; devices: number; sent: number; errors: string[] }>("/api/admin/push-test", { method: "POST" });
-      if (!r.configured) notify.error("The server can't send push yet", { description: r.errors[0] || "Firebase isn't set up on the server." });
-      else if (r.devices === 0) notify.error("No device is saved for you", { description: "Turn notifications off and on again on this device." });
-      else if (r.sent > 0) notify.created("Test sent", { description: "If nothing appears, check this computer's notification settings." });
-      else notify.error("Firebase refused the test", { description: r.errors[0] || "Unknown error." });
-    } catch {
-      notify.error("Couldn't send the test.");
-    }
-    setTesting(false);
   }
 
   const on = state === "on";
@@ -363,14 +348,6 @@ function NotificationsCard() {
 
         {state && why[state] && <p role="status" className="tab-in mt-4 flex items-start gap-2 rounded-xl border border-[#fbbf24]/30 bg-[#fbbf24]/10 p-3 text-xs leading-relaxed text-[#fbbf24]"><Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />{why[state]}</p>}
 
-        <div className={`grid transition-[grid-template-rows,opacity] duration-300 ease-out-quint ${on ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`} inert={!on}>
-          <div className="min-h-0 overflow-hidden">
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-5">
-              <p className="text-sm text-slate-400">Not sure it works? Send yourself one.</p>
-              <button type="button" onClick={sendTest} disabled={testing} className="btn btn-ghost btn-sm disabled:opacity-60">{testing ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />} Send a test</button>
-            </div>
-          </div>
-        </div>
       </div>
 
       <div className={card}>

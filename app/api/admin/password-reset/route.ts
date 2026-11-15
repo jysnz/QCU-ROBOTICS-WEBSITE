@@ -1,5 +1,6 @@
 import { type NextRequest } from "next/server";
 import { mailConfigured } from "../../_mail";
+import { reportError } from "../../_report";
 import { clientIp, json, makeLimiter, service, verifyHuman } from "../_lib";
 import { checkCode, issueCode, recentCount, redeemTicket } from "../_otp";
 import { passwordIssue } from "../../../lib/passwordRules";
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
     if (!row?.user_id) { guesses.hit(ip); return json({ error: "This reset has expired. Please start again." }, 400); }
     // The code proved they own this inbox, so the email is also marked confirmed (an unconfirmed account could otherwise stay locked out).
     const { error } = await service.auth.admin.updateUserById(row.user_id, { password, email_confirm: true });
-    if (error) { console.error("Password reset failed:", error.message); return json({ error: "We couldn't change the password. Try a different one." }, 400); }
+    if (error) { console.error("Password reset failed:", error.message); reportError("password-reset", error.message); return json({ error: "We couldn't change the password. Try a different one." }, 400); }
     await service.from("user_accounts").update({ has_password: true }).eq("id", row.user_id);
     return json({ ok: true, message: "Your password was changed. You can sign in now." });
   }

@@ -1,3 +1,4 @@
+import { reportError } from "./_report";
 /* Sends email through Brevo's transactional API.
    Env: BREVO_API_KEY (an API key from Brevo, "SMTP & API"), BREVO_SENDER_EMAIL (a sender you verified in Brevo) and
    optionally BREVO_SENDER_NAME (defaults to "QCU Robotics"). Without the first two, sending is reported as unavailable. */
@@ -23,10 +24,11 @@ export async function sendMail(to: string, subject: string, html: string, text: 
       body: JSON.stringify({ sender: { email: SENDER_EMAIL, name: SENDER_NAME }, to: [{ email: to }], subject, htmlContent: html, textContent: text }),
       signal: AbortSignal.timeout(10_000),
     });
-    if (!r.ok) { console.error("Brevo refused the email:", r.status, (await r.text().catch(() => "")).slice(0, 300)); return false; }
+    if (!r.ok) { const why = (await r.text().catch(() => "")).slice(0, 300); console.error("Brevo refused the email:", r.status, why); reportError("email", `Brevo refused the email (${r.status}): ${why}`); return false; }
     return true;
   } catch (e) {
     console.error("Sending email failed:", (e as Error).message);
+    reportError("email", e);
     return false;
   }
 }

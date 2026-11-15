@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs/config";
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
@@ -172,4 +173,11 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Sentry: reports production errors. Readable stack traces need SENTRY_AUTH_TOKEN at build time (source maps are only uploaded when it is set).
+export default withSentryConfig(nextConfig, {
+  org: 'qcu-robotics',
+  project: 'javascript-nextjs',
+  silent: true,
+  telemetry: false,
+  widenClientFileUpload: true,
+});
