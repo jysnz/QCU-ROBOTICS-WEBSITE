@@ -134,7 +134,15 @@
           </div>
           <div class="field">
             <label for="phone">Mobile number</label>
-            <input id="phone" name="phone" type="tel" required maxlength="20" autocomplete="tel" inputmode="tel" enterkeyhint="done" placeholder="09XX XXX XXXX">
+            <div class="phone-wrap" id="phoneWrap">
+              <span class="phone-cc" aria-hidden="true">
+                <svg class="flag" viewBox="0 0 24 16" width="22" height="15"><rect width="24" height="8" fill="#0038a8"/><rect y="8" width="24" height="8" fill="#ce1126"/><path d="M0 0l13.8 8L0 16z" fill="#fff"/><circle cx="4.1" cy="8" r="1.7" fill="#fcd116"/></svg>
+                <span>+63</span>
+              </span>
+              <input id="phone" name="phone" type="tel" required autocomplete="tel-national" inputmode="tel" enterkeyhint="done" placeholder="917 123 4567" aria-describedby="phone-hint phone-err">
+              <span class="phone-ok" aria-hidden="true"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span>
+            </div>
+            <p class="hint phone-hint" id="phone-hint">Philippine mobile number. We only use it to reach you about the team.</p>
             <p class="error" id="phone-err" role="alert"></p>
           </div>
         </div>
@@ -308,6 +316,83 @@
     <p class="stage-cap" id="stageCap">Live preview. Your card fills in as you type.</p>
   </aside>
 </main>
+
+<!-- Privacy Policy & Terms of Use: shown after "Submit registration"; the accept button unlocks only at the bottom (see app.js) -->
+<div class="consent" id="consent" hidden>
+  <div class="consent-card" role="dialog" aria-modal="true" aria-labelledby="consent-title" aria-describedby="consent-hint" tabindex="-1">
+    <header class="consent-head">
+      <p class="kicker">Last step</p>
+      <h2 id="consent-title">Privacy Policy &amp; Terms of Use</h2>
+      <p class="consent-sub" id="consent-hint">Please read everything and scroll to the bottom. The agree button unlocks when you reach the end.</p>
+      <div class="consent-progress" aria-hidden="true"><span id="consentBar"></span></div>
+    </header>
+
+    <div class="consent-body" id="consentBody" tabindex="0" aria-label="Privacy Policy and Terms of Use. Scroll to the bottom to continue.">
+      <p>This registration is for <strong>QCU Robotics</strong>, the robotics team of Quezon City University. Before we save your registration, please read how we handle your information and the rules for being part of the team's website. This follows the Philippine Data Privacy Act of 2012 (Republic Act No. 10173).</p>
+
+      <h3>1. What we collect</h3>
+      <p>Everything you entered in this form:</p>
+      <ul>
+        <li>your name, gender and birthday</li>
+        <li>your email address and mobile number</li>
+        <li>your student ID, program, year level and section</li>
+        <li>your hobbies, your likes and the short description about yourself</li>
+        <li>the five photos of yourself you uploaded</li>
+        <li>the role you are signing up for, and the date and time you accepted this agreement</li>
+      </ul>
+
+      <h3>2. How we use your information</h3>
+      <ul>
+        <li>To review your registration and decide whether to add you to the team.</li>
+        <li>To show your <strong>name and profile photo</strong> on the team's public website, but only after your registration is approved.</li>
+        <li>To contact you about team activities, competitions and tasks, by email or mobile number.</li>
+        <li>To keep our member records accurate and to prevent the same person, email, number or student ID from being registered twice.</li>
+      </ul>
+      <p>We do <strong>not</strong> sell your information, and we do not use it for advertising.</p>
+
+      <h3>3. Who can see it</h3>
+      <p>Your email, mobile number, birthday, student ID, program, section, hobbies and the rest of your form are <strong>private</strong>. Only approved QCU Robotics administrators can see them. Only your name and photo can ever appear on the public website, and only once you are approved.</p>
+      <p>We use trusted services to run the website and store your data: Supabase (database), Cloudflare (photo storage and the check that you are a person), and Vercel (hosting). They process your data for us and may not use it for their own purposes. We may also share information if the law requires it.</p>
+
+      <h3>4. Your photos</h3>
+      <p>Your photos are stored privately. Administrators use them to identify you and to prepare team materials such as team and birthday posts. Your profile photo is published on the website only after approval. Please upload only photos of yourself that you are comfortable with us using for these purposes.</p>
+
+      <h3>5. How long we keep it</h3>
+      <p>We keep your information while you are part of the team, or until you ask us to remove it. If your registration is rejected, it is kept in a private archive for 30 days and then deleted permanently, together with your photos.</p>
+
+      <h3>6. Your rights</h3>
+      <p>You may ask us to show you the information we hold about you, correct it, delete it, or stop using it for a purpose. To do so, contact the QCU Robotics team through the contact and social links on our home page and tell us the email you registered with. We will reply as soon as we can.</p>
+
+      <h3>7. Terms of use</h3>
+      <ul>
+        <li>The information you gave is true, complete and yours. You are not pretending to be someone else, and the photos are of you.</li>
+        <li>Registering is a request to join, not a guarantee. We may approve or reject any registration, and we may remove a member who breaks these terms.</li>
+        <li>If you are approved and get access to the team's tools or other members' information, you will use it only for QCU Robotics work, keep it private, and not copy, share or misuse it.</li>
+        <li>The QCU Robotics name, logo, photos and content belong to the team. Please do not reuse them without asking.</li>
+        <li>We may update these terms and this policy. The latest versions are always on our website at <strong>/privacy</strong> and <strong>/terms</strong>.</li>
+      </ul>
+
+      <h3>8. Your agreement</h3>
+      <p>By pressing <strong>I agree and submit</strong> you confirm that you have read this Privacy Policy and these Terms of Use, that the information you provided is correct, and that you consent to QCU Robotics collecting, storing and using it as described above.</p>
+      <p class="consent-end">That's everything. You can now agree and submit.</p>
+    </div>
+
+    <footer class="consent-foot">
+      <p class="consent-scroll" id="consentScroll" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+        Scroll down to read it all
+      </p>
+      <p class="consent-ready" id="consentReady" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        You've read it all
+      </p>
+      <div class="consent-actions">
+        <button type="button" class="btn btn-ghost" id="consentBack">Go back</button>
+        <button type="button" class="btn btn-primary" id="consentAccept" disabled>I agree and submit</button>
+      </div>
+    </footer>
+  </div>
+</div>
 
 <script src="/member-reg/app.js"></script>
 </body>

@@ -86,13 +86,13 @@ a{color:inherit;text-decoration:none}
 .field{margin-bottom:22px}
 label,.label{display:block;font-size:.88rem;font-weight:500;color:var(--fg);margin-bottom:8px}
 .opt,.hint{color:var(--muted);font-weight:400;font-size:.85rem}
-input[type=text],input[type=date],input[type=email],textarea,select{width:100%;min-height:56px;padding:14px 16px;background:var(--surface);color:var(--fg);
+input[type=text],input[type=date],input[type=email],input[type=tel],textarea,select{width:100%;min-height:56px;padding:14px 16px;background:var(--surface);color:var(--fg);
   border:1px solid var(--border-2);border-radius:14px;font:400 1.02rem var(--body);
   transition:border-color .15s var(--ease),box-shadow .15s var(--ease),background-color .15s var(--ease)}
 textarea{resize:vertical;min-height:96px}
 input::placeholder,textarea::placeholder{color:#6c7388}
-input[type=text]:hover,input[type=date]:hover,input[type=email]:hover,textarea:hover,select:hover{border-color:#464d65}
-input[type=text]:focus,input[type=date]:focus,input[type=email]:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 4px rgba(200,245,96,.14);background:var(--surface-2)}
+input[type=text]:hover,input[type=date]:hover,input[type=email]:hover,input[type=tel]:hover,textarea:hover,select:hover{border-color:#464d65}
+input[type=text]:focus,input[type=date]:focus,input[type=email]:focus,input[type=tel]:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 4px rgba(200,245,96,.14);background:var(--surface-2)}
 .field.invalid input,.field.invalid select{border-color:var(--danger)}
 .select-wrap{position:relative}
 .select-wrap::after{content:"";position:absolute;right:18px;top:50%;width:8px;height:8px;margin-top:-6px;border-right:2px solid var(--muted);border-bottom:2px solid var(--muted);transform:rotate(45deg);pointer-events:none}
@@ -516,3 +516,65 @@ body.flying .topbar .logo{opacity:0;animation:show-failsafe 0s 7s forwards}
 /* the Continue button shakes when the page still has an error */
 @keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
 .shake{animation:shake .4s ease both}
+
+/* mobile number: flag + country code on the left, a check on the right once the number is complete */
+.phone-wrap{position:relative}
+.phone-wrap input{padding-left:104px;padding-right:48px;letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.phone-cc{position:absolute;left:0;top:0;bottom:0;display:flex;align-items:center;gap:8px;padding:0 14px 0 16px;border-right:1px solid var(--border-2);color:var(--fg);font-weight:500;font-size:1rem;pointer-events:none}
+.phone-cc .flag{border-radius:3px;box-shadow:0 0 0 1px rgba(255,255,255,.12)}
+.phone-wrap:focus-within .phone-cc{border-right-color:var(--accent)}
+.field.invalid .phone-cc{border-right-color:var(--danger)}
+.phone-ok{position:absolute;right:14px;top:50%;width:26px;height:26px;margin-top:-13px;border-radius:50%;display:grid;place-items:center;
+  background:var(--accent);color:var(--accent-ink);opacity:0;transform:scale(.4);pointer-events:none;transition:opacity .2s var(--ease),transform .3s var(--ease)}
+.phone-wrap.ok .phone-ok{opacity:1;transform:none}
+.phone-hint{margin-top:8px;line-height:1.45}
+.field.invalid .phone-hint{display:none}
+@media (max-width:420px){.phone-wrap input{padding-left:96px}.phone-cc{padding:0 10px 0 12px}}
+@media (prefers-reduced-motion:reduce){.phone-ok{transition:none}}
+
+/* privacy policy & terms agreement (shown after "Submit registration"; see app.js) */
+.consent{position:fixed;inset:0;z-index:150;display:grid;place-items:center;padding:16px;background:rgba(5,6,9,.8);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);animation:consent-fade .25s ease both}
+.consent[hidden]{display:none}
+.consent-card{width:min(680px,100%);max-height:min(92dvh,780px);display:flex;flex-direction:column;overflow:hidden;background:var(--surface);border:1px solid var(--border-2);border-radius:24px;
+  box-shadow:0 40px 100px rgba(0,0,0,.6);outline:none;animation:consent-rise .5s var(--ease) both}
+.consent-head{padding:26px 30px 0}
+.consent-head .kicker{margin-bottom:8px}
+.consent-head h2{font:600 1.5rem var(--display);letter-spacing:-.02em;line-height:1.2}
+.consent-sub{margin-top:8px;color:var(--muted);font-size:.93rem;line-height:1.5}
+.consent-progress{height:3px;margin-top:18px;background:var(--border);border-radius:3px;overflow:hidden}
+.consent-progress span{display:block;height:100%;width:0;background:var(--accent);border-radius:3px;transition:width .12s linear}
+.consent-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:18px 30px 28px;color:#cfd4e2;font-size:.95rem;line-height:1.65;scrollbar-width:thin;scrollbar-color:var(--border-2) transparent}
+.consent-body:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.consent-body p{margin-top:12px}
+.consent-body h3{margin-top:26px;font:600 1.05rem var(--display);color:var(--fg);letter-spacing:-.01em}
+.consent-body h3 + p,.consent-body h3 + ul{margin-top:8px}
+.consent-body ul{margin-top:10px;padding-left:20px}
+.consent-body li{margin-top:6px;padding-left:2px}
+.consent-body li::marker{color:var(--accent)}
+.consent-body strong{color:var(--fg);font-weight:600}
+.consent-end{margin-top:28px;padding:14px 16px;border:1px dashed var(--border-2);border-radius:14px;color:var(--muted);text-align:center;font-size:.9rem}
+.consent-foot{position:relative;padding:16px 30px 22px;border-top:1px solid var(--border);background:var(--surface)}
+.consent-foot::before{content:"";position:absolute;left:0;right:0;bottom:100%;height:34px;pointer-events:none;background:linear-gradient(to top,var(--surface),transparent)}
+.consent-scroll,.consent-ready{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:14px;font-size:.85rem;font-weight:500}
+.consent-scroll{color:var(--muted)}
+.consent-scroll svg{animation:consent-bounce 1.3s ease-in-out infinite}
+.consent-ready{display:none;color:var(--accent)}
+.consent-card.reached .consent-scroll{display:none}
+.consent-card.reached .consent-ready{display:flex;animation:consent-pop .4s var(--ease) both}
+.consent-actions{display:flex;justify-content:flex-end;gap:12px}
+.consent-actions .btn:disabled{opacity:.4;cursor:not-allowed}
+.consent-card.reached #consentAccept{animation:consent-glow 1.1s ease-out 1}
+@keyframes consent-fade{from{opacity:0}to{opacity:1}}
+@keyframes consent-rise{from{opacity:0;transform:translateY(26px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes consent-bounce{0%,100%{transform:translateY(-2px)}50%{transform:translateY(3px)}}
+@keyframes consent-pop{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@keyframes consent-glow{0%{box-shadow:0 0 0 0 rgba(200,245,96,.55)}100%{box-shadow:0 0 0 16px rgba(200,245,96,0)}}
+@media (max-width:560px){
+  .consent{padding:10px}
+  .consent-head{padding:20px 20px 0}
+  .consent-body{padding:14px 20px 24px}
+  .consent-foot{padding:14px 20px 18px}
+  .consent-actions{flex-direction:column-reverse}
+  .consent-actions .btn{width:100%}
+}
+@media (prefers-reduced-motion:reduce){.consent,.consent-card,.consent-scroll svg,.consent-ready,#consentAccept{animation:none!important}.consent-progress span{transition:none}}

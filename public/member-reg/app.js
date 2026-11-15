@@ -7,7 +7,7 @@
   const HOBBIES = ["Robotics", "Gaming", "Coding", "Drawing", "Music", "Sports", "Reading", "Photography"];
   const LIKES = ["Anime", "Movies", "Coffee", "Tech gadgets", "Pets", "K-pop", "Space", "Basketball"];
   const ROLE_ORDER = ["member", "media", "player"];
-  const state = { step: 1, photos: [], files: [], hobbies: new Set(), likes: new Set(), roles: new Set() };
+  const state = { step: 1, photos: [], files: [], hobbies: new Set(), likes: new Set(), roles: new Set(), consented: false };
   const rolesList = () => ROLE_ORDER.filter((r) => state.roles.has(r));
 
   const screens = { welcome: $("#welcome"), flow: $("#flow"), done: $("#done") };
@@ -20,9 +20,43 @@
   };
 
   const val = (id) => $("#" + id).value.trim();
+
+  /* Arriving from the admin sign-in ("/member-reg?email=...&name=..."): the email and name they signed in with are already
+     filled in. They can still edit both. Names come in two shapes: "Juan Dela Cruz" and school-style "Dela Cruz, Juan P.". */
+  const PARTICLES = new Set(["dela", "de", "del", "delos", "la", "san", "santa", "di", "da", "van", "von", "mc", "mac"]);
+  function splitName(full) {
+    const clean = full.replace(/[\d_@#$%^*=+<>{}\[\]\\|~`]/g, " ").replace(/\s+/g, " ").trim();
+    if (!clean) return null;
+    if (clean.includes(",")) { // "Dela Cruz, Jayson D."  ->  first "Jayson", last "Dela Cruz"
+      const [last, rest = ""] = clean.split(",").map((x) => x.trim());
+      const first = rest.replace(/(\s+[A-Za-z]\.?)+$/, "").trim() || rest; // drop a trailing middle initial
+      return { first, last };
+    }
+    const parts = clean.split(" ");
+    if (parts.length === 1) return { first: parts[0], last: "" };
+    let cut = parts.length - 1; // last word is the surname...
+    while (cut > 1 && PARTICLES.has(parts[cut - 1].toLowerCase())) cut--; // ...together with particles like "Dela" / "De la"
+    return { first: parts.slice(0, cut).join(" "), last: parts.slice(cut).join(" ") };
+  }
+  try {
+    const q = new URLSearchParams(location.search);
+    const fromEmail = (q.get("email") || "").trim().slice(0, 120);
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(fromEmail)) $("#email").value = fromEmail;
+    const n = splitName((q.get("name") || "").slice(0, 120));
+    if (n) { $("#firstName").value = n.first.slice(0, 40); $("#lastName").value = n.last.slice(0, 40); }
+  } catch (_) { /* no query string support: nothing to fill */ }
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
   const ID_RE = /^[A-Za-z0-9][A-Za-z0-9-]{3,19}$/;
   const PHONE_RE = /^(?:\+?63|0)9\d{9}$/; // Philippine mobile: 09XXXXXXXXX or +639XXXXXXXXX
+  /* The box shows only what comes after "+63" (917 123 4567). Typing, pasting 0917..., 63917... or +63 917... all end up in that shape. */
+  const phoneDigits = (raw) => {
+    let d = String(raw).replace(/\D/g, "");
+    if (d.startsWith("63")) d = d.slice(2); // a Philippine mobile number never starts with 63 itself, so it is the country code
+    else if (d.startsWith("0")) d = d.slice(1);
+    return d.slice(0, 10);
+  };
+  const phoneShow = (d) => [d.slice(0, 3), d.slice(3, 6), d.slice(6, 10)].filter(Boolean).join(" ");
+  const phoneValue = () => { const d = phoneDigits($("#phone").value); return d ? "0" + d : ""; }; // 09XXXXXXXXX, what is validated and sent
   const genderVal = () => ($('input[name="gender"]:checked') || {}).value || "";
   const yearVal = () => ($('input[name="year"]:checked') || {}).value || "";
 
@@ -448,7 +482,7 @@
   const taken = { email: new Set(), phone: new Set(), studentId: new Set() };
   const TAKEN_MSG = { email: "This email is already registered.", phone: "This mobile number is already registered.", studentId: "This student ID is already registered." };
   const normPhone = (v) => { const m = /^(?:\+?63|0)(9\d{9})$/.exec(v.replace(/[\s\-().]/g, "")); return m ? "0" + m[1] : v; };
-  const keyOf = { email: () => val("email").toLowerCase(), phone: () => normPhone(val("phone")), studentId: () => val("studentId").toLowerCase() };
+  const keyOf = { email: () => val("email").toLowerCase(), phone: () => normPhone(phoneValue()), studentId: () => val("studentId").toLowerCase() };
   const takenText = (f) => TAKEN_MSG[f] + " Use a different one.";
   const setErr = (id, msg) => {
     const e = $("#" + id + "-err"); if (!e) return;
@@ -471,8 +505,8 @@
       else if (!EMAIL_RE.test(val("email"))) { setErr("email", "Enter a valid email address."); ok = false; first ||= $("#email"); }
       else if (taken.email.has(keyOf.email())) { setErr("email", takenText("email")); ok = false; first ||= $("#email"); }
       else setErr("email", "");
-      if (!val("phone")) { setErr("phone", "Please enter your mobile number."); ok = false; first ||= $("#phone"); }
-      else if (!PHONE_RE.test(val("phone").replace(/[\s\-().]/g, ""))) { setErr("phone", "Enter a valid mobile number, like 0917 123 4567."); ok = false; first ||= $("#phone"); }
+      if (!phoneValue()) { setErr("phone", "Please enter your mobile number."); ok = false; first ||= $("#phone"); }
+      else if (!PHONE_RE.test(phoneValue())) { setErr("phone", "Enter a valid mobile number, like 917 123 4567."); ok = false; first ||= $("#phone"); }
       else if (taken.phone.has(keyOf.phone())) { setErr("phone", takenText("phone")); ok = false; first ||= $("#phone"); }
       else setErr("phone", "");
     }
@@ -530,7 +564,7 @@
     const btn = $("#nextBtn"), label = btn.textContent;
     btn.disabled = true; btn.textContent = "Checking...";
     try {
-      const body = step === 1 ? { email: val("email").toLowerCase(), phone: val("phone") } : { studentId: val("studentId") };
+      const body = step === 1 ? { email: val("email").toLowerCase(), phone: phoneValue() } : { studentId: val("studentId") };
       const r = await fetch("/api/members/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       if (!r.ok) return false;
       const t = (await r.json()).taken || {};
@@ -562,6 +596,21 @@
     if (i.id === "about") updateCounts();
     changed();
   }));
+  /* mobile number: spaced as you type (917 123 4567), keeps the cursor where you are typing, shows a check when complete */
+  const phoneBox = $("#phone"), phoneWrap = $("#phoneWrap");
+  function syncPhone() { phoneWrap.classList.toggle("ok", PHONE_RE.test(phoneValue())); }
+  phoneBox.addEventListener("input", () => {
+    const before = phoneBox.value, caret = phoneBox.selectionStart ?? before.length;
+    const digitsBeforeCaret = phoneDigits(before.slice(0, caret)).length;
+    const next = phoneShow(phoneDigits(before));
+    if (next !== before) {
+      phoneBox.value = next;
+      let pos = 0, seen = 0;
+      while (pos < next.length && seen < digitsBeforeCaret) { if (/\d/.test(next[pos])) seen++; pos++; }
+      try { phoneBox.setSelectionRange(pos, pos); } catch (_) {}
+    }
+    syncPhone();
+  });
   $$('input[name="year"]').forEach((i) => i.addEventListener("change", () => { setErr("year", ""); changed(); }));
   $("#program").addEventListener("change", () => { setErr("program", ""); changed(); });
   $$('input[name="gender"]').forEach((i) => i.addEventListener("change", () => { setErr("gender", ""); changed(); }));
@@ -638,10 +687,56 @@
   }
   hc.retry.addEventListener("click", () => { hc.state = "idle"; hcStart(); });
 
+  /* ---------- Privacy Policy & Terms of Use ----------
+     Opens after "Submit registration". The agree button stays locked until the whole text has been scrolled to the end. */
+  const CONSENT_VERSION = "2026-11-15"; // bump this when the text changes; it is saved with each registration
+  const consentEl = $("#consent"), consentCard = consentEl.querySelector(".consent-card"), consentBody = $("#consentBody"),
+        consentBar = $("#consentBar"), consentAccept = $("#consentAccept");
+  let consentFrom = null;
+  function consentProgress() {
+    const max = consentBody.scrollHeight - consentBody.clientHeight;
+    const reached = max <= 8 || consentBody.scrollTop >= max - 8; // a screen tall enough to show it all needs no scrolling
+    consentBar.style.width = (max <= 0 ? 100 : Math.min(100, Math.round((consentBody.scrollTop / max) * 100))) + "%";
+    consentAccept.disabled = !reached;
+    consentCard.classList.toggle("reached", reached);
+    return reached;
+  }
+  function openConsent() {
+    consentFrom = document.activeElement;
+    consentEl.hidden = false;
+    document.body.style.overflow = "hidden";
+    consentBody.scrollTop = 0;
+    consentProgress();
+    consentCard.focus();
+  }
+  function closeConsent() {
+    consentEl.hidden = true;
+    document.body.style.overflow = "";
+    if (consentFrom && consentFrom.focus) consentFrom.focus();
+  }
+  consentBody.addEventListener("scroll", consentProgress, { passive: true });
+  window.addEventListener("resize", () => { if (!consentEl.hidden) consentProgress(); });
+  $("#consentBack").addEventListener("click", closeConsent);
+  consentAccept.addEventListener("click", () => {
+    if (!consentProgress()) return; // locked until the end has been reached
+    state.consented = true;
+    closeConsent();
+    submitWithCheck();
+  });
+  consentEl.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") { closeConsent(); return; }
+    if (e.key !== "Tab") return;
+    const items = [consentBody, $("#consentBack"), consentAccept].filter((x) => !x.disabled); // keep Tab inside the pop-up
+    const i = items.indexOf(document.activeElement);
+    if (e.shiftKey && i <= 0) { e.preventDefault(); items[items.length - 1].focus(); }
+    else if (!e.shiftKey && i === items.length - 1) { e.preventDefault(); items[0].focus(); }
+  });
+
   function submitWithCheck() {
     if (sending || hc.pending) return;
     // Check every page again before sending, and jump back to the first page that has a problem.
     for (let s = 1; s <= TOTAL; s++) if (!validate(s)) { go(s); validate(s); return; }
+    if (!state.consented) { openConsent(); return; } // Privacy Policy & Terms: read to the end, then agree
     if (hc.token) return finish();
     hc.pending = true;
     const btn = $("#nextBtn"); btn.disabled = true; btn.textContent = "Verifying...";
@@ -696,12 +791,13 @@
     btn.disabled = true; btn.textContent = "Submitting...";
     const data = {
       firstName: val("firstName"), lastName: val("lastName"),
-      gender: genderVal(), birthday: val("birthday"), email: val("email").toLowerCase(), phone: val("phone"),
+      gender: genderVal(), birthday: val("birthday"), email: val("email").toLowerCase(), phone: phoneValue(),
       studentId: val("studentId"), program: val("program"), year: yearVal(), section: val("section"),
       roles: rolesList(),
       photos: state.photos, thumb: await makeThumb(state.photos[0]),
       hobbies: [...state.hobbies], likes: [...state.likes], about: val("about"),
       captchaToken: hc.token,
+      consent: state.consented === true, consentVersion: CONSENT_VERSION,
     };
     let ok = false;
     try {
@@ -743,8 +839,9 @@
     buildChips($("#hobbyChips"), HOBBIES, state.hobbies);
     buildChips($("#likeChips"), LIKES, state.likes);
     $("#stageCap").textContent = "Live preview. Your card fills in as you type.";
+    state.consented = false; // a new registration reads and agrees again
     hcReset();
-    renderSlots(); updateCounts(); syncProgram(); syncBirthday();
+    renderSlots(); updateCounts(); syncProgram(); syncBirthday(); syncPhone();
     show("welcome");
   });
 

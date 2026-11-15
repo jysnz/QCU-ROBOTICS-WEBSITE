@@ -322,3 +322,20 @@ body { overflow-x: clip; }
   .pp-bell, .pp-ripple, .pp-burst { animation: none; }
   .pp-in, .pp-check { animation-duration: .01s; }
 }
+
+/* ---------- one-time code boxes, password meter, success mark (app/admin/authBits.tsx) ---------- */
+@keyframes otp-shake { 0%, 100% { transform: translateX(0); } 15% { transform: translateX(-8px); } 35% { transform: translateX(7px); } 55% { transform: translateX(-5px); } 75% { transform: translateX(3px); } }
+@keyframes otp-pop { 0% { transform: scale(.85); } 60% { transform: scale(1.08); } 100% { transform: scale(1); } }
+@keyframes step-in { from { opacity: 0; transform: translateX(22px); } to { opacity: 1; transform: none; } }
+@keyframes step-in-back { from { opacity: 0; transform: translateX(-22px); } to { opacity: 1; transform: none; } }
+@keyframes tab-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.otp-shake { animation: otp-shake .45s ease both; }
+.otp-pop { animation: otp-pop .22s var(--ease) both; }
+.step-in { animation: step-in .45s var(--ease) both; }
+.step-in-back { animation: step-in-back .45s var(--ease) both; }
+.tab-in { animation: tab-in .4s var(--ease) both; }
+@media (prefers-reduced-motion: reduce) { .otp-shake, .otp-pop, .step-in, .step-in-back, .tab-in { animation-duration: .01s; } }
+
+/* countdown ring on the "let's get you registered" screen (app/admin/AdminApp.tsx) */
+@keyframes reg-ring { from { stroke-dashoffset: 226; } to { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { [style*="reg-ring"] { animation-duration: .01s !important; } }

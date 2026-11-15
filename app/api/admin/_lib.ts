@@ -74,29 +74,46 @@ export async function verifyHuman(token: unknown, ip: string): Promise<{ ok: boo
    people who run the site can't be locked out. Matching ignores upper/lower case. */
 export async function isRegistered(userId: string, email: string): Promise<boolean> {
   if (!service) return false;
-  const { data: role } = await service.schema("website").from("admin_roles").select("role").eq("user_id", userId).maybeSingle();
-  if (role) return true;
   const mail = email.trim();
-  if (!mail) return false;
-  const pattern = mail.replace(/[\%_]/g, (c) => "\\" + c); // "_" and "%" are ilike wildcards: match them literally
-  const { data } = await service.schema("website").from("members").select("id")
-    .ilike("email", pattern)
-    .or("registration_status.is.null,registration_status.neq.rejected")
-    .limit(1);
-  return !!data?.length;
+  const pattern = mail.replace(/[\\%_]/g, (c) => "\\" + c); // "_" and "%" are ilike wildcards: match them literally
+  // both lookups go out together (one round trip instead of two)
+  const [{ data: role }, member] = await Promise.all([
+    service.schema("website").from("admin_roles").select("role").eq("user_id", userId).maybeSingle(),
+    mail
+      ? service.schema("website").from("members").select("id").ilike("email", pattern).or("registration_status.is.null,registration_status.neq.rejected").limit(1)
+      : Promise.resolve({ data: [] as { id: number }[] }),
+  ]);
+  return !!role || !!member.data?.length;
 }
 
 /* Caller must send "Authorization: Bearer <supabase access token>" for an account with is_approved = true. */
+/* A login that passed every check is remembered for 20 seconds. The admin page asks for several things at once (counts, lists,
+   the bell), and each would otherwise repeat the same four lookups. The only cost: someone rejected or revoked in the last
+   20 seconds can still finish what they were doing. */
+const verified = new Map<string, { exp: number; userId: string; email: string }>();
+const VERIFIED_MS = 20_000;
+
 export async function requireAdmin(req: NextRequest): Promise<
   { ok: true; userId: string; email: string } | { ok: false; res: NextResponse }
 > {
   if (!service) return { ok: false, res: json({ error: "The admin area isn't configured yet." }, 503) };
   const token = /^Bearer (.+)$/.exec(req.headers.get("authorization") || "")?.[1];
   if (!token) return { ok: false, res: json({ error: "Please sign in." }, 401) };
+  const hit = verified.get(token);
+  if (hit && hit.exp > Date.now()) return { ok: true, userId: hit.userId, email: hit.email };
+
   const { data, error } = await service.auth.getUser(token);
   if (error || !data.user) return { ok: false, res: json({ error: "Please sign in again." }, 401) };
-  if (!(await isRegistered(data.user.id, data.user.email ?? ""))) return { ok: false, res: json({ error: "Register first at /member-reg with this email.", code: "not-registered" }, 403) };
-  const { data: acct } = await service.from("user_accounts").select("is_approved").eq("id", data.user.id).maybeSingle();
+  const email = data.user.email ?? "";
+  // registered? and approved? are independent: ask both at once
+  const [registered, { data: acct }] = await Promise.all([
+    isRegistered(data.user.id, email),
+    service.from("user_accounts").select("is_approved").eq("id", data.user.id).maybeSingle(),
+  ]);
+  if (!registered) return { ok: false, res: json({ error: "Register first at /member-reg with this email.", code: "not-registered" }, 403) };
   if (!acct?.is_approved) return { ok: false, res: json({ error: "Your account hasn't been approved yet." }, 403) };
-  return { ok: true, userId: data.user.id, email: data.user.email ?? "" };
+
+  if (verified.size > 300) for (const [k, v] of verified) if (v.exp <= Date.now()) verified.delete(k);
+  verified.set(token, { exp: Date.now() + VERIFIED_MS, userId: data.user.id, email });
+  return { ok: true, userId: data.user.id, email };
 }

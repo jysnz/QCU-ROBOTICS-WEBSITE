@@ -5,6 +5,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { AtSign, ChevronLeft, Eye, EyeOff, ImageIcon, Loader2, Lock, LogIn, ShieldCheck, Trophy, User, UserPlus, Users } from "lucide-react";
 import Turnstile from "./Turnstile";
+import ForgotFlow from "./ForgotFlow";
+import { PasswordRules } from "./authBits";
+import { passwordIssue } from "../lib/passwordRules";
 import { sb } from "./supabase";
 
 /* Login / registration, styled after the QCUR-Apex sign-in screen: dark navy backdrop, centred logo, one card with
@@ -66,7 +69,7 @@ const inputCls =
   "h-11 w-full rounded-xl border border-[#334155] bg-[#020617]/60 pl-10 pr-3 text-sm text-[#f8fafc] outline-none transition-colors placeholder:text-[#475569] hover:border-[#475569] focus-visible:border-[#22c55e]";
 
 export default function AuthScreen() {
-  const [mode, setMode] = useState<"login" | "register">("login");
+  const [mode, setMode] = useState<"login" | "register" | "forgot">("login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -84,13 +87,14 @@ export default function AuthScreen() {
   const [notice, setNotice] = useState("");
 
   const isLogin = mode === "login";
-  const switchMode = (m: "login" | "register") => { setMode(m); setError(""); setNotice(""); };
+  const switchMode = (m: "login" | "register" | "forgot") => { setMode(m); setError(""); setNotice(""); };
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (busy) return;
     setError(""); setNotice("");
     if (!token) { setError("Please complete the verification check first."); return; }
+    if (!isLogin) { const issue = passwordIssue(password, email.trim()); if (issue) { setError(issue); return; } } // new passwords follow the rules; signing in doesn't re-check old ones
     setBusy(true);
     try {
       const res = await fetch("/api/admin/auth", {
@@ -185,13 +189,14 @@ export default function AuthScreen() {
               <Image src="/logo-96.png" alt="QCU Robotics" width={56} height={56} className="site-logo mx-auto" priority />
             </div>
             <div key={mode} className="animate-fadeIn text-center lg:text-left">
-              <h1 className="mt-2 text-lg font-semibold lg:mt-0 lg:font-display lg:text-3xl lg:font-bold lg:tracking-[-0.03em]">{isLogin ? "Welcome Back" : "Request Access"}</h1>
+              <h1 className="mt-2 text-lg font-semibold lg:mt-0 lg:font-display lg:text-3xl lg:font-bold lg:tracking-[-0.03em]">{mode === "forgot" ? "Reset Password" : isLogin ? "Welcome Back" : "Request Access"}</h1>
               <p className="mt-1 text-xs text-[#94a3b8] lg:mt-2 lg:text-sm">
-                {isLogin ? "Please sign in to continue" : "An existing admin approves new accounts"}
+                {mode === "forgot" ? "We'll email you a code to get back in" : isLogin ? "Please sign in to continue" : "An existing admin approves new accounts"}
               </p>
             </div>
 
             <div className="auth-card mt-3 rounded-2xl border p-3.5 shadow-[0_8px_30px_rgba(0,0,0,.35)] sm:p-5" style={{ background: `${C.surface}f2`, borderColor: `${C.border}80` }}>
+              {mode === "forgot" ? <ForgotFlow initialEmail={email} onBack={() => switchMode("login")} /> : (<>
               <form onSubmit={submit} noValidate className="space-y-2.5">
                 <div className={`auth-swap ${isLogin ? "" : "is-open"}`} inert={isLogin}>
                   <div>
@@ -233,7 +238,11 @@ export default function AuthScreen() {
                       {show ? <EyeOff className="h-4 w-4" aria-hidden="true" /> : <Eye className="h-4 w-4" aria-hidden="true" />}
                     </button>
                   </div>
-                  <div className={`auth-swap ${isLogin ? "" : "is-open"}`}><div><p className="pt-1.5 text-[11px] text-[#64748b]">At least 8 characters.</p></div></div>
+                  <div className={`auth-swap ${isLogin ? "" : "is-open"}`}><div><PasswordRules password={password} tone="auth" /></div></div>
+                  {/* sign-in only: sits right under the password box */}
+                  <div className={`auth-swap ${isLogin ? "is-open" : ""}`} inert={!isLogin}>
+                    <div className="flex justify-end"><button type="button" onClick={() => switchMode("forgot")} className="mt-2 text-xs font-semibold text-[#22c55e] transition-colors hover:underline">Forgot password?</button></div>
+                  </div>
                 </div>
 
                 <div><Turnstile onToken={setToken} resetKey={resetKey} /></div>
@@ -268,12 +277,13 @@ export default function AuthScreen() {
                 {googleBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <GoogleMark />}
                 Continue with Google
               </button>
+              </>)}
             </div>
 
             <p className="mt-3 text-center text-xs text-[#94a3b8]" style={rise(6)}>
-              {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
-              <button type="button" onClick={() => switchMode(isLogin ? "register" : "login")} className="font-semibold text-[#22c55e] hover:underline">
-                {isLogin ? "Create Account" : "Sign In"}
+              {mode === "forgot" ? "Remembered it?" : isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
+              <button type="button" onClick={() => switchMode(mode === "forgot" || !isLogin ? "login" : "register")} className="font-semibold text-[#22c55e] hover:underline">
+                {mode === "forgot" || !isLogin ? "Sign In" : "Create Account"}
               </button>
             </p>
           </div>

@@ -10,12 +10,12 @@ export const REVIEW_EVENT = "admin-review-changed";
 export const announceReviewChange = () => window.dispatchEvent(new Event(REVIEW_EVENT));
 
 export function useReviewCounts(refreshKey: string) {
-  const [counts, setCounts] = useState<{ registrations: number; accounts: number }>({ registrations: 0, accounts: 0 });
+  const [counts, setCounts] = useState<{ registrations: number; accounts: number; loaded: boolean }>({ registrations: 0, accounts: 0, loaded: false });
   useEffect(() => {
     let off = false;
     const load = () => {
       adminFetch<{ registrations: number; accounts: number }>("/api/admin/review-counts")
-        .then((c) => { if (!off) setCounts(c); })
+        .then((c) => { if (!off) setCounts({ ...c, loaded: true }); })
         .catch(() => { /* keep the last numbers */ });
     };
     load();

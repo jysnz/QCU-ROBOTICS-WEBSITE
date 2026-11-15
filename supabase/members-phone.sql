@@ -9,3 +9,7 @@ create unique index if not exists members_email_unique on website.members (lower
   where email is not null and registration_status is distinct from 'rejected';
 create unique index if not exists members_phone_unique on website.members (phone)
   where phone is not null and registration_status is distinct from 'rejected';
+
+-- Proof that the person read and accepted the Privacy Policy & Terms on /member-reg (when, and which version of the text).
+-- Private like the other personal details: not readable from the browser.
+alter table website.members add column if not exists consent_at timestamptz, add column if not exists consent_version text;

@@ -1,5 +1,6 @@
 import { type NextRequest } from "next/server";
 import { anonClient, clientIp, json, makeLimiter, service, verifyHuman } from "../_lib";
+import { passwordIssue } from "../../../lib/passwordRules";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -48,6 +49,8 @@ export async function POST(req: NextRequest) {
     if (signups.blocked(ip)) return json({ error: "Too many sign-ups from this network. Please try again later." }, 429);
     const name = text(b.name, 80);
     if (name.length < 2) return json({ error: "Please enter your full name." }, 400);
+    const weak = passwordIssue(password, email);
+    if (weak) return json({ error: weak }, 400);
     signups.hit(ip);
 
     const { data, error } = await anonClient().auth.signUp({ email, password, options: { data: { full_name: name } } });
@@ -59,7 +62,7 @@ export async function POST(req: NextRequest) {
     // so the response below is identical either way and doesn't reveal which emails exist.
     if (data.user && (data.user.identities?.length ?? 0) > 0) {
       await service.from("user_accounts").upsert(
-        { id: data.user.id, email, full_name: name, profile_complete: true },
+        { id: data.user.id, email, full_name: name, profile_complete: true, has_password: true },
         { onConflict: "id" },
       );
     }

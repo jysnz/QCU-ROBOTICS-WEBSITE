@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Dialog } from "@base-ui/react/dialog";
 import NumberFlow from "@number-flow/react";
 import { Toaster } from "sonner";
-import { ArrowUpRight, Award, Building2, Camera, CalendarRange, ClipboardCheck, ExternalLink, FileText, GraduationCap, BookUser, HeartHandshake, LayoutDashboard, LogOut, Medal, Network, Plus, Share2, Shield, ShieldCheck, Swords, Tag, Trophy, ListTodo, Search, Send, UserRound, Users, Menu, X, Bell } from "lucide-react";
+import { ArrowUpRight, Award, Building2, Camera, CalendarRange, ClipboardCheck, ExternalLink, FileText, GraduationCap, BookUser, HeartHandshake, LayoutDashboard, LogOut, Medal, Network, Plus, Share2, Shield, ShieldCheck, Swords, Tag, Trophy, ListTodo, Search, Send, UserRound, Users, Menu, X, Bell, Settings as SettingsIcon } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Accounts from "./Accounts";
 import CommandPalette, { type PaletteItem } from "./CommandPalette";
@@ -24,8 +24,9 @@ import { canAssignTasks, useAdminRole, usePendingPrompts } from "./useAdminRole"
 import { useReviewCounts } from "./useReviewCounts";
 import { BellButton, NotificationPanel, useNotifications } from "./Notifications";
 import PushPrompt from "./PushPrompt";
+import SettingsPage from "./Settings";
 import { RESOURCES } from "./resources";
-import { adminFetch, sb } from "./supabase";
+import { sb } from "./supabase";
 
 type View = string; // "overview" | "registrations" | "accounts" | a resource id
 
@@ -34,6 +35,7 @@ const ICONS: Record<string, LucideIcon> = {
   "team-players": Users, assignments: Network, "player-roles": Medal, "media-team": Camera, members: UserRound, coaches: GraduationCap,
   seasons: CalendarRange, teams: Shield, competitions: Trophy, matches: Swords, achievements: Award,
   information: BookUser, roles: Tag, "sponsor-companies": Building2, sponsors: HeartHandshake, socials: Share2, descriptions: FileText,
+  settings: SettingsIcon,
 };
 
 // Team and role are chosen when a player is added, so the separate assignment and player-role pages are gone.
@@ -49,6 +51,7 @@ const GROUPS: { title: string; items: { id: View; label: string }[] }[] = [
       ...(g === "People" ? [{ id: "information", label: "Informations" }] : []), // directory of everyone who registered, with their photos
     ],
   })),
+  { title: "Account", items: [{ id: "settings", label: "Settings" }] }, // profile, email, password, privacy & terms, sign out
 ];
 const VALID = new Set([...GROUPS.flatMap((g) => g.items.map((i) => i.id)), ...Object.keys(MERGED)]); // old #assignments / #player-roles links fall back to Team players
 
@@ -74,10 +77,11 @@ function greeting() {
   return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
 }
 
-function Overview({ name, go }: { name: string; go: (v: View, add?: boolean) => void }) {
+function Overview({ name, go, review }: { name: string; go: (v: View, add?: boolean) => void; review: { registrations: number; accounts: number; loaded: boolean } }) {
   const [stats, setStats] = useState<Record<string, Stat>>({});
   const [loaded, setLoaded] = useState(false);
-  const [waiting, setWaiting] = useState<{ regs: number | null; accounts: number | null }>({ regs: null, accounts: null });
+  // the two "needs attention" numbers come from the dashboard's single, lightweight count request (shared with the sidebar badges)
+  const waiting = review.loaded ? { regs: review.registrations, accounts: review.accounts } : { regs: null, accounts: null };
 
   useEffect(() => {
     let cancelled = false;
@@ -100,17 +104,6 @@ function Overview({ name, go }: { name: string; go: (v: View, add?: boolean) => 
         }),
       );
       if (!cancelled) { setStats(Object.fromEntries(entries)); setLoaded(true); }
-    })();
-    (async () => {
-      const [regs, accounts] = await Promise.allSettled([
-        adminFetch<{ registrations: { registration_status: string | null }[] }>("/api/admin/registrations"),
-        adminFetch<{ accounts: { is_approved: boolean; rejected_at?: string | null }[] }>("/api/admin/users"),
-      ]);
-      if (cancelled) return;
-      setWaiting({
-        regs: regs.status === "fulfilled" ? regs.value.registrations.filter((r) => r.registration_status === "pending").length : null,
-        accounts: accounts.status === "fulfilled" ? accounts.value.accounts.filter((a) => !a.is_approved && !a.rejected_at).length : null,
-      });
     })();
     return () => { cancelled = true; };
   }, []);
@@ -239,9 +232,10 @@ function Overview({ name, go }: { name: string; go: (v: View, add?: boolean) => 
   );
 }
 
-export default function Dashboard({ name, email, onSignOut }: { name: string; email: string; onSignOut: () => void }) {
+export default function Dashboard({ name, email, onSignOut, onAccountChanged }: { name: string; email: string; onSignOut: () => void; onAccountChanged?: () => void }) {
   const [view, setView] = useState<View>(() => {
     const h = typeof window !== "undefined" ? window.location.hash.slice(1) : "";
+    if (h.startsWith("settings")) return "settings"; // #settings-email etc. open that tab of Settings
     return MERGED[h] ?? (VALID.has(h) ? h : "overview");
   });
   const [startNew, setStartNew] = useState(false); // open the "add" form as soon as the section loads
@@ -388,15 +382,16 @@ export default function Dashboard({ name, email, onSignOut }: { name: string; em
         <nav aria-label="Admin sections" className="hidden min-h-0 flex-1 overflow-y-auto px-3 pb-6 lg:block">{navList()}</nav>
 
         <div className="hidden border-t border-slate-700 p-4 lg:block">
-          <div className="flex items-center gap-3">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-600 bg-slate-800 font-display text-sm font-semibold text-accent" aria-hidden="true">
+          <button type="button" onClick={() => go("settings")} aria-label="Open settings" className="group -m-1.5 flex w-[calc(100%+.75rem)] items-center gap-3 rounded-xl p-1.5 text-left transition-colors hover:bg-slate-900">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-600 bg-slate-800 font-display text-sm font-semibold text-accent transition-colors group-hover:border-accent" aria-hidden="true">
               {(name.trim()[0] ?? "?").toUpperCase()}
             </span>
-            <span className="min-w-0">
+            <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-medium text-white">{name}</span>
               <span className="block truncate text-xs text-slate-500">{email}</span>
             </span>
-          </div>
+            <SettingsIcon className="h-4 w-4 shrink-0 text-slate-600 transition-[color,transform] duration-300 group-hover:rotate-90 group-hover:text-accent" aria-hidden="true" />
+          </button>
           <div className="mt-3 flex gap-2">
             <Link href="/" target="_blank" className="btn btn-ghost btn-sm flex-1"><ExternalLink className="h-4 w-4" aria-hidden="true" /> Site</Link>
             <button type="button" onClick={onSignOut} className="btn btn-ghost btn-sm flex-1"><LogOut className="h-4 w-4" aria-hidden="true" /> Sign out</button>
@@ -408,9 +403,10 @@ export default function Dashboard({ name, email, onSignOut }: { name: string; em
         <div className="mx-auto max-w-5xl">
           {/* keyed so every section change fades in instead of snapping */}
           <div key={view} className="animate-fadeIn">
-            {view === "overview" && <Overview name={name} go={go} />}
+            {view === "overview" && <Overview name={name} go={go} review={review} />}
             {view === "registrations" && <Registrations />}
             {view === "accounts" && <Accounts />}
+            {view === "settings" && <SettingsPage onSignOut={onSignOut} onAccountChanged={() => onAccountChanged?.()} />}
             {((view === "tasks-assign" && canAssign) || view === "tasks-todo") && <Tasks mode={view === "tasks-assign" ? "assign" : "todo"} />}
             {view === "team-players" && <TeamPlayersPanel startNew={startNew} />}
             {(view === "media-team" || view === "members" || view === "coaches") && <PeoplePanel key={view} kind={view === "media-team" ? "media" : view} startNew={startNew} />}

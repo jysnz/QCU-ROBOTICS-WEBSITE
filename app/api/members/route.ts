@@ -169,6 +169,8 @@ async function handle(req: NextRequest, ip: string): Promise<NextResponse> {
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(m.email)) return json({ error: "Please enter a valid email address." }, 400);
   if (!/^[A-Za-z0-9][A-Za-z0-9-]{3,19}$/.test(m.studentId)) return json({ error: "Please enter a valid student ID.", field: "studentId" }, 400);
   // Philippine mobile number: 09XXXXXXXXX, 639XXXXXXXXX or +639XXXXXXXXX (spaces, dashes and brackets are ignored). Saved as 09XXXXXXXXX.
+  if (b.consent !== true) return json({ error: "Please read and accept the Privacy Policy and Terms to register.", field: "consent" }, 400);
+  const consentVersion = str(b.consentVersion, 20) || "unknown";
   const phone = normalizePhone(m.phone);
   if (!phone) return json({ error: "Please enter a valid mobile number, like 0917 123 4567.", field: "phone" }, 400);
   if (!m.firstName || !m.lastName || !PROGRAMS.includes(m.program) || !m.section || !YEARS.includes(m.year))
@@ -244,6 +246,8 @@ async function handle(req: NextRequest, ip: string): Promise<NextResponse> {
       email: m.email,
       student_id: m.studentId,
       phone,
+      consent_at: new Date().toISOString(), // when they agreed to the Privacy Policy & Terms
+      consent_version: consentVersion,
       program: m.program,
       year_level: m.year,
       section: m.section,
