@@ -3,10 +3,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import NumberFlow from "@number-flow/react";
-import { BookUser, ChevronLeft, ChevronRight, Copy, Download, ImageOff, Images, LayoutGrid, List, Loader2, Search, X } from "lucide-react";
+import { BookUser, ChevronLeft, ChevronRight, Copy, Download, ImageOff, Images, LayoutGrid, List, Loader2, Pencil, Search, X } from "lucide-react";
 import Dropdown from "../components/Dropdown";
 import { notify } from "./notify";
 import { adminFetch } from "./supabase";
+import { bustContent } from "./cache";
+import { useAdminRole } from "./useAdminRole";
+import { GENDERS, PROGRAMS, YEARS } from "../lib/registrationOptions";
 
 type Person = {
   id: number;
@@ -35,6 +38,7 @@ type RoleFilter = "all" | "member" | "media" | "player";
 const rolesOf = (r: { role: string; roles?: string[] }) => (r.roles?.length ? r.roles : [r.role]); // everything they signed up as
 const ROLE_LABEL: Record<string, string> = { member: "Member", media: "Media team", player: "Player" };
 const ROLE_TONE: Record<string, string> = { member: "text-accent border-accent/40 bg-accent/10", media: "text-violet-300 border-violet-400/40 bg-violet-400/10", player: "text-sky-300 border-sky-400/40 bg-sky-400/10" };
+const ROLE_TEXT: Record<string, string> = { member: "text-accent border-accent/50", media: "text-violet-300 border-violet-400/50", player: "text-sky-300 border-sky-400/50" }; // text and border only: the pill itself is solid dark
 const PAGE = 24;
 const shortProgram = (p: string | null) => (p ?? "").replace(/^Bachelor of (Science in|Early)\s*/i, "").trim();
 const age = (iso: string): number | null => { const d = new Date(iso); if (Number.isNaN(d.getTime())) return null; const n = new Date(); let a = n.getFullYear() - d.getFullYear(); if (n < new Date(n.getFullYear(), d.getMonth(), d.getDate())) a--; return a >= 0 && a < 120 ? a : null; };
@@ -91,6 +95,14 @@ export default function InformationPanel() {
   const [status, setStatus] = useState("all");
   const [limit, setLimit] = useState(PAGE);
   const [open, setOpen] = useState<Person | null>(null);
+  const adminRole = useAdminRole();
+  const canEdit = adminRole === "super_admin" || adminRole === "media_head"; // only they can correct what people entered
+  // after a save: update the list and the open dialog, and refresh the other People pages (the name may have changed)
+  const saved = (id: number, patch: Partial<Person>) => {
+    setPeople((prev) => (prev ? prev.map((p) => (p.id === id ? { ...p, ...patch } : p)) : prev));
+    setOpen((o) => (o && o.id === id ? { ...o, ...patch } : o));
+    bustContent();
+  };
   // Rows read better on a phone, so that is the starting point there; the switch in the toolbar changes it any time.
   const [layout, setLayout] = useState<"grid" | "list">(() => {
     try { const saved = localStorage.getItem("info-layout"); if (saved === "grid" || saved === "list") return saved; } catch {}
@@ -219,11 +231,16 @@ export default function InformationPanel() {
                   className="relative block aspect-[4/5] w-full overflow-hidden rounded-2xl border border-slate-700 bg-slate-800 text-left outline-none transition-[transform,border-color,box-shadow] duration-300 ease-out-quint hover:-translate-y-1 hover:border-slate-500 hover:shadow-[0_18px_40px_rgba(0,0,0,.45)] focus-visible:border-accent focus-visible:shadow-[0_0_0_3px_rgba(200,245,96,.3)]">
                   <Cover p={p} />
                   <span className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-slate-950/20" aria-hidden="true" />
-                  <span className="absolute left-3 top-3 flex flex-wrap gap-1">{rolesOf(p).map((k) => <span key={k} className={`rounded-full border px-2.5 py-1 font-mono text-[.62rem] uppercase tracking-[.12em] backdrop-blur ${ROLE_TONE[k] ?? "border-slate-600 text-slate-300"}`}>{ROLE_LABEL[k] ?? k}</span>)}</span>
-                  {p.registration_status === "pending" && <span className="absolute right-3 top-3 rounded-full border border-[#fbbf24]/50 bg-slate-950/70 px-2.5 py-1 font-mono text-[.62rem] uppercase tracking-[.12em] text-[#fbbf24] backdrop-blur">Pending</span>}
+                  {/* a dark scrim under the tags, so they stay readable on a bright photo */}
+                  <span className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-slate-950/85 to-transparent" aria-hidden="true" />
+                  {/* all the tags share one wrapping row, so they can never overlap or run off the card */}
+                  <span className="absolute inset-x-3 top-3 flex flex-wrap gap-1.5">
+                    {rolesOf(p).map((k) => <span key={k} className={`rounded-full border bg-slate-950/90 px-2 py-0.5 font-mono text-[.58rem] uppercase leading-4 tracking-[.1em] ${ROLE_TEXT[k] ?? "border-slate-600 text-slate-300"}`}>{ROLE_LABEL[k] ?? k}</span>)}
+                    {p.registration_status === "pending" && <span className="rounded-full border border-[#fbbf24]/60 bg-slate-950/90 px-2 py-0.5 font-mono text-[.58rem] uppercase leading-4 tracking-[.1em] text-[#fbbf24]">Pending</span>}
+                  </span>
                   <span className="absolute inset-x-0 bottom-0 p-4">
-                    <span className="block break-words font-display text-lg font-semibold leading-tight text-white">{p.name}</span>
-                    <span className="mt-1 block break-words text-xs leading-snug text-slate-300">{[shortProgram(p.program), p.year_level].filter(Boolean).join(" · ") || p.email}</span>
+                    <span className="line-clamp-2 break-words font-display text-lg font-semibold leading-tight text-white">{p.name}</span>
+                    <span className="mt-1 line-clamp-2 break-words text-xs leading-snug text-slate-300">{[shortProgram(p.program), p.year_level].filter(Boolean).join(" · ") || p.email}</span>
                     <span className="mt-2 inline-flex items-center gap-1.5 font-mono text-[.66rem] text-slate-400"><Images className="h-3.5 w-3.5" aria-hidden="true" />{p.photos.length} {p.photos.length === 1 ? "photo" : "photos"}</span>
                   </span>
                 </button>
@@ -239,15 +256,27 @@ export default function InformationPanel() {
         </>
       )}
 
-      <PersonDialog person={open} onClose={() => setOpen(null)} />
+      <PersonDialog person={open} canEdit={canEdit} onSaved={saved} onClose={() => setOpen(null)} />
     </section>
   );
 }
 
-function PersonDialog({ person, onClose }: { person: Person | null; onClose: () => void }) {
+const fieldCls = "h-10 w-full rounded-lg border border-slate-600 bg-slate-950 px-3 text-sm text-white outline-none! transition-colors placeholder:text-slate-500 hover:border-slate-500 focus-visible:border-accent disabled:opacity-60";
+const FORM_KEYS = ["first_name", "last_name", "gender", "birthday", "email", "phone", "student_id", "program", "year_level", "section", "about"] as const;
+type Form = Record<(typeof FORM_KEYS)[number], string>;
+const formOf = (p: Person): Form => ({
+  first_name: p.first_name ?? "", last_name: p.last_name ?? "", gender: p.gender ?? "", birthday: p.birthday ?? "", email: p.email ?? "", phone: p.phone ?? "",
+  student_id: p.student_id ?? "", program: p.program ?? "", year_level: p.year_level ?? "", section: p.section ?? "", about: p.about ?? "",
+});
+
+function PersonDialog({ person, canEdit, onSaved, onClose }: { person: Person | null; canEdit: boolean; onSaved: (id: number, patch: Partial<Person>) => void; onClose: () => void }) {
   const [i, setI] = useState(0);
   const [prev, setPrev] = useState<Person | null>(null);
   const [saving, setSaving] = useState<number | "all" | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState<Form | null>(null);
+  const [formBusy, setFormBusy] = useState(false);
+  const [formErr, setFormErr] = useState("");
   // full-resolution originals from Cloudflare R2, keyed by photo number (1-5); empty when none were stored
   const [originals, setOriginals] = useState<Record<number, { url: string; size: number }>>({});
   const personId = person?.id;
@@ -265,7 +294,7 @@ function PersonDialog({ person, onClose }: { person: Person | null; onClose: () 
   const sourceFor = (n: number) => originals[n + 1]?.url ?? photos[n];
   const mb = (b: number) => (b >= 1048576 ? `${(b / 1048576).toFixed(1)} MB` : `${Math.round(b / 1024)} KB`);
   // start on the first photo whenever a different person is opened (adjusting state while rendering, not in an effect)
-  if (person !== prev) { setPrev(person); setI(0); }
+  if (person !== prev) { if (person?.id !== prev?.id) setI(0); setPrev(person); setEditing(false); setFormErr(""); } // a different person (or a fresh save) leaves edit mode
   const photos = person?.photos ?? [];
   const download = async (n: number) => {
     if (!person || saving !== null) return;
@@ -283,6 +312,21 @@ function PersonDialog({ person, onClose }: { person: Person | null; onClose: () 
     } catch (e) { notify.error(e instanceof Error ? e.message : "Couldn't download the photos."); }
     setSaving(null);
   };
+  const startEdit = () => { if (!person) return; setForm(formOf(person)); setFormErr(""); setEditing(true); };
+  const setField = (k: keyof Form, v: string) => setForm((f) => (f ? { ...f, [k]: v } : f));
+  async function saveEdit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!person || !form || formBusy) return;
+    setFormBusy(true); setFormErr("");
+    try {
+      const res = await adminFetch<{ fields: Partial<Person> }>("/api/admin/registrations", { method: "PATCH", body: JSON.stringify({ id: person.id, action: "edit", fields: form }) });
+      onSaved(person.id, res.fields);
+      notify.updated("Information updated", { description: res.fields.name ?? person.name });
+    } catch (err) {
+      setFormErr(err instanceof Error ? err.message : "Couldn't save the changes.");
+    }
+    setFormBusy(false);
+  }
   const go = (d: number) => setI((n) => (photos.length ? (n + d + photos.length) % photos.length : 0));
 
   return (
@@ -355,7 +399,51 @@ function PersonDialog({ person, onClose }: { person: Person | null; onClose: () 
 
               {/* Everything the person entered on the registration form */}
               <div className="max-h-[70vh] overflow-y-auto p-5 lg:max-h-none lg:min-h-[min(70vh,32rem)] lg:[contain:size]"> {/* on wide screens the details fill the same height as the photos and scroll inside it, so there is no empty band under them */}
-                <h3 className="mb-3 font-mono text-[.66rem] uppercase tracking-[.16em] text-slate-500">Registration form</h3>
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <h3 className="font-mono text-[.66rem] uppercase tracking-[.16em] text-slate-500">Registration form</h3>
+                  {canEdit && person && !editing && (
+                    <button type="button" onClick={startEdit} className="btn btn-ghost btn-sm"><Pencil className="h-3.5 w-3.5" aria-hidden="true" /> Edit</button>
+                  )}
+                </div>
+                {editing && form ? (
+                  <form onSubmit={saveEdit} className="space-y-3 text-sm" noValidate>
+                    <div className="grid grid-cols-2 gap-3">
+                      {([["first_name", "First name"], ["last_name", "Last name"]] as const).map(([k, label]) => (
+                        <label key={k} className="block"><span className="mb-1 block font-mono text-[.64rem] uppercase tracking-[.14em] text-slate-500">{label}</span><input className={fieldCls} value={form[k]} maxLength={40} onChange={(e) => setField(k, e.target.value)} disabled={formBusy} autoComplete="off" /></label>
+                      ))}
+                      <label className="block"><span className="mb-1 block font-mono text-[.64rem] uppercase tracking-[.14em] text-slate-500">Gender</span>
+                        <select className={fieldCls} value={form.gender} onChange={(e) => setField("gender", e.target.value)} disabled={formBusy}>
+                          {!GENDERS.includes(form.gender) && <option value={form.gender}>{form.gender || "Choose…"}</option>}
+                          {GENDERS.map((g) => <option key={g} value={g}>{g}</option>)}
+                        </select></label>
+                      <label className="block"><span className="mb-1 block font-mono text-[.64rem] uppercase tracking-[.14em] text-slate-500">Birthday</span><input type="date" className={fieldCls} value={form.birthday} onChange={(e) => setField("birthday", e.target.value)} disabled={formBusy} /></label>
+                    </div>
+                    <label className="block"><span className="mb-1 block font-mono text-[.64rem] uppercase tracking-[.14em] text-slate-500">Email</span><input type="email" className={fieldCls} value={form.email} maxLength={120} onChange={(e) => setField("email", e.target.value)} disabled={formBusy} autoComplete="off" /></label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <label className="block"><span className="mb-1 block font-mono text-[.64rem] uppercase tracking-[.14em] text-slate-500">Mobile number</span><input type="tel" className={fieldCls} value={form.phone} maxLength={24} onChange={(e) => setField("phone", e.target.value)} disabled={formBusy} autoComplete="off" placeholder="0917 123 4567" /></label>
+                      <label className="block"><span className="mb-1 block font-mono text-[.64rem] uppercase tracking-[.14em] text-slate-500">Student ID</span><input className={fieldCls} value={form.student_id} maxLength={20} onChange={(e) => setField("student_id", e.target.value)} disabled={formBusy} autoComplete="off" /></label>
+                      <label className="block"><span className="mb-1 block font-mono text-[.64rem] uppercase tracking-[.14em] text-slate-500">Year level</span>
+                        <select className={fieldCls} value={form.year_level} onChange={(e) => setField("year_level", e.target.value)} disabled={formBusy}>
+                          {!YEARS.includes(form.year_level) && <option value={form.year_level}>{form.year_level || "Choose…"}</option>}
+                          {YEARS.map((y) => <option key={y} value={y}>{y}</option>)}
+                        </select></label>
+                      <label className="block"><span className="mb-1 block font-mono text-[.64rem] uppercase tracking-[.14em] text-slate-500">Section</span><input className={fieldCls} value={form.section} maxLength={20} onChange={(e) => setField("section", e.target.value)} disabled={formBusy} autoComplete="off" /></label>
+                    </div>
+                    <label className="block"><span className="mb-1 block font-mono text-[.64rem] uppercase tracking-[.14em] text-slate-500">Program</span>
+                      <select className={fieldCls} value={form.program} onChange={(e) => setField("program", e.target.value)} disabled={formBusy}>
+                        {!PROGRAMS.includes(form.program) && <option value={form.program}>{form.program || "Choose…"}</option>}
+                        {PROGRAMS.map((g) => <option key={g} value={g}>{g}</option>)}
+                      </select></label>
+                    <label className="block"><span className="mb-1 block font-mono text-[.64rem] uppercase tracking-[.14em] text-slate-500">About</span>
+                      <textarea className={`${fieldCls} h-24 resize-y py-2 leading-relaxed`} value={form.about} maxLength={240} onChange={(e) => setField("about", e.target.value)} disabled={formBusy} />
+                      <span className="mt-1 block text-right font-mono text-[.64rem] text-slate-500">{form.about.length}/240</span></label>
+                    {formErr && <p role="alert" className="animate-fadeIn text-sm text-[#f87171]">{formErr}</p>}
+                    <div className="sticky bottom-0 -mx-5 flex justify-end gap-2 border-t border-slate-700 bg-slate-900 px-5 py-3">
+                      <button type="button" onClick={() => setEditing(false)} disabled={formBusy} className="btn btn-ghost btn-sm">Cancel</button>
+                      <button type="submit" disabled={formBusy} className="btn btn-primary btn-sm min-w-28 disabled:opacity-60">{formBusy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />} Save changes</button>
+                    </div>
+                  </form>
+                ) : (
                 <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
                   {([
                     ["First name", person?.first_name, false],
@@ -386,6 +474,7 @@ function PersonDialog({ person, onClose }: { person: Person | null; onClose: () 
                     </div>
                   ))}
                 </dl>
+                )}
 
                 {([["Hobbies", person?.hobbies], ["Likes", person?.likes]] as const).map(([label, list]) => (
                   <div key={label} className="mt-5">
@@ -396,10 +485,10 @@ function PersonDialog({ person, onClose }: { person: Person | null; onClose: () 
                   </div>
                 ))}
 
-                <div className="mt-5">
+                {!editing && <div className="mt-5">
                   <h3 className="font-mono text-[.64rem] uppercase tracking-[.14em] text-slate-500">About</h3>
                   {person?.about ? <p className="mt-1.5 whitespace-pre-wrap break-words text-sm leading-relaxed text-slate-300">{person.about}</p> : <p className="mt-1 text-sm text-slate-600">Not provided</p>}
-                </div>
+                </div>}
               </div>
             </div>
           </Dialog.Popup>

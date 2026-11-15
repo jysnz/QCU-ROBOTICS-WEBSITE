@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import NumberFlow from "@number-flow/react";
 import { notify } from "./notify";
-import { Check, ChevronDown, ChevronLeft, ChevronRight, ImageOff, Inbox, Loader2, RotateCcw, Search, Trash2, X } from "lucide-react";
+import { Check, ChevronDown, ChevronLeft, ChevronRight, ImageOff, Inbox, Loader2, Pencil, RotateCcw, Search, Trash2, X } from "lucide-react";
 import { adminFetch } from "./supabase";
 import { announceReviewChange } from "./useReviewCounts";
 import { bustContent } from "./cache";
@@ -66,7 +66,12 @@ function RoleEditor({ r, onSave }: { r: Registration; onSave: (roles: string[]) 
   async function save() { setSaving(true); await onSave(sel); setSaving(false); }
   return (
     <div className="mb-5">
-      <p className="font-mono text-[.66rem] uppercase tracking-[.14em] text-slate-500" id={`ra-${r.id}`}>Registered as</p>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <p className="font-mono text-[.66rem] uppercase tracking-[.14em] text-slate-500" id={`ra-${r.id}`}>Registered as</p>
+        {/* says out loud that these can be changed */}
+        <span className="inline-flex items-center gap-1 rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-[.68rem] font-medium text-accent"><Pencil className="h-3 w-3" aria-hidden="true" /> Editable</span>
+        <span className="text-xs text-slate-500">{same ? "Tap a role to add or remove it." : "Unsaved changes."}</span>
+      </div>
       <div className="mt-2 flex flex-wrap items-center gap-2" role="group" aria-labelledby={`ra-${r.id}`}>
         {Object.keys(ROLE_LABEL).map((k) => {
           const on = sel.includes(k);

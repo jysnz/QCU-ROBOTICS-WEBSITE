@@ -6,6 +6,7 @@ import { reportError } from "../_report";
 import { deleteKeys, mediaReady, putBytes } from "../_media";
 import { approvedAccountIds, notifyUsers } from "../_notify";
 import { findTaken, normalizePhone, TAKEN_MESSAGE, type Taken } from "./_dupes";
+import { GENDERS, PROGRAMS, YEARS } from "../../lib/registrationOptions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -55,19 +56,6 @@ const clientIp = (req: NextRequest) =>
 const str = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const list = (v: unknown) =>
   Array.isArray(v) ? [...new Set(v.map((x) => str(x, 30)).filter(Boolean))].slice(0, 30) : [];
-const PROGRAMS = [
-  "Bachelor of Science in Computer Engineering",
-  "Bachelor of Science in Electronics Engineering",
-  "Bachelor of Science in Industrial Engineering",
-  "Bachelor of Science in Computer Science",
-  "Bachelor of Science in Information Systems",
-  "Bachelor of Science in Information Technology",
-  "Bachelor of Science in Accountancy",
-  "Bachelor of Science in Entrepreneurship",
-  "Bachelor of Early Childhood Education",
-];
-const GENDERS = ["Male", "Female", "LGBTQIA+", "Prefer not to say"];
-const YEARS = ["1st Year", "2nd Year", "3rd Year", "4th Year", "5th Year+"];
 
 const ROLES = ["member", "media", "player"];
 const ROLE_PRIORITY = ["player", "media", "member"]; // which one counts as the person's main role (the `role` column)
