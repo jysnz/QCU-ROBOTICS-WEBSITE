@@ -26,7 +26,7 @@ function ago(iso: string) {
 
 function Avatar({ a }: { a: Account }) {
   const [broken, setBroken] = useState(false);
-  const initial = ((a.full_name || a.email).trim()[0] ?? "?").toUpperCase();
+  const initial = (/[\p{L}\p{N}]/u.exec(a.full_name || a.email)?.[0] ?? "?").toUpperCase();
   return (
     <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full border border-slate-600 bg-slate-800 font-display text-base font-semibold text-slate-300">
       {a.avatar_url && !broken ? (

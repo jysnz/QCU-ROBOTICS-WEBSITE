@@ -41,7 +41,7 @@ const ALL_TABS = TABS.flatMap((g) => g.items.map((i) => i.id));
 const ROLE_LABEL: Record<string, string> = { super_admin: "Super admin", media_head: "Media head", media_assistant: "Media assistant" };
 
 const dateLong = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }) : "");
-const initial = (n: string) => (n.trim()[0] ?? "?").toUpperCase();
+const initial = (n: string) => (/[\p{L}\p{N}]/u.exec(n)?.[0] ?? "?").toUpperCase();
 
 /* the round picture, or the first letter when there is none */
 function Avatar({ account, size = 80 }: { account: Account; size?: number }) {

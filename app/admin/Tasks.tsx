@@ -33,7 +33,7 @@ const toLocalInput = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() *
 
 function Avatar({ p, size = 9 }: { p?: Person; size?: 7 | 9 }) {
   const [broken, setBroken] = useState(false);
-  const initial = (nameOf(p).trim()[0] ?? "?").toUpperCase();
+  const initial = (/[\p{L}\p{N}]/u.exec(nameOf(p))?.[0] ?? "?").toUpperCase();
   return (
     <span className={`grid shrink-0 place-items-center overflow-hidden rounded-full border border-slate-600 bg-slate-800 font-display font-semibold text-slate-300 ${size === 9 ? "h-9 w-9 text-sm" : "h-7 w-7 text-xs"}`}>
       {p?.avatar_url && !broken ? (
