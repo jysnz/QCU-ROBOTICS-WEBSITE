@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Dialog } from "@base-ui/react/dialog";
 import NumberFlow from "@number-flow/react";
 import { Toaster } from "sonner";
-import { ArrowUpRight, Award, Building2, Camera, CalendarRange, ClipboardCheck, ExternalLink, FileText, GraduationCap, BookUser, HeartHandshake, LayoutDashboard, LogOut, Medal, Network, Plus, Share2, Shield, ShieldCheck, Swords, Tag, Trophy, ListTodo, Search, Send, UserRound, Users, Menu, X } from "lucide-react";
+import { ArrowUpRight, Award, Building2, Camera, CalendarRange, ClipboardCheck, ExternalLink, FileText, GraduationCap, BookUser, HeartHandshake, LayoutDashboard, LogOut, Medal, Network, Plus, Share2, Shield, ShieldCheck, Swords, Tag, Trophy, ListTodo, Search, Send, UserRound, Users, Menu, X, Bell } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import Accounts from "./Accounts";
 import CommandPalette, { type PaletteItem } from "./CommandPalette";
@@ -21,6 +21,8 @@ import CrudPanel from "./CrudPanel";
 import Registrations from "./Registrations";
 import Tasks from "./Tasks";
 import { canAssignTasks, useAdminRole, usePendingPrompts } from "./useAdminRole";
+import { useReviewCounts } from "./useReviewCounts";
+import { BellButton, NotificationPanel, useNotifications } from "./Notifications";
 import { RESOURCES } from "./resources";
 import { adminFetch, sb } from "./supabase";
 
@@ -101,12 +103,12 @@ function Overview({ name, go }: { name: string; go: (v: View, add?: boolean) => 
     (async () => {
       const [regs, accounts] = await Promise.allSettled([
         adminFetch<{ registrations: { registration_status: string | null }[] }>("/api/admin/registrations"),
-        adminFetch<{ accounts: { is_approved: boolean }[] }>("/api/admin/users"),
+        adminFetch<{ accounts: { is_approved: boolean; rejected_at?: string | null }[] }>("/api/admin/users"),
       ]);
       if (cancelled) return;
       setWaiting({
         regs: regs.status === "fulfilled" ? regs.value.registrations.filter((r) => r.registration_status === "pending").length : null,
-        accounts: accounts.status === "fulfilled" ? accounts.value.accounts.filter((a) => !a.is_approved).length : null,
+        accounts: accounts.status === "fulfilled" ? accounts.value.accounts.filter((a) => !a.is_approved && !a.rejected_at).length : null,
       });
     })();
     return () => { cancelled = true; };
@@ -246,6 +248,8 @@ export default function Dashboard({ name, email, onSignOut }: { name: string; em
   const [mac, setMac] = useState(false);
   const role = useAdminRole();
   const pending = usePendingPrompts(role, view); // competition tasks waiting for the media head
+  const review = useReviewCounts(view); // registrations and accounts waiting for a decision
+  const notifs = useNotifications(); // the bell + notification panel
   // Assigning tasks is for the super admin, the media head and the head's assistants; everyone else just sees To do.
   const groups = useMemo(() => GROUPS.map((g) => (g.title === "Tasks" ? { ...g, items: g.items.filter((i) => i.id !== "tasks-assign" || canAssignTasks(role)) } : g)), [role]);
   const canAssign = canAssignTasks(role);
@@ -284,6 +288,7 @@ export default function Dashboard({ name, email, onSignOut }: { name: string; em
   const paletteItems: PaletteItem[] = [
     ...groups.flatMap((g) => g.items.map((i) => ({ id: `go-${i.id}`, label: i.label, group: "Go to", icon: ICONS[i.id], run: () => go(i.id) }))),
     ...QUICK.map((q) => ({ id: `add-${q.id}`, label: q.label, group: "Quick actions", icon: Plus, run: () => go(q.id, true) })),
+    { id: "notifs", label: "Open notifications", group: "Go to", icon: Bell, run: () => notifs.setOpen(true) },
     { id: "site", label: "Open the website", group: "Account", icon: ExternalLink, run: () => window.open("/", "_blank") },
     { id: "out", label: "Sign out", group: "Account", icon: LogOut, run: onSignOut },
   ];
@@ -309,6 +314,8 @@ export default function Dashboard({ name, email, onSignOut }: { name: string; em
                         <Icon className={`h-4 w-4 shrink-0 transition-colors duration-150 ${on ? "text-accent" : "text-slate-500 group-hover:text-slate-300"}`} aria-hidden="true" />
                         {i.label}
                         {i.id === "tasks-assign" && pending > 0 && <span className="tk-pop ml-auto rounded-full bg-accent px-1.5 py-0.5 font-mono text-[.62rem] font-bold leading-none text-accent-ink" aria-label={`${pending} competition tasks to assign`}>{pending}</span>}
+                        {i.id === "registrations" && review.registrations > 0 && <span className="tk-pop ml-auto rounded-full bg-accent px-1.5 py-0.5 font-mono text-[.62rem] font-bold leading-none text-accent-ink" aria-label={`${review.registrations} registrations waiting for review`}>{review.registrations}</span>}
+                        {i.id === "accounts" && review.accounts > 0 && <span className="tk-pop ml-auto rounded-full bg-accent px-1.5 py-0.5 font-mono text-[.62rem] font-bold leading-none text-accent-ink" aria-label={`${review.accounts} accounts waiting for approval`}>{review.accounts}</span>}
                       </button>
                     </li>
                   );
@@ -348,6 +355,7 @@ export default function Dashboard({ name, email, onSignOut }: { name: string; em
           </Dialog.Popup>
         </Dialog.Portal>
       </Dialog.Root>
+      <NotificationPanel api={notifs} onNavigate={(id) => go(id)} />
       <CommandPalette items={paletteItems} open={paletteOpen} onOpenChange={setPaletteOpen} />
     <div className="min-h-screen lg:grid lg:grid-cols-[16rem_1fr]">
       <aside className="sticky top-0 z-30 border-b border-slate-700 bg-slate-950/90 backdrop-blur lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:border-b-0 lg:border-r">
@@ -360,17 +368,19 @@ export default function Dashboard({ name, email, onSignOut }: { name: string; em
             </span>
           </Link>
           <div className="flex items-center gap-2 lg:hidden">
+            <BellButton api={notifs} className="h-11 w-11" />
             <button type="button" onClick={() => setPaletteOpen(true)} aria-label="Search" className="grid h-11 w-11 place-items-center rounded-xl border border-slate-700 bg-slate-900 text-slate-300 transition-colors hover:border-slate-500 hover:text-white active:scale-95"><Search className="h-[18px] w-[18px]" aria-hidden="true" /></button>
             <button type="button" onClick={() => setMenuOpen(true)} aria-label="Open menu" className="grid h-11 w-11 place-items-center rounded-xl border border-accent/40 bg-accent/10 text-accent transition-colors hover:bg-accent/15 active:scale-95"><Menu className="h-5 w-5" aria-hidden="true" /></button>
           </div>
         </div>
 
-        <div className="hidden px-3 pb-4 lg:block">
+        <div className="hidden items-center gap-2 px-3 pb-4 lg:flex">
           <button type="button" onClick={() => setPaletteOpen(true)} className="flex h-10 w-full items-center gap-3 rounded-lg border border-slate-700 bg-slate-900 px-3 text-sm text-slate-400 transition-colors hover:border-slate-500 hover:text-white">
             <Search className="h-4 w-4" aria-hidden="true" />
             <span className="flex-1 text-left">Jump to…</span>
             <kbd className="rounded border border-slate-600 px-1.5 py-0.5 font-mono text-[10px]">{mac ? "⌘K" : "Ctrl K"}</kbd>
           </button>
+          <BellButton api={notifs} className="h-10 w-10 shrink-0" />
         </div>
 
         <nav aria-label="Admin sections" className="hidden min-h-0 flex-1 overflow-y-auto px-3 pb-6 lg:block">{navList()}</nav>

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { supabase } from './lib/supabasePublic';
+import { JOIN_TEAM_FORM_URL } from './lib/joinForm';
 import { LoadingSpinner, SkeletonCompetitionCard } from './components/LoadingSpinner';
 import {
   Trophy,
@@ -364,10 +365,10 @@ const Hero = ({ initialStats }: { initialStats?: HeroStats }) => {
             Building excellence through innovation and teamwork. QCU Robotics brings cutting-edge engineering to international robotics competitions with two competitive teams.
           </p>
           <div className="rise flex flex-wrap items-center gap-x-5 gap-y-3" style={{ ['--i' as string]: 5 } as React.CSSProperties}>
-            <Link href="/member-reg" prefetch={false} className="btn btn-primary group min-h-[52px] px-7 text-[1rem]">
+            <a href={JOIN_TEAM_FORM_URL} target="_blank" rel="noopener noreferrer" className="btn btn-primary group min-h-[52px] px-7 text-[1rem]">
               Join the team
               <ChevronRight className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-0.5" />
-            </Link>
+            </a>
             <button type="button" onClick={() => scrollToSection('competitions')} className="btn btn-ghost min-h-[52px] bg-slate-950/40 px-6">
               Explore competitions
             </button>

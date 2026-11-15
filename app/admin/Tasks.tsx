@@ -21,6 +21,11 @@ type Todo = Task & { status: Status; done_at: string | null; files: number }; //
 const nameOf = (p?: Person) => p?.full_name || p?.email || "Someone";
 const fmtDay = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: "short", day: "numeric" });
 const overdue = (t: { due_at: string | null }) => !!t.due_at && new Date(t.due_at).getTime() < Date.now();
+/** Tells the server to notify the people just assigned to a task. Best effort: a failed notification never blocks the task. */
+const tellAssigned = (taskId: string, userIds: string[]) => {
+  adminFetch("/api/admin/notify", { method: "POST", body: JSON.stringify({ event: "task-assigned", taskId, userIds }) }).catch(() => {});
+};
+
 /** True when a "YYYY-MM-DDTHH:mm" local time is still ahead of now. */
 const isFuture = (v: string) => new Date(v).getTime() > Date.now();
 const toLocalInput = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
@@ -336,6 +341,7 @@ function CreateDialog({ open, onClose, teammates: everyone, mediaIds, onCreated,
       if (add.length) {
         const { error: e2 } = await sb.from("task_assignees").insert(add.map((user_id) => ({ task_id: taskId, user_id })));
         if (e2) { notify.error("Couldn't add the new people.", { description: e2.message }); setBusy(false); return; }
+        tellAssigned(taskId, add);
       }
       if (drop.length) {
         const { error: e3 } = await sb.from("task_assignees").delete().eq("task_id", taskId).in("user_id", drop);
@@ -356,6 +362,7 @@ function CreateDialog({ open, onClose, teammates: everyone, mediaIds, onCreated,
         setBusy(false);
         return;
       }
+      tellAssigned(taskId, [...picked]);
       if (draft.suggestionId) await sb.from("task_suggestions").update({ status: "assigned", task_id: taskId }).eq("id", draft.suggestionId); // the system's suggestion is now a real task
     }
     let failed = 0;
@@ -1311,6 +1318,7 @@ function TodoView() {
     if (!me || leaving.has(t.id)) return;
     const { error } = await sb.from("task_assignees").update({ status: done ? "done" : "assigned", done_at: done ? new Date().toISOString() : null }).eq("task_id", t.id).eq("user_id", me);
     if (error) { notify.error("That didn't save."); return; }
+    if (done) adminFetch("/api/admin/notify", { method: "POST", body: JSON.stringify({ event: "task-done", taskId: t.id }) }).catch(() => {}); // tell whoever assigned it
     if (done) notify.updated(t.title, { description: "Marked as done.", action: { label: "Undo", onClick: () => setDone({ ...t, status: "done" }, false) } });
     setLeaving((s) => new Set(s).add(t.id));
     setTimeout(() => {

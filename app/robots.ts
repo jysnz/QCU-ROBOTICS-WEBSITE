@@ -9,7 +9,9 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/admin', '/api/'],
+      // /admin and /member-reg are kept out of search by a "noindex" header + tag on the pages themselves. They must stay
+      // crawlable here: a page blocked in robots.txt can't show Google its noindex, and could still be listed by its address alone.
+      disallow: ['/api/'],
     },
     sitemap: `${BASE_URL}/sitemap.xml`,
   }

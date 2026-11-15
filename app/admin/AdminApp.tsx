@@ -6,11 +6,13 @@ import { Loader2 } from "lucide-react";
 import AuthScreen from "./AuthScreen";
 import Dashboard from "./Dashboard";
 import { adminFetch, sb } from "./supabase";
+import { NotifyMe } from "./Notifications";
 
 type Gate =
   | { kind: "loading" }
   | { kind: "signed-out" }
   | { kind: "unregistered"; email: string }
+  | { kind: "rejected"; email: string }
   | { kind: "pending"; email: string }
   | { kind: "migrate" }
   | { kind: "ready"; name: string; email: string };
@@ -50,15 +52,19 @@ export default function AdminApp() {
         if (cancelled) return;
         if (r.registered === false) { setGate({ kind: "unregistered", email: sessionEmail }); return; }
       } catch { if (cancelled) return; }
-      const { data, error } = await sb.schema("public").from("user_accounts").select("is_approved, full_name, email").eq("id", uid).maybeSingle();
+      const { data, error } = await sb.schema("public").from("user_accounts").select("is_approved, full_name, email, rejected_at").eq("id", uid).maybeSingle();
       if (cancelled) return;
       if (error) {
         // 42703 = column does not exist: supabase/admin-approval.sql hasn't been run yet
         setGate(error.code === "42703" || /is_approved/.test(error.message) ? { kind: "migrate" } : { kind: "pending", email: sessionEmail });
+      } else if (!data?.is_approved && data?.rejected_at) {
+        setGate({ kind: "rejected", email: data.email || sessionEmail });
       } else if (data?.is_approved) {
         setGate({ kind: "ready", name: data.full_name || data.email || sessionEmail, email: data.email || sessionEmail });
       } else {
         setGate({ kind: "pending", email: data?.email || sessionEmail });
+        // someone is asking for access: tell the admins (the server only does it once per account)
+        adminFetch("/api/admin/access-request", { method: "POST" }).catch(() => {});
       }
     })();
     return () => { cancelled = true; };
@@ -101,6 +107,23 @@ export default function AdminApp() {
     );
   }
 
+  if (gate.kind === "rejected") {
+    return (
+      <Centered>
+        <p className="kicker mb-3">Request declined</p>
+        <h1 className="font-display text-3xl font-bold text-white">Your access wasn&rsquo;t approved</h1>
+        <p className="mt-3 text-slate-400">
+          The account <span className="text-white">{gate.email}</span> wasn&rsquo;t approved for the admin area. If you think this is a mistake, please contact a QCU Robotics admin.
+        </p>
+        <div className="mt-8 flex gap-3">
+          <button type="button" onClick={() => setRecheck((n) => n + 1)} className="btn btn-ghost">Check again</button>
+          <button type="button" onClick={signOut} className="btn btn-primary">Sign out</button>
+        </div>
+        <NotifyMe />
+      </Centered>
+    );
+  }
+
   if (gate.kind === "pending") {
     return (
       <Centered>
@@ -113,6 +136,7 @@ export default function AdminApp() {
           <button type="button" onClick={() => setRecheck((n) => n + 1)} className="btn btn-primary">Check again</button>
           <button type="button" onClick={signOut} className="btn btn-ghost">Sign out</button>
         </div>
+        <NotifyMe />
       </Centered>
     );
   }

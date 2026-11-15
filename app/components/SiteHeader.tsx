@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { JOIN_TEAM_FORM_URL } from "../lib/joinForm";
 import { ArrowRight, Menu, X } from "lucide-react";
 
 const NAV = [
@@ -84,10 +85,10 @@ export default function SiteHeader() {
         <nav className="hidden lg:flex items-center gap-1" aria-label="Main">{NAV.map(link)}</nav>
 
         <div className="flex items-center gap-2">
-          <Link href="/member-reg" prefetch={false} className="btn btn-primary btn-sm group">
+          <a href={JOIN_TEAM_FORM_URL} target="_blank" rel="noopener noreferrer" className="btn btn-primary btn-sm group">
             Join the team
             <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
-          </Link>
+          </a>
           <button
             type="button"
             onClick={() => setOpen((v) => !v)}

@@ -76,9 +76,11 @@ export default function AuthScreen() {
   const [busy, setBusy] = useState(false);
   const [googleBusy, setGoogleBusy] = useState(false);
   // Supabase sends the visitor back with ?error_description=... if Google sign-in is refused.
-  const [error, setError] = useState(() =>
-    typeof window === "undefined" ? "" : new URLSearchParams(window.location.search).get("error_description") ?? "",
-  );
+  const [error, setError] = useState(() => {
+    if (typeof window === "undefined") return "";
+    const q = new URLSearchParams(window.location.search);
+    return q.get("error_code") === "bad_oauth_state" ? "" : q.get("error_description") ?? ""; // an expired sign-in has its own pop-up
+  });
   const [notice, setNotice] = useState("");
 
   const isLogin = mode === "login";

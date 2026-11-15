@@ -5,6 +5,7 @@ import "./scrollbars.css";
 import Splash from "./components/Splash";
 import SiteHeader from "./components/SiteHeader";
 import SiteEffects from "./components/SiteEffects";
+import SessionExpiredModal from "./components/SessionExpiredModal";
 
 const inter = Inter({ variable: "--font-body", subsets: ["latin"], weight: ["400", "500", "600"], display: "swap" });
 const grotesk = Space_Grotesk({ variable: "--font-display", subsets: ["latin"], weight: ["500", "600", "700"], display: "swap" });
@@ -94,6 +95,7 @@ export default function RootLayout({
           <div className="flex-1">{children}</div>
         </div>
         <SiteEffects />
+        <SessionExpiredModal />
       </body>
     </html>
   );

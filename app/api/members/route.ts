@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 import crypto from "node:crypto";
 import { makeTicket, r2Enabled } from "../_r2";
 import { deleteKeys, mediaReady, putBytes } from "../_media";
+import { approvedAccountIds, notifyUsers } from "../_notify";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -252,6 +253,14 @@ async function handle(req: NextRequest, ip: string): Promise<NextResponse> {
       if (error.code === "23505") return duplicate();
       throw new Error("database: " + error.message);
     }
+    // Tell every admin there is a new registration to review (never blocks or fails the sign-up).
+    await notifyUsers(await approvedAccountIds(), {
+      type: "registration",
+      title: "New registration to review",
+      body: `${m.firstName} ${m.lastName} signed up as ${roles.join(", ") || role}.`,
+      link: "/admin#registrations",
+      dedupe: `reg:${data.id}`,
+    });
     // With Cloudflare R2 set up, the browser now uploads the full-resolution originals itself (see /api/members/originals).
     return json({ ok: true, id: data.id, ...(r2Enabled ? { upload: { ticket: makeTicket(id) } } : {}) }, 201);
   } catch (e) {
