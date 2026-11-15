@@ -13,6 +13,7 @@ import {
   getActiveCounts,
   getSponsorPeople,
   getSocials,
+  getDescriptions,
 } from './lib/data';
 
 // The page is rebuilt in the background at most once an hour on its own, and immediately when an admin changes
@@ -34,6 +35,7 @@ export default async function Page() {
     activeCounts,
     sponsorPeople,
     socials,
+    descriptions,
   ] = await Promise.all([
     getHeroStats(),
     getSeasons(),
@@ -46,6 +48,7 @@ export default async function Page() {
     getActiveCounts(),
     getSponsorPeople(),
     getSocials(),
+    getDescriptions(),
   ]);
 
   return (
@@ -62,6 +65,7 @@ export default async function Page() {
         initialActiveCounts={activeCounts}
         initialSponsorPeople={sponsorPeople}
         initialSocials={socials}
+        initialDescriptions={descriptions}
       />
     </Suspense>
   );

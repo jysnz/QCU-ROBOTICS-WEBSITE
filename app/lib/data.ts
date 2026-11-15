@@ -313,3 +313,16 @@ export const getSocials = keep<Social[]>(
   },
   [],
 );
+
+/** The editable wording of the site (Admin > Page text), keyed by section name, e.g. hero_description. */
+export type Descriptions = Record<string, string>;
+export const getDescriptions = keep<Descriptions>(
+  'descriptions',
+  ['descriptions'],
+  async () => {
+    const { data, error } = await supabase.from('descriptions').select('section, description');
+    if (error) throw new Error(error.message);
+    return Object.fromEntries((data ?? []).filter((r: { description: string | null }) => r.description).map((r: { section: string; description: string }) => [r.section, r.description]));
+  },
+  {},
+);

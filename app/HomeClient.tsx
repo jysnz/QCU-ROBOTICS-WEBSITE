@@ -21,7 +21,7 @@ import {
   Search,
 } from 'lucide-react';
 import Dropdown from './components/Dropdown';
-import type { HeroStats, Season, Competition, TeamMember, MediaMember, Member, Coach, SponsorCompany, ActiveCounts, SponsorPerson, Social } from './lib/data';
+import type { HeroStats, Season, Competition, TeamMember, MediaMember, Member, Coach, SponsorCompany, ActiveCounts, SponsorPerson, Social, Descriptions } from './lib/data';
 import CountUp from './components/CountUp';
 
 // ─── Props passed from the server component ───────────────────────────────────
@@ -37,7 +37,12 @@ export type HomeClientProps = {
   initialActiveCounts: ActiveCounts | null;
   initialSponsorPeople: SponsorPerson[];
   initialSocials: Social[];
+  initialDescriptions: Descriptions;
 };
+
+// The wording edited in Admin > Page text; each spot falls back to its built-in text when nothing is set.
+const DescContext = React.createContext<Descriptions>({});
+const useDesc = (key: string, fallback: string) => React.useContext(DescContext)[key] || fallback;
 
 // ─── Supabase Client ──────────────────────────────────────────────────────────
 
@@ -315,6 +320,8 @@ const Hero = ({ initialStats }: { initialStats?: HeroStats }) => {
     { label: 'National Awards', value: stats.nationalAwards },
   ];
 
+  const heroText = useDesc('hero_description', 'Building excellence through innovation and teamwork. QCU Robotics brings cutting-edge engineering to international robotics competitions with two competitive teams.');
+
   return (
     <div>
       <section
@@ -363,7 +370,7 @@ const Hero = ({ initialStats }: { initialStats?: HeroStats }) => {
             <span className="rise block text-accent" style={{ ['--i' as string]: 3 } as React.CSSProperties}><DecodeText text="Society" /></span>
           </h1>
           <p className="rise mb-[3vh] mt-[2.4vh] line-clamp-3 max-w-[46ch] text-[1.05rem] leading-relaxed text-slate-300 sm:line-clamp-none" style={{ ['--i' as string]: 4 } as React.CSSProperties}>
-            Building excellence through innovation and teamwork. QCU Robotics brings cutting-edge engineering to international robotics competitions with two competitive teams.
+            {heroText}
           </p>
           <div className="rise flex flex-wrap items-center gap-x-5 gap-y-3" style={{ ['--i' as string]: 5 } as React.CSSProperties}>
             <a href={JOIN_TEAM_FORM_URL} target="_blank" rel="noopener noreferrer" className="btn btn-primary group min-h-[52px] px-7 text-[1rem]">
@@ -595,6 +602,8 @@ const CompetitionsSection = ({ initialCompetitions, initialSeasons }: { initialC
     );
   }
 
+  const compText = useDesc('competition_description', 'QCU Robotics competes at the highest level, showcasing innovation and engineering excellence across multiple prestigious competitions worldwide.');
+
   return (
     <section id="competitions" data-reveal className="py-24 relative z-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
@@ -607,8 +616,7 @@ const CompetitionsSection = ({ initialCompetitions, initialSeasons }: { initialC
               Competitions &amp; <span className="text-accent">achievements</span>
             </h2>
             <p className="mt-4 text-[1.05rem] leading-relaxed text-slate-400">
-              QCU Robotics competes at the highest level, showcasing innovation and engineering
-              excellence across multiple prestigious competitions worldwide.
+              {compText}
             </p>
           </div>
           <Dropdown
@@ -756,6 +764,8 @@ const AboutSection = ({ initialCounts }: { initialCounts?: ActiveCounts | null }
     return () => clearInterval(timer);
   }, []);
 
+  const aboutParas = useDesc('about_description', 'QCU Robotics is a premier competitive robotics organization dedicated to fostering innovation, teamwork, and technical excellence. Our organization brings together talented engineers, programmers, and designers who share a passion for robotics.\n\nBuilt on a foundation of collaboration and continuous improvement, QCU Robotics has established itself as a powerhouse in the competitive robotics community.').split(/\n\s*\n/).map((t) => t.trim()).filter(Boolean);
+
   return (
     <section id="about-us" data-reveal className="py-24 relative z-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -810,11 +820,11 @@ const AboutSection = ({ initialCounts }: { initialCounts?: ActiveCounts | null }
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">About QCU Robotics</h2>
             <div className="space-y-4 mb-8">
               <p className="text-slate-400 leading-relaxed">
-                QCU Robotics is a premier competitive robotics organization dedicated to fostering innovation, teamwork, and technical excellence. Our organization brings together talented engineers, programmers, and designers who share a passion for robotics.
+                {aboutParas[0]}
               </p>
-              <p className="text-slate-400 leading-relaxed">
-                Built on a foundation of collaboration and continuous improvement, QCU Robotics has established itself as a powerhouse in the competitive robotics community.
-              </p>
+              {aboutParas.slice(1).map((t, i) => (
+                <p key={i} className="text-slate-400 leading-relaxed">{t}</p>
+              ))}
             </div>
             <div className="grid grid-cols-2 gap-6 mb-8">
               <div className="p-6 rounded-2xl bg-slate-900/40 border border-slate-700/30">
@@ -973,6 +983,8 @@ const SponsorSection = ({ initialSponsors, initialSponsorPeople }: { initialSpon
 
   const companyById = new Map(sponsorCompanies.map((company) => [Number(company.id), company]));
 
+  const sponsorsText = useDesc('sponsors_description', 'Companies and the people behind them who support QCU Robotics.');
+
   return (
     <section id="sponsors" data-reveal className="py-24 relative z-10 bg-slate-950/50 scroll-mt-28 md:scroll-mt-32 overflow-x-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
@@ -980,7 +992,7 @@ const SponsorSection = ({ initialSponsors, initialSponsorPeople }: { initialSpon
           <p className="kicker mb-4">Sponsors</p>
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">Our Sponsors</h2>
           <p className="text-slate-400 text-lg">
-            Companies and the people behind them who support QCU Robotics.
+            {sponsorsText}
           </p>
         </div>
 
@@ -1874,6 +1886,8 @@ const Footer = ({ initialSocials }: { initialSocials?: Social[] }) => {
     };
   }, []);
 
+  const footerText = useDesc('footer_description', 'Competing at the highest level. QCU Robotics Team brings innovation, teamwork, and technical excellence to every event.');
+
   return (
     <footer className="relative z-10 border-t border-slate-800 bg-slate-950/80 pt-16 pb-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -1885,7 +1899,7 @@ const Footer = ({ initialSocials }: { initialSocials?: Social[] }) => {
               <span className="font-display text-lg font-bold tracking-tight">QCU Robotics</span>
             </Link>
             <p className="text-slate-400 text-sm leading-relaxed mb-6">
-              Competing at the highest level. QCU Robotics Team brings innovation, teamwork, and technical excellence to every event.
+              {footerText}
             </p>
             <div className="flex items-center gap-4">
               {socials.length > 0 ? (
@@ -1961,6 +1975,7 @@ export default function App({
   initialActiveCounts,
   initialSponsorPeople,
   initialSocials,
+  initialDescriptions,
 }: HomeClientProps) {
   useEffect(() => {
     if (window.location.hash !== '#competitions') return;
@@ -1994,6 +2009,7 @@ export default function App({
   }, []);
 
   return (
+    <DescContext.Provider value={initialDescriptions}>
     <div className="overflow-x-hidden">
       <main>
         <Hero initialStats={initialHeroStats} />
@@ -2007,5 +2023,6 @@ export default function App({
       </main>
       <Footer initialSocials={initialSocials} />
     </div>
+    </DescContext.Provider>
   );
 }
