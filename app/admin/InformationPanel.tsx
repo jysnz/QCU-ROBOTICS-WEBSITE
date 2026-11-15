@@ -354,7 +354,7 @@ function PersonDialog({ person, onClose }: { person: Person | null; onClose: () 
               </div>
 
               {/* Everything the person entered on the registration form */}
-              <div className="max-h-[70vh] overflow-y-auto p-5">
+              <div className="max-h-[70vh] overflow-y-auto p-5 lg:max-h-none lg:min-h-[min(70vh,32rem)] lg:[contain:size]"> {/* on wide screens the details fill the same height as the photos and scroll inside it, so there is no empty band under them */}
                 <h3 className="mb-3 font-mono text-[.66rem] uppercase tracking-[.16em] text-slate-500">Registration form</h3>
                 <dl className="grid grid-cols-2 gap-x-6 gap-y-4 text-sm">
                   {([

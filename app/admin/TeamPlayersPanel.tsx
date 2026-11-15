@@ -126,6 +126,7 @@ function PlayerDialog({ playerId, ctx, open, data, onClose, onChanged, onCreated
   const [name, setName] = useState("");
   const [photo, setPhoto] = useState("");
   const [active, setActive] = useState(true);
+  const [gradState, setGradState] = useState(false); // the Graduated switch, saved with "Save changes"
   const [newTeam, setNewTeam] = useState(""); // required when adding: which team the player joins
   const [newRoles, setNewRoles] = useState<string[]>([]); // required when adding: their role(s) that season, one or more
   const [saving, setSaving] = useState(false);
@@ -147,6 +148,7 @@ function PlayerDialog({ playerId, ctx, open, data, onClose, onChanged, onCreated
     setName(player?.name ?? "");
     setPhoto(player?.profile_image_url ?? "");
     setActive(player ? player.is_active !== false : true);
+    setGradState(player?.is_graduated === true);
     setNewTeam(playerId === "new" && ctx ? String(ctx.id) : ""); setNewRoles([]); setMode("existing"); setChosen([]); setAnother(false);
     setErr(""); setTab("details"); setTeamPick(""); setRolePick(""); setRolePickSeason(""); setConfirmDelete(false);
     /* eslint-enable react-hooks/set-state-in-effect */
@@ -244,11 +246,11 @@ function PlayerDialog({ playerId, ctx, open, data, onClose, onChanged, onCreated
       }
       onClose();
     } else {
-      const base = { name: name.trim(), profile_image_url: photo || null, is_active: active };
+      const base = { name: name.trim(), profile_image_url: photo || null, is_active: active, is_graduated: gradState };
       const { error } = await sb.from("team_members").update(base).eq("id", playerId!);
       setSaving(false);
       if (error) { setErr(error.message); notify.error(`Couldn't save: ${error.message}`); return; }
-      notify.updated("Player updated", { description: name.trim() });
+      notify.updated(gradState !== graduated ? (gradState ? "Marked as graduated" : "No longer graduated") : "Player updated", { description: name.trim() });
       await onChanged();
     }
   }
@@ -371,6 +373,23 @@ function PlayerDialog({ playerId, ctx, open, data, onClose, onChanged, onCreated
     </div>
   );
 
+  const graduatedBlock = (
+    <div className="flex items-center justify-between gap-4 rounded-xl border border-slate-700 bg-slate-950/40 px-4 py-3">
+      <div>
+        <p id="tp-grad-label" className="text-sm font-medium text-white">Graduated</p>
+        <p className="text-xs text-slate-500">Finished their time with the team. Graduated players can&rsquo;t be put on teams or given roles.</p>
+      </div>
+      <Switch.Root
+        checked={gradState}
+        onCheckedChange={setGradState}
+        aria-labelledby="tp-grad-label"
+        className="relative inline-flex h-6 w-11 shrink-0 items-center cursor-pointer rounded-full border border-slate-600 bg-slate-800 outline-none transition-colors duration-200 focus-visible:shadow-[0_0_0_3px_rgba(200,245,96,.25)] data-[checked]:border-accent data-[checked]:bg-accent"
+      >
+        <Switch.Thumb className="block h-[18px] w-[18px] translate-x-[3px] rounded-full bg-slate-300 transition-transform duration-200 ease-out-quint data-[checked]:translate-x-[22px] data-[checked]:bg-accent-ink" />
+      </Switch.Root>
+    </div>
+  );
+
   const teamRoleBlock = activeTeams.length === 0 ? (
     <p className="flex gap-3 rounded-xl border border-[#fbbf24]/40 bg-[#fbbf24]/5 p-3 text-sm text-slate-300">
       <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#fbbf24]" aria-hidden="true" />
@@ -423,7 +442,7 @@ function PlayerDialog({ playerId, ctx, open, data, onClose, onChanged, onCreated
           </div>
         </div>
       ) : (
-        <>{nameBlock}{photoBlock}{activeBlock}</>
+        <>{nameBlock}{photoBlock}{activeBlock}{graduatedBlock}</>
       )}
 
       {err && <p role="alert" className="animate-fadeIn text-sm text-[#f87171]">{err}</p>}

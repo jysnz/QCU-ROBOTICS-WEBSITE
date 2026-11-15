@@ -19,6 +19,7 @@ export async function GET(req: NextRequest) {
   if (!admin.ok) return admin.res;
 
   await purgeExpired().catch((e) => console.error("Archive purge failed:", (e as Error).message));
+  await syncMediaTeam().catch((e) => console.error("Media team sync failed:", (e as Error).message)); // also catches people approved before this existed
 
   const { data, error } = await service!
     .schema("website")
@@ -90,6 +91,7 @@ export async function PATCH(req: NextRequest) {
     }
     const { error } = await members.update(update).eq("id", id);
     if (error) return json({ error: "Couldn't approve that registration." }, 500);
+    await syncMediaTeam().catch((e) => console.error("Media team sync failed:", (e as Error).message));
     return json({ ok: true });
   }
 
@@ -103,6 +105,26 @@ export async function PATCH(req: NextRequest) {
   const { error } = await members.update({ registration_status: "rejected", is_accepted: false, rejected_at: new Date().toISOString() }).eq("id", id).eq("registration_status", "pending");
   if (error) return json({ error: "Couldn't reject that registration." }, 500);
   return json({ ok: true });
+}
+
+/* The Media team page (and the Media team section of the site) lists website.media_team, which has nothing to do with the registration
+   form. Someone who registered as Media and was approved is therefore added there too, once: matched by name, so it is safe to run
+   again and never duplicates, and a person an admin already added by hand is left alone. People who are later removed from the
+   Media team page by an admin come back only if their registration is approved again. */
+async function syncMediaTeam() {
+  const db = service!.schema("website");
+  const { data: approved, error } = await db.from("members").select("id, name, image_url, role, roles").eq("registration_status", "approved");
+  if (error) throw new Error(error.message);
+  const media = (approved ?? []).filter((m) => m.name && (m.role === "media" || (Array.isArray(m.roles) && m.roles.includes("media"))));
+  if (!media.length) return;
+  const { data: existing, error: e2 } = await db.from("media_team").select("name");
+  if (e2) throw new Error(e2.message);
+  const have = new Set((existing ?? []).map((r) => String(r.name ?? "").trim().toLowerCase()));
+  const add = media.filter((m) => !have.has(String(m.name).trim().toLowerCase())).map((m) => ({ name: String(m.name).trim(), image_url: m.image_url ?? null, is_active: true }));
+  if (add.length) {
+    const { error: e3 } = await db.from("media_team").insert(add);
+    if (e3) throw new Error(e3.message);
+  }
 }
 
 /* Permanently deletes rejected registrations that have been in the archive for more than 30 days, with their photos. */
@@ -120,5 +142,6 @@ async function purgeExpired() {
       if (r2Enabled && folder) await deleteOriginals(folder);
     } catch (e) { console.error("Archive photo purge failed:", (e as Error).message); continue; } // keep the row so the purge retries next time
     await service!.schema("website").from("members").delete().eq("id", row.id);
+    await service!.from("notifications").delete().eq("dedupe_key", `reg:${row.id}`); // the bell must not keep pointing at a registration that no longer exists
   }
 }

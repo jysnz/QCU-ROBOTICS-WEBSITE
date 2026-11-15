@@ -11,7 +11,7 @@ import { notify } from "./notify";
 import PhotoDropzone from "./PhotoDropzone";
 import { sb } from "./supabase";
 import { cached, peek, bustContent } from "./cache";
-import { AssignHeadDialog, clearMediaHead, HeadBadge, HeadMenu, useMediaHead } from "./MediaHeadMenu";
+import { AssignHeadDialog, clearMediaHead, HeadBadge, HeadMenu, useMediaHead, type HeadAction } from "./MediaHeadMenu";
 import { useAdminRole } from "./useAdminRole";
 
 /* One manager for the three public rosters that share the same shape:
@@ -80,8 +80,7 @@ function Tick({ on, label, onToggle, className = "" }: { on: boolean; label: str
 export default function PeoplePanel({ kind, startNew = false }: { kind: Kind; startNew?: boolean }) {
   const cfg = KINDS[kind];
   const adminRole = useAdminRole();
-  const sup = kind === "media" && adminRole === "super_admin"; // only the super admin can assign the media head
-  const { head, reload: reloadHead } = useMediaHead(kind === "media");
+  const { head, pendingHead, reload: reloadHead } = useMediaHead(kind === "media");
   const [assigning, setAssigning] = useState<{ id: number; name: string } | null>(null);
   const tone = TONES[cfg.tone];
   const [rows, setRows] = useState<Person[] | null>(null);
@@ -119,6 +118,20 @@ export default function PeoplePanel({ kind, startNew = false }: { kind: Kind; st
       setError(e instanceof Error ? e.message : "Couldn't load.");
     }
   }, [cfg]);
+
+  // One media head at a time (one who has no account yet counts). Only the super admin names one, and only when there isn't one:
+  // to change it, the super admin removes the current head first. The head herself can hand the role over (transfer).
+  const hasHead = !!head || !!pendingHead;
+  const sup = kind === "media" && (adminRole === "super_admin" || adminRole === "media_head"); // who can get a three-dot menu on the cards (room for it in the list layout)
+  const isHeadCard = (m: Person) => head?.media_team_id === m.id
+    || (!!pendingHead && (pendingHead.media_team_id === m.id || (pendingHead.media_team_id == null && !!pendingHead.full_name && pendingHead.full_name.trim().toLowerCase() === m.name.trim().toLowerCase())));
+  const headAction = (m: Person): HeadAction => {
+    if (kind !== "media") return null;
+    if (isHeadCard(m)) return adminRole === "super_admin" ? "remove" : null;
+    if (!hasHead) return adminRole === "super_admin" ? "assign" : null;
+    return adminRole === "media_head" ? "transfer" : null;
+  };
+  const clearHead = (m: Person) => clearMediaHead(m.name, () => { reloadHead(); load(true); }, pendingHead && !head && isHeadCard(m) ? pendingHead.email : undefined);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -339,10 +352,10 @@ export default function PeoplePanel({ kind, startNew = false }: { kind: Kind; st
                     <div className="min-w-0 flex-1">
                       <h2 className="break-words font-display text-base font-semibold leading-tight text-white sm:text-lg">{m.name}</h2>
                       <p className={`mt-1 break-words font-mono text-[.68rem] uppercase leading-snug tracking-[.14em] ${tone.text}`}>{role}</p>
-                      {kind === "media" && head?.media_team_id === m.id && <HeadBadge className="mt-2" />}
+                      {kind === "media" && isHeadCard(m) && m.position?.trim().toLowerCase() !== "media head" && <HeadBadge className="mt-2" />}
                     </div>
                     <span className="flex shrink-0 translate-y-2 gap-1 opacity-0 transition-[opacity,transform] duration-200 ease-out-quint focus-within:translate-y-0 focus-within:opacity-100 group-hover:translate-y-0 group-hover:opacity-100 [@media(hover:none)]:translate-y-0 [@media(hover:none)]:opacity-100">
-                      {sup && <HeadMenu variant="grid" name={m.name} isHead={head?.media_team_id === m.id} onAssign={() => setAssigning({ id: m.id, name: m.name })} onRemove={() => clearMediaHead(m.name, reloadHead)} />}
+                      {headAction(m) && <HeadMenu variant="grid" name={m.name} action={headAction(m)!} onAssign={() => setAssigning({ id: m.id, name: m.name })} onRemove={() => clearHead(m)} />}
                       <button type="button" onClick={() => setEdit(m)} aria-label={`Edit ${m.name}`} className="grid h-9 w-9 place-items-center rounded-lg bg-slate-950/70 text-white backdrop-blur transition-colors hover:bg-accent hover:text-accent-ink"><Pencil className="h-4 w-4" aria-hidden="true" /></button>
                       <button type="button" onClick={() => setToDelete([m])} aria-label={`Delete ${m.name}`} className="grid h-9 w-9 place-items-center rounded-lg bg-slate-950/70 text-white backdrop-blur transition-colors hover:bg-[#ef4444]"><Trash2 className="h-4 w-4" aria-hidden="true" /></button>
                     </span>
@@ -368,7 +381,7 @@ export default function PeoplePanel({ kind, startNew = false }: { kind: Kind; st
                   <span className="min-w-0">
                     <span className={`block break-words text-sm font-semibold ${on ? "text-white" : "text-slate-400"}`}>{m.name}</span>
                     <span className={`block break-words font-mono text-[.68rem] uppercase tracking-[.12em] ${tone.text}`}>{cfg.position ? (m.position?.trim() || "No position") : cfg.role}</span>
-                    {kind === "media" && head?.media_team_id === m.id && <HeadBadge className="mt-1.5" />}
+                    {kind === "media" && isHeadCard(m) && m.position?.trim().toLowerCase() !== "media head" && <HeadBadge className="mt-1.5" />}
                   </span>
                   <label className="hidden cursor-pointer items-center gap-2.5 text-xs text-slate-400 sm:flex">
                     <Switch.Root checked={on} disabled={toggling === m.id} onCheckedChange={(v) => toggleActive(m, v)} aria-label={`${m.name} is active`} className={`${switchRoot} h-5 w-9`}>
@@ -377,7 +390,7 @@ export default function PeoplePanel({ kind, startNew = false }: { kind: Kind; st
                     {on ? "Active" : "Inactive"}
                   </label>
                   <span className="flex justify-end gap-1">
-                    {sup && <HeadMenu variant="list" name={m.name} isHead={head?.media_team_id === m.id} onAssign={() => setAssigning({ id: m.id, name: m.name })} onRemove={() => clearMediaHead(m.name, reloadHead)} />}
+                    {headAction(m) && <HeadMenu variant="list" name={m.name} action={headAction(m)!} onAssign={() => setAssigning({ id: m.id, name: m.name })} onRemove={() => clearHead(m)} />}
                     <button type="button" onClick={() => setEdit(m)} aria-label={`Edit ${m.name}`} className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-white"><Pencil className="h-4 w-4" aria-hidden="true" /></button>
                     <button type="button" onClick={() => setToDelete([m])} aria-label={`Delete ${m.name}`} className="grid h-9 w-9 place-items-center rounded-lg text-slate-400 transition-colors hover:bg-slate-800 hover:text-[#f87171]"><Trash2 className="h-4 w-4" aria-hidden="true" /></button>
                   </span>
@@ -414,7 +427,7 @@ export default function PeoplePanel({ kind, startNew = false }: { kind: Kind; st
         </div>
       )}
 
-      {kind === "media" && <AssignHeadDialog member={assigning} currentName={(rows ?? []).find((r) => r.id === head?.media_team_id)?.name ?? null} onClose={() => setAssigning(null)} onDone={reloadHead} />}
+      {kind === "media" && <AssignHeadDialog member={assigning} currentName={(rows ?? []).find((r) => isHeadCard(r))?.name ?? null} transfer={adminRole === "media_head"} onClose={() => setAssigning(null)} onDone={() => { reloadHead(); load(true); }} />}
 
       <PersonDialog kind={kind} person={edit} positions={positions.map(([p]) => p)} onClose={() => setEdit(null)} onSaved={() => load(true)} />
 

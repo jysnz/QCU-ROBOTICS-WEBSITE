@@ -66,7 +66,13 @@ export default function AchievementsPage({ initialCompetitions, initialSeasons }
 
         if (compData && compData.length > 0) {
           setCompetitions(compData);
-          const selectedId = competitionIdParam ? parseInt(competitionIdParam, 10) : compData[0].id;
+          let selectedId = competitionIdParam ? parseInt(competitionIdParam, 10) : compData[0].id;
+          if (!competitionIdParam) {
+            // open on the first competition that actually has achievements, so a visitor doesn't land on an empty page
+            const { data: used } = await supabase.from('Achievements').select('competition_id').limit(2000);
+            const ids = new Set((used ?? []).map((r: { competition_id: number | null }) => r.competition_id));
+            selectedId = compData.find((c: { id: number }) => ids.has(c.id))?.id ?? selectedId;
+          }
           setSelectedComp(selectedId);
         }
       } catch {

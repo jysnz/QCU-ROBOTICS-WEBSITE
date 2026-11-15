@@ -300,6 +300,9 @@ html { -webkit-text-size-adjust: 100%; }
 body { overflow-x: clip; }
 
 /* ---------- 404 page (app/not-found.tsx) ---------- */
+/* the 404 fits the window exactly, so the page itself never scrolls */
+html:has(.nf-page) { overflow: hidden; }
+body:has(.nf-page) { overflow: hidden; }
 @keyframes nf-spin { to { transform: rotate(360deg); } }
 @keyframes nf-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-12px); } }
 @keyframes nf-glow { 0%, 100% { opacity: .45; transform: scale(1); } 50% { opacity: .85; transform: scale(1.15); } }

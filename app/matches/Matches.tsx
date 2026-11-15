@@ -179,13 +179,6 @@ const HLSVideo = ({ url, thumbnailUrl }: { url: string; thumbnailUrl?: string | 
     };
   }, [isActivated, url]);
 
-  useEffect(() => {
-    setIsActivated(false);
-    hasInitializedRef.current = false;
-    setQualityOptions([{ value: 'auto', label: 'Auto' }]);
-    setSelectedQuality('auto');
-  }, [url]);
-
   const canChooseQuality = qualityOptions.length > 1;
 
   const handleQualityChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
@@ -398,7 +391,13 @@ const MatchesSection = ({ initialCompetitions, initialSeasons }: SeededData) => 
 
         if (compData && compData.length > 0) {
           setCompetitions(compData);
-          const selectedId = competitionIdParam ? parseInt(competitionIdParam, 10) : compData[0].id;
+          let selectedId = competitionIdParam ? parseInt(competitionIdParam, 10) : compData[0].id;
+          if (!competitionIdParam) {
+            // open on the first competition that actually has match results, so a visitor doesn't land on an empty page
+            const { data: used } = await supabase.from('matches').select('competition_id').limit(2000);
+            const ids = new Set((used ?? []).map((r: { competition_id: number | null }) => r.competition_id));
+            selectedId = compData.find((c: { id: number }) => ids.has(c.id))?.id ?? selectedId;
+          }
           setSelectedComp(selectedId);
         }
       } catch {
@@ -563,7 +562,7 @@ const MatchesSection = ({ initialCompetitions, initialSeasons }: SeededData) => 
                 {match.video_url && (
                   <div className="space-y-2">
                     <div className="rounded-xl overflow-hidden border border-slate-700/50">
-                      <HLSVideo url={match.video_url} thumbnailUrl={match.thumbnail_url ?? match.thumbnail ?? null} />
+                      <HLSVideo key={match.video_url} url={match.video_url} thumbnailUrl={match.thumbnail_url ?? match.thumbnail ?? null} />
                     </div>
                     <DownloadMp4Button url={match.video_url} matchName={match.name} />
                   </div>

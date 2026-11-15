@@ -7,6 +7,7 @@ import { notify } from "./notify";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, ImageOff, Inbox, Loader2, RotateCcw, Search, Trash2, X } from "lucide-react";
 import { adminFetch } from "./supabase";
 import { announceReviewChange } from "./useReviewCounts";
+import { bustContent } from "./cache";
 
 type Registration = {
   id: number;
@@ -192,6 +193,7 @@ export default function Registrations() {
     try {
       await adminFetch("/api/admin/registrations", { method: "PATCH", body: JSON.stringify({ id: row.id, action }) });
       announceReviewChange();
+      bustContent(); // Members, Media team, Informations and the Overview numbers reload fresh instead of showing a minute-old list
       if (action === "approve") notify.updated(`${row.name} approved`, { description: "They now appear on the site." });
       else if (action === "restore") notify.updated(`${row.name} restored`, { description: "Back in Needs review." });
       else notify.deleted(`${row.name}'s registration rejected`, { description: `Moved to the archive. It's deleted permanently after ${ARCHIVE_DAYS} days.` });

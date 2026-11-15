@@ -15,6 +15,8 @@ export default function GlobalError({ error }: { error: Error & { digest?: strin
         <div>
           <h1 style={{ fontSize: 28, margin: "0 0 8px" }}>Something went wrong</h1>
           <p style={{ color: "#94a3b8", margin: "0 0 20px" }}>The team has been notified. Please try again.</p>
+          {/* a plain link on purpose: this screen replaces the whole app, so the router may be what crashed */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a href="/" style={{ color: "#c8f560" }}>Back to home</a>
         </div>
       </body>

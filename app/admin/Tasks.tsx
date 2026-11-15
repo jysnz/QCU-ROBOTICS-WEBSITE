@@ -1052,6 +1052,8 @@ function AssignView() {
         </dl>
       </div>
 
+      <Assigners role={role} />
+
       {canAssignTasks(role) && (
         <SuggestionsPanel
           bump={bump}
@@ -1350,8 +1352,6 @@ function TodoView() {
         <Stat label="Overdue" value={buckets.missing.length} tone="late" />
         <Stat label="Done" value={buckets.done.length} />
       </dl>
-
-      <Assigners role={role} />
 
       <div className="mb-6">
         <SegTabs label="Task status" value={tab} onChange={setTab} tabs={[{ id: "assigned", label: "Assigned", count: buckets.assigned.length }, { id: "missing", label: "Missing", count: buckets.missing.length, warn: buckets.missing.length > 0 }, { id: "done", label: "Done", count: buckets.done.length }]} />
