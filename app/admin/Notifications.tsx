@@ -125,7 +125,7 @@ function PushControl() {
     setTesting(true);
     try {
       const r = await adminFetch<{ configured: boolean; devices: number; sent: number; failed: number; errors: string[] }>("/api/admin/push-test", { method: "POST" });
-      if (!r.configured) notify.error("The server can't send push yet", { description: "FIREBASE_SERVICE_ACCOUNT is missing or invalid on the server." });
+      if (!r.configured) notify.error("The server can't send push yet", { description: r.errors[0] || "FIREBASE_SERVICE_ACCOUNT is missing or invalid on the server." });
       else if (r.devices === 0) notify.error("No device is saved for you", { description: "Turn notifications off and on again on this device." });
       else if (r.sent > 0) notify.created("Test sent", { description: `Delivered to Firebase for ${r.sent} ${r.sent === 1 ? "device" : "devices"}. If nothing appears, check this computer's notification settings.` });
       else notify.error("Firebase refused the test", { description: r.errors[0] || "Unknown error." });

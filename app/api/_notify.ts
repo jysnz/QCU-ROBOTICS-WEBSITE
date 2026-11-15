@@ -24,16 +24,46 @@ export type Notice = {
   dedupe?: string;
 };
 
+/* Why the service account couldn't be used (never contains the key itself), shown by the "Test" button. */
+let firebaseProblem = "";
+export const firebaseProblemText = () => firebaseProblem;
+
+type Account = { project_id: string; client_email: string; private_key: string };
+
+/** Reads the service-account value however it was pasted: JSON, JSON in quotes, base64, or JSON whose key has real line breaks. */
+function readAccount(raw: string): Account | null {
+  let text = raw.trim();
+  // the whole value pasted as a quoted, escaped string: "{\"type\":...}"
+  try { const v = JSON.parse(text); if (typeof v === "string") text = v.trim(); } catch { /* not a JSON string */ }
+  // wrapped in quotes / backticks by mistake
+  if (/^(["'`])[\s\S]*\1$/.test(text)) text = text.slice(1, -1).trim();
+  // base64 of the JSON
+  if (!text.startsWith("{")) { try { text = Buffer.from(text, "base64").toString("utf8").trim(); } catch { /* not base64 */ } }
+  try {
+    const j = JSON.parse(text) as Partial<Account>;
+    if (j.project_id && j.client_email && j.private_key) return j as Account;
+  } catch { /* fall through to the tolerant reader */ }
+  // tolerant reader: pick the three fields out of the text even if line breaks inside the key broke the JSON
+  const pick = (k: string) => new RegExp(`"${k}"\\s*:\\s*"([\\s\\S]*?)"\\s*[,}]`).exec(text)?.[1];
+  const project_id = pick("project_id"), client_email = pick("client_email"), private_key = pick("private_key");
+  return project_id && client_email && private_key ? { project_id, client_email, private_key } : null;
+}
+
 function firebaseApp(): App | null {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
-  if (!raw) return null;
+  if (!raw) { firebaseProblem = "FIREBASE_SERVICE_ACCOUNT is not set on this server."; return null; }
   if (getApps().length) return getApp();
+  const acct = readAccount(raw);
+  if (!acct) {
+    firebaseProblem = `FIREBASE_SERVICE_ACCOUNT is set (${raw.length} characters, starts with "${raw.trim().slice(0, 1)}") but isn't the service-account JSON: project_id, client_email or private_key is missing. Paste the whole downloaded .json file.`;
+    console.error(firebaseProblem);
+    return null;
+  }
   try {
-    const json = raw.trim().startsWith("{") ? raw : Buffer.from(raw, "base64").toString("utf8");
-    const acct = JSON.parse(json) as { project_id: string; client_email: string; private_key: string };
     return initializeApp({ credential: cert({ projectId: acct.project_id, clientEmail: acct.client_email, privateKey: acct.private_key.replace(/\\n/g, "\n") }) });
   } catch (e) {
-    console.error("Firebase service account is invalid:", (e as Error).message);
+    firebaseProblem = `The service account was read but Firebase rejected it: ${(e as Error).message.slice(0, 200)}`;
+    console.error(firebaseProblem);
     return null;
   }
 }
@@ -103,7 +133,9 @@ async function push(userIds: string[], n: Notice): Promise<PushResult> {
 /** Sends a one-off test push to one person's devices (no saved notification, no dedupe) and reports exactly what happened. */
 export async function sendTestPush(userId: string): Promise<PushResult> {
   try {
-    return await push([userId], { type: "test", title: "Test notification", body: "Notifications are working on this device.", link: "/admin" });
+    const r = await push([userId], { type: "test", title: "Test notification", body: "Notifications are working on this device.", link: "/admin" });
+    if (!r.configured) r.errors.push(firebaseProblem || "Firebase isn't set up on this server.");
+    return r;
   } catch (e) {
     return { configured: true, devices: 0, sent: 0, failed: 1, errors: [(e as Error).message.slice(0, 300)] };
   }
