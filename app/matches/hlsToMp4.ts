@@ -149,9 +149,6 @@ export async function convertHlsToMp4(
 
   if (!best) throw new Error('No segments found in HLS playlist.');
   if (best.missing > 0) {
-    console.warn(
-      `[hlsToMp4] All renditions have missing segments; using the most complete one (${best.uri}, ${best.missing}/${best.segments.length} missing).`
-    );
   }
 
   const segments = best.segments;
@@ -173,7 +170,6 @@ export async function convertHlsToMp4(
         downloadedSegments.push(segments[i]);
       } catch (error) {
         if (error instanceof FetchStatusError && error.status === 404) {
-          console.warn(`[hlsToMp4] Skipping missing segment ${i + 1}/${segments.length}: ${segments[i].uri}`);
           continue;
         }
         throw error;

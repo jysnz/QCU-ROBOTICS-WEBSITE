@@ -596,6 +596,37 @@
     if (i.id === "about") updateCounts();
     changed();
   }));
+  /* Email and mobile number: asked about while typing, not only on Continue. Once the value looks complete (or the box loses focus,
+     or the browser fills it in) the server is asked whether it is already registered, and the error shows right away. A value the
+     server has already refused is refused again instantly as it is typed. Each value is asked about once, so this stays well
+     inside the server's limit on checks. If the check can't run, Continue and the final submit still check. */
+  const liveAsked = { email: new Set(), phone: new Set() }, liveTimer = {};
+  const liveComplete = (f) => (f === "email" ? EMAIL_RE.test(keyOf.email()) : PHONE_RE.test(phoneValue()));
+  async function checkLive(f) {
+    clearTimeout(liveTimer[f]);
+    if (!liveComplete(f)) return;
+    const k = keyOf[f]();
+    if (taken[f].has(k)) { setErr(f, takenText(f)); return; }
+    if (liveAsked[f].has(k)) return;
+    liveAsked[f].add(k);
+    try {
+      const r = await fetch("/api/members/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(f === "email" ? { email: k } : { phone: phoneValue() }) });
+      if (!r.ok) { liveAsked[f].delete(k); return; }
+      if (!(await r.json()).taken?.[f]) return;
+      taken[f].add(k);
+      if (keyOf[f]() === k) setErr(f, takenText(f)); // still the same value in the box
+    } catch (_) { liveAsked[f].delete(k); }
+  }
+  function watchLive(box, f) {
+    box.addEventListener("input", () => {
+      clearTimeout(liveTimer[f]);
+      if (taken[f].has(keyOf[f]())) setErr(f, takenText(f)); // the generic handler above just cleared it
+      else if (liveComplete(f)) liveTimer[f] = setTimeout(() => checkLive(f), 600);
+    });
+    box.addEventListener("change", () => checkLive(f));
+    box.addEventListener("blur", () => checkLive(f));
+  }
+  watchLive($("#email"), "email");
   /* mobile number: spaced as you type (917 123 4567), keeps the cursor where you are typing, shows a check when complete */
   const phoneBox = $("#phone"), phoneWrap = $("#phoneWrap");
   function syncPhone() { phoneWrap.classList.toggle("ok", PHONE_RE.test(phoneValue())); }
@@ -611,6 +642,7 @@
     }
     syncPhone();
   });
+  watchLive(phoneBox, "phone"); // after the formatting handler above, so the value it reads is already tidy
   $$('input[name="year"]').forEach((i) => i.addEventListener("change", () => { setErr("year", ""); changed(); }));
   $("#program").addEventListener("change", () => { setErr("program", ""); changed(); });
   $$('input[name="gender"]').forEach((i) => i.addEventListener("change", () => { setErr("gender", ""); changed(); }));
@@ -673,7 +705,6 @@
         "timeout-callback": () => hcFail("The check timed out."),
         "error-callback": (code) => {
           const known = TS_ERRORS[code];
-          console.warn("Turnstile error", code);
           hcFail(known ? known[1] : `The check couldn't run (Turnstile error ${code}). Try again.`, known ? known[0] : `Error ${code}`);
           return true;
         },

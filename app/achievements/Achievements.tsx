@@ -51,7 +51,7 @@ export default function AchievementsPage({ initialCompetitions, initialSeasons }
         let compData = initialCompetitions?.length ? initialCompetitions.map(({ id, title, season_id }) => ({ id, title, season_id })) : getCachedData('achievements-competitions-v2');
         if (!compData) {
           const { data, error: compError } = await supabase.from('competitions').select('id, title, season_id');
-          if (compError) { console.error('[Achievements] ❌ Error:', compError.message); return; }
+          if (compError) return;
           compData = data;
           if (compData) setCachedData('achievements-competitions-v2', compData);
         }
@@ -59,8 +59,7 @@ export default function AchievementsPage({ initialCompetitions, initialSeasons }
         let seasonData = initialSeasons?.length ? initialSeasons.map(({ id, season_name }) => ({ id, season_name })) : getCachedData('achievements-seasons');
         if (!seasonData) {
           const { data, error: seasonError } = await supabase.from('seasons').select('id, season_name').order('id', { ascending: false });
-          if (seasonError) console.error('[Achievements] ⚠️ Seasons error:', seasonError.message);
-          else { seasonData = data ?? []; setCachedData('achievements-seasons', seasonData); }
+          if (!seasonError) { seasonData = data ?? []; setCachedData('achievements-seasons', seasonData); }
         }
         if (seasonData) setSeasons(seasonData);
 
@@ -70,8 +69,7 @@ export default function AchievementsPage({ initialCompetitions, initialSeasons }
           const selectedId = competitionIdParam ? parseInt(competitionIdParam, 10) : compData[0].id;
           setSelectedComp(selectedId);
         }
-      } catch (err: any) {
-        console.error('[Achievements] ❌ Exception:', err?.message || err);
+      } catch {
       }
     };
 
@@ -93,7 +91,6 @@ export default function AchievementsPage({ initialCompetitions, initialSeasons }
             .eq('competition_id', selectedComp);
 
           if (error) {
-            console.error('[Achievements] ❌ Team competition error:', error.message);
             setTeams([]);
             setSelectedTeam(null);
             return;
@@ -117,8 +114,7 @@ export default function AchievementsPage({ initialCompetitions, initialSeasons }
         } else if (!currentSelectionStillValid) {
           setSelectedTeam(competitionTeams[0].id);
         }
-      } catch (err: any) {
-        console.error('[Achievements] ❌ Competition teams exception:', err?.message || err);
+      } catch {
         setTeams([]);
         setSelectedTeam(null);
       }
@@ -140,7 +136,7 @@ export default function AchievementsPage({ initialCompetitions, initialSeasons }
             .select('achievement_id, achievement_name, team_id, competition_id')
             .eq('competition_id', selectedComp)
             .order('achievement_id', { ascending: true });
-          if (error) { console.error('[Achievements] ❌ Error:', error.message); setAchievements([]); }
+          if (error) { setAchievements([]); }
           else {
             achievementsData = data ?? [];
             setCachedData(cacheKey, achievementsData);
@@ -149,8 +145,7 @@ export default function AchievementsPage({ initialCompetitions, initialSeasons }
         } else {
           setAchievements(achievementsData);
         }
-      } catch (err: any) {
-        console.error('[Achievements] ❌ Exception:', err?.message || err);
+      } catch {
         setAchievements([]);
       } finally {
         setLoading(false);

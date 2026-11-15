@@ -82,7 +82,6 @@ export default function Turnstile({ onToken, resetKey = 0 }: { onToken: (token: 
           "expired-callback": () => { setStatus("verifying"); cb.current(""); },
           "error-callback": (code: unknown) => {
             const c = String(code ?? "");
-            console.warn("Turnstile error", c);
             setWhy(TS_ERRORS[c] ?? (c ? `The check couldn't run (error ${c}).` : ""));
             setStatus("error"); cb.current("");
             return true; // we show the error ourselves

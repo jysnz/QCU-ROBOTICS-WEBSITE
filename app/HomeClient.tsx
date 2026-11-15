@@ -47,7 +47,6 @@ const useDesc = (key: string, fallback: string) => React.useContext(DescContext)
 // ─── Supabase Client ──────────────────────────────────────────────────────────
 
 if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-  console.warn('[Init] ⚠️ SUPABASE CREDENTIALS MISSING - using placeholders');
 }
 
 const getSafeExternalUrl = (value: string | null | undefined) => {
@@ -265,22 +264,16 @@ const Hero = ({ initialStats }: { initialStats?: HeroStats }) => {
         ]);
 
         if (competitionsResult.error) {
-          console.error('[Hero Stats] Competitions error:', competitionsResult.error.message);
         }
         if (internationalAwardsResult.error) {
-          console.error('[Hero Stats] International awards error:', internationalAwardsResult.error.message);
         }
         if (teamPlayersResult.error) {
-          console.error('[Hero Stats] Team players error:', teamPlayersResult.error.message);
         }
         if (membersResult.error) {
-          console.error('[Hero Stats] Members error:', membersResult.error.message);
         }
         if (mediaTeamResult.error) {
-          console.error('[Hero Stats] Media team error:', mediaTeamResult.error.message);
         }
         if (nationalAwardsResult.error) {
-          console.error('[Hero Stats] National awards error:', nationalAwardsResult.error.message);
         }
 
         const totalMembers =
@@ -296,14 +289,7 @@ const Hero = ({ initialStats }: { initialStats?: HeroStats }) => {
           seasons: seasonsResult.count ?? 0,
         });
 
-        console.log('[Hero Stats] Loaded counts:', {
-          competitions: competitionsResult.count ?? 0,
-          internationalAwards: internationalAwardsResult.count ?? 0,
-          teamMembers: totalMembers,
-          nationalAwards: nationalAwardsResult.count ?? 0,
-        });
-      } catch (err: any) {
-        console.error('[Hero Stats] Exception:', err?.message || err);
+      } catch {
       }
     };
 
@@ -432,29 +418,15 @@ const CompetitionsSection = ({ initialCompetitions, initialSeasons }: { initialC
   const [loading, setLoading] = useState(!initialCompetitions?.length);
 
   useEffect(() => {
-    console.log('[Competitions] selectedSeason changed:', selectedSeason);
   }, [selectedSeason]);
 
   useEffect(() => {
     if (seasons.length > 0) {
-      console.log(
-        '[Competitions] seasons state snapshot:',
-        seasons.map((season) => ({ id: season.id, season_name: season.season_name }))
-      );
     }
   }, [seasons]);
 
   useEffect(() => {
     if (competitions.length > 0) {
-      console.log(
-        '[Competitions] competitions state snapshot:',
-        competitions.map((competition) => ({
-          id: competition.id,
-          title: competition.title,
-          season_id: competition.season_id,
-          created_at: competition.created_at,
-        }))
-      );
     }
   }, [competitions]);
 
@@ -478,13 +450,7 @@ const CompetitionsSection = ({ initialCompetitions, initialSeasons }: { initialC
           .order('id', { ascending: false });
 
         if (seasonError) {
-          console.error('[Seasons] ❌ Error:', seasonError.message);
         } else {
-          console.log('[Seasons] ✅ Fetched:', seasonData);
-          console.log(
-            '[Seasons] 🔎 Normalized order preview:',
-            (seasonData ?? []).map((season: any) => ({ id: season.id, season_name: season.season_name }))
-          );
           const normalizedSeasons = [...(seasonData ?? [])].sort((a, b) => {
             const aName = String(a.season_name ?? '').trim();
             const bName = String(b.season_name ?? '').trim();
@@ -496,10 +462,6 @@ const CompetitionsSection = ({ initialCompetitions, initialSeasons }: { initialC
             return Number(b.id) - Number(a.id);
           });
 
-          console.log(
-            '[Seasons] ✅ Sorted seasons:',
-            normalizedSeasons.map((season: any) => ({ id: season.id, season_name: season.season_name }))
-          );
           setSeasons(normalizedSeasons);
           setCachedData('landing-seasons', seasonData ?? []);
         }
@@ -513,40 +475,14 @@ const CompetitionsSection = ({ initialCompetitions, initialSeasons }: { initialC
             .order('created_at', { ascending: false });
 
           if (error) {
-            console.error('[Competitions] ❌ Error:', error.message);
           } else {
             compData = data ?? [];
-            console.log('[Competitions] ✅ Fetched:', compData);
-            console.log(
-              '[Competitions] 🔎 Competition season mapping:',
-              (compData ?? []).map((competition: any) => ({
-                id: competition.id,
-                title: competition.title,
-                season_id: competition.season_id,
-                season_name: Array.isArray(competition.seasons)
-                  ? competition.seasons[0]?.season_name ?? null
-                  : competition.seasons?.season_name ?? null,
-              }))
-            );
             setCachedData('landing-competitions', compData);
           }
-        } else {
-          console.log(
-            '[Competitions] ♻️ Using cached competitions:',
-            compData.map((competition: any) => ({
-              id: competition.id,
-              title: competition.title,
-              season_id: competition.season_id,
-              season_name: Array.isArray(competition.seasons)
-                ? competition.seasons[0]?.season_name ?? null
-                : competition.seasons?.season_name ?? null,
-            }))
-          );
         }
         if (compData) setCompetitions(compData);
 
-      } catch (err: any) {
-        console.error('[Competitions] ❌ Exception:', err?.message || err);
+      } catch {
       } finally {
         setLoading(false);
       }
@@ -578,14 +514,6 @@ const CompetitionsSection = ({ initialCompetitions, initialSeasons }: { initialC
   });
 
   useEffect(() => {
-    console.log('[Competitions] filter summary:', {
-      selectedSeason,
-      totalCompetitions: competitions.length,
-      matchedCompetitions: filteredCompetitions.length,
-      sortedCompetitions: sortedCompetitions.length,
-      seasonIds: competitions.map((competition) => competition.season_id),
-      seasonNames: competitions.map((competition) => seasonNameById.get(Number(competition.season_id)) ?? null),
-    });
   }, [selectedSeason, competitions, filteredCompetitions.length, sortedCompetitions.length, seasonNameById]);
 
   const compText = useDesc('competition_description', 'QCU Robotics competes at the highest level, showcasing innovation and engineering excellence across multiple prestigious competitions worldwide.');
@@ -724,16 +652,12 @@ const AboutSection = ({ initialCounts }: { initialCounts?: ActiveCounts | null }
         ]);
 
         if (teamsResult.error) {
-          console.error('[About Stats] Teams error:', teamsResult.error.message);
         }
         if (activeTeamPlayersResult.error) {
-          console.error('[About Stats] Team players error:', activeTeamPlayersResult.error.message);
         }
         if (activeMembersResult.error) {
-          console.error('[About Stats] Members error:', activeMembersResult.error.message);
         }
         if (activeMediaTeamResult.error) {
-          console.error('[About Stats] Media team error:', activeMediaTeamResult.error.message);
         }
 
         const totalActiveMembers =
@@ -744,12 +668,7 @@ const AboutSection = ({ initialCounts }: { initialCounts?: ActiveCounts | null }
         setActiveTeamCount(teamsResult.count ?? 0);
         setActiveMemberCount(totalActiveMembers);
 
-        console.log('[About Stats] Loaded counts:', {
-          activeTeams: teamsResult.count ?? 0,
-          activeMembers: totalActiveMembers,
-        });
-      } catch (err: any) {
-        console.error('[About Stats] Exception:', err?.message || err);
+      } catch {
       }
     };
 
@@ -957,10 +876,8 @@ const SponsorSection = ({ initialSponsors, initialSponsorPeople }: { initialSpon
         ]);
 
         if (companiesResult.error) {
-          console.error('[Sponsors] Company error:', companiesResult.error.message);
         }
         if (sponsorsResult.error) {
-          console.error('[Sponsors] Sponsors error:', sponsorsResult.error.message);
         }
 
         const companyRows = companiesResult.data ?? [];
@@ -971,8 +888,7 @@ const SponsorSection = ({ initialSponsors, initialSponsorPeople }: { initialSpon
 
         setSponsorCompanies(companyRows as any[]);
         setSponsors(sponsorRows);
-      } catch (err: any) {
-        console.error('[Sponsors] Exception:', err?.message || err);
+      } catch {
       } finally {
         setLoading(false);
       }
@@ -1379,7 +1295,7 @@ const TeamMembersSection = ({ initialTeamMembers, initialSeasons }: { initialTea
             .select('id, season_name')
             .order('id', { ascending: false });
 
-          if (error) console.error('[TeamMembers] Seasons error:', error.message);
+          if (error) {}
           else {
             seasonRows = data ?? [];
             if (seasonRows.length > 0) setCachedData('team-members-seasons', seasonRows);
@@ -1423,7 +1339,7 @@ const TeamMembersSection = ({ initialTeamMembers, initialSeasons }: { initialTea
             `)
             .order('name', { ascending: true });
 
-          if (error) console.error('[TeamMembers] Members error:', error.message);
+          if (error) {}
           else {
             memberRows = data ?? [];
             if (memberRows.length > 0) setCachedData('team-members-members', memberRows);
@@ -1431,8 +1347,7 @@ const TeamMembersSection = ({ initialTeamMembers, initialSeasons }: { initialTea
         }
 
         setMembers(memberRows ?? []);
-      } catch (err: any) {
-        console.error('[TeamMembers] Exception:', err?.message || err);
+      } catch {
       } finally {
         setLoading(false);
       }
@@ -1674,15 +1589,14 @@ const MediaTeamSection = ({ initialMediaTeam }: { initialMediaTeam?: MediaMember
         let mediaTeamData = getCachedData('homepage-media-team');
         if (!mediaTeamData || mediaTeamData.length === 0) {
           const { data, error } = await supabase.from('media_team').select('id, name, position, image_url').order('id');
-          if (error) console.error('[MediaTeam] Error:', error.message);
+          if (error) {}
           else {
             mediaTeamData = data ?? [];
             if (mediaTeamData.length > 0) setCachedData('homepage-media-team', mediaTeamData);
           }
         }
         setMediaTeam(mediaTeamData ?? []);
-      } catch (err: any) {
-        console.error('[MediaTeam] Exception:', err?.message || err);
+      } catch {
       } finally {
         setLoading(false);
       }
@@ -1733,15 +1647,14 @@ const MembersSection = ({ initialMembers }: { initialMembers?: Member[] }) => {
         let membersData = getCachedData('homepage-members');
         if (!membersData || membersData.length === 0) {
           const { data, error } = await supabase.from('members').select('id, name, image_url').order('id');
-          if (error) console.error('[Members] Error:', error.message);
+          if (error) {}
           else {
             membersData = data ?? [];
             if (membersData.length > 0) setCachedData('homepage-members', membersData);
           }
         }
         setMembers(membersData ?? []);
-      } catch (err: any) {
-        console.error('[Members] Exception:', err?.message || err);
+      } catch {
       } finally {
         setLoading(false);
       }
@@ -1795,13 +1708,11 @@ const CoachesSection = ({ initialCoaches }: { initialCoaches?: Coach[] }) => {
 
         const { data, error } = await supabase.from('Coaches').select('*').order('id');
         if (error) {
-          console.error('[Coaches] Error:', error.message);
         } else if (data) {
           setCachedData('coaches', data);
           setCoaches(data);
         }
-      } catch (err: any) {
-        console.error('[Coaches] Exception:', err?.message || err);
+      } catch {
       } finally {
         setLoading(false);
       }
@@ -1864,7 +1775,6 @@ const Footer = ({ initialSocials }: { initialSocials?: Social[] }) => {
           .order('id', { ascending: true });
 
         if (error) {
-          console.error('[Footer] Socials error:', error.message);
           return;
         }
 
@@ -1874,8 +1784,7 @@ const Footer = ({ initialSocials }: { initialSocials?: Social[] }) => {
         if (isMounted) {
           setSocials(socialRows);
         }
-      } catch (error) {
-        console.error('[Footer] Socials exception:', error);
+      } catch {
       }
     };
 

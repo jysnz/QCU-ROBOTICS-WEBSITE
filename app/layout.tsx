@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Inter, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import "./scrollbars.css";
@@ -96,6 +97,8 @@ export default function RootLayout({
         </div>
         <SiteEffects />
         <SessionExpiredModal />
+        {/* What people see if they open the browser console (see public/console-warning.js). */}
+        <Script src="/console-warning.js" strategy="afterInteractive" />
       </body>
     </html>
   );

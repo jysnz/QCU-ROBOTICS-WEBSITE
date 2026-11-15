@@ -135,13 +135,11 @@ const HLSVideo = ({ url, thumbnailUrl }: { url: string; thumbnailUrl?: string | 
     const startPlayback = async () => {
       try {
         await video.play();
-      } catch (error) {
-        console.warn('[HLS DEBUG] Autoplay after activation was blocked:', error);
+      } catch {
       }
     };
 
     if (!Hls.isSupported()) {
-      console.warn('[HLS DEBUG] hls.js NOT supported, falling back to native playback');
       video.src = url;
       void startPlayback();
 
@@ -172,9 +170,6 @@ const HLSVideo = ({ url, thumbnailUrl }: { url: string; thumbnailUrl?: string | 
 
     hls.on(Hls.Events.LEVELS_UPDATED, syncQualityOptions);
 
-    hls.on(Hls.Events.ERROR, (_, data) => {
-      console.warn('[HLS DEBUG] HLS ERROR:', data);
-    });
 
     return () => {
       video.removeAttribute('src');
@@ -310,8 +305,7 @@ const DownloadMp4Button = ({ url, matchName }: { url: string; matchName: string 
       const filename = `${matchName?.replace(/[^a-z0-9-_]+/gi, '_') || 'match'}.mp4`;
       triggerBlobDownload(blob, filename);
       setStatus('idle');
-    } catch (error) {
-      console.error('[Matches] MP4 conversion failed:', error);
+    } catch {
       setStatus('error');
     }
   };
@@ -376,8 +370,7 @@ const MatchesSection = ({ initialCompetitions, initialSeasons }: SeededData) => 
     const registerMatchesVideoCache = async () => {
       try {
         await navigator.serviceWorker.register('/matches-video-sw.js', { scope: '/' });
-      } catch (error) {
-        console.warn('[Matches] Service worker registration failed:', error);
+      } catch {
       }
     };
 
@@ -390,7 +383,7 @@ const MatchesSection = ({ initialCompetitions, initialSeasons }: SeededData) => 
         let compData = initialCompetitions?.length ? initialCompetitions.map(({ id, title, season_id }) => ({ id, title, season_id })) : getCachedData('matches-competitions-v2');
         if (!compData) {
           const { data, error: compError } = await supabase.from('competitions').select('id, title, season_id');
-          if (compError) { console.error('[Matches] ❌ Error:', compError.message); return; }
+          if (compError) return;
           compData = data;
           if (compData) setCachedData('matches-competitions-v2', compData);
         }
@@ -398,8 +391,7 @@ const MatchesSection = ({ initialCompetitions, initialSeasons }: SeededData) => 
         let seasonData = initialSeasons?.length ? initialSeasons.map(({ id, season_name }) => ({ id, season_name })) : getCachedData('matches-seasons');
         if (!seasonData) {
           const { data, error: seasonError } = await supabase.from('seasons').select('id, season_name').order('id', { ascending: false });
-          if (seasonError) console.error('[Matches] ⚠️ Seasons error:', seasonError.message);
-          else { seasonData = data ?? []; setCachedData('matches-seasons', seasonData); }
+          if (!seasonError) { seasonData = data ?? []; setCachedData('matches-seasons', seasonData); }
         }
         if (seasonData) setSeasons(seasonData);
 
@@ -409,8 +401,7 @@ const MatchesSection = ({ initialCompetitions, initialSeasons }: SeededData) => 
           const selectedId = competitionIdParam ? parseInt(competitionIdParam, 10) : compData[0].id;
           setSelectedComp(selectedId);
         }
-      } catch (err: any) {
-        console.error('[Matches] ❌ Exception:', err?.message || err);
+      } catch {
       }
     };
 
@@ -432,7 +423,6 @@ const MatchesSection = ({ initialCompetitions, initialSeasons }: SeededData) => 
             .eq('competition_id', selectedComp);
 
           if (error) {
-            console.error('[Matches] ❌ Team competition error:', error.message);
             setTeams([]);
             setSelectedTeam(null);
             return;
@@ -442,18 +432,8 @@ const MatchesSection = ({ initialCompetitions, initialSeasons }: SeededData) => 
             .map((row: any) => row.teams)
             .filter((team: any) => Boolean(team?.id));
 
-          console.log('[Matches] ✅ Competition teams fetched:', {
-            selectedComp,
-            rows: data,
-            teams: competitionTeams,
-          });
 
           setCachedData(cacheKey, competitionTeams);
-        } else {
-          console.log('[Matches] ♻️ Using cached competition teams:', {
-            selectedComp,
-            teams: competitionTeams,
-          });
         }
 
         setTeams(competitionTeams);
@@ -463,15 +443,12 @@ const MatchesSection = ({ initialCompetitions, initialSeasons }: SeededData) => 
         );
 
         if (competitionTeams.length === 0) {
-          console.warn('[Matches] ⚠️ No teams linked to this competition:', selectedComp);
           setSelectedTeam(null);
         } else if (!currentSelectionStillValid) {
           const nextTeamId = competitionTeams[0].id;
-          console.log('[Matches] 🔁 Reset selected team to first competition-linked team:', nextTeamId);
           setSelectedTeam(nextTeamId);
         }
-      } catch (err: any) {
-        console.error('[Matches] ❌ Competition teams exception:', err?.message || err);
+      } catch {
         setTeams([]);
         setSelectedTeam(null);
       }
@@ -488,10 +465,8 @@ const MatchesSection = ({ initialCompetitions, initialSeasons }: SeededData) => 
         let query = supabase.from('matches').select('*').eq('competition_id', selectedComp);
         if (selectedTeam) query = query.eq('team_id', selectedTeam);
         const { data, error } = await query.order('sequence', { ascending: true });
-        if (error) { console.error('[MatchResults] ❌ Error:', error.message); }
-        else { setMatches(data ?? []); }
-      } catch (err: any) {
-        console.error('[MatchResults] ❌ Exception:', err?.message || err);
+        if (!error) { setMatches(data ?? []); }
+      } catch {
       } finally {
         setLoadingMatches(false);
       }
