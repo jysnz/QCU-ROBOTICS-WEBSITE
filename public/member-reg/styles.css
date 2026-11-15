@@ -6,6 +6,9 @@
 }
 *{box-sizing:border-box;margin:0}
 html{-webkit-text-size-adjust:100%}
+/* Phones: a root size that grows with the screen width scales every rem-based size down together (360px wide: 14px, 400: 14.3px, 430: 14.5px, 560: 15.5px), same as the main site. Text typed into fields stays 16px: smaller makes iOS zoom the page when a field is tapped. */
+@media (max-width:639px){html{font-size:clamp(13.5px,11.4px + .72vw,16px)}
+}
 body{min-height:100dvh;display:flex;flex-direction:column;background:var(--bg);color:var(--fg);overflow-x:hidden;
   font:400 1rem/1.6 var(--body);-webkit-font-smoothing:antialiased}
 .bg{position:fixed;inset:0;z-index:-1;
@@ -578,3 +581,5 @@ body.flying .topbar .logo{opacity:0;animation:show-failsafe 0s 7s forwards}
   .consent-actions .btn{width:100%}
 }
 @media (prefers-reduced-motion:reduce){.consent,.consent-card,.consent-scroll svg,.consent-ready,#consentAccept{animation:none!important}.consent-progress span{transition:none}}
+/* last in the file so it wins: field text stays 16px on phones (iOS zooms into anything smaller), the hint text can be smaller */
+@media (max-width:639px){input[type=text],input[type=date],input[type=email],input[type=tel],textarea,select,.phone-cc{font-size:16px}input::placeholder,textarea::placeholder{font-size:.875rem}}
