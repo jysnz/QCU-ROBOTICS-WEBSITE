@@ -10,7 +10,14 @@ import {
   getMembers,
   getCoaches,
   getSponsors,
+  getActiveCounts,
+  getSponsorPeople,
+  getSocials,
 } from './lib/data';
+
+// The page is rebuilt in the background at most once an hour on its own, and immediately when an admin changes
+// something (see /api/revalidate). Without this it would stay exactly as it was at the last deploy.
+export const revalidate = 3600;
 
 export default async function Page() {
   // Prefetch all data on the server using React cache
@@ -24,6 +31,9 @@ export default async function Page() {
     members,
     coaches,
     sponsors,
+    activeCounts,
+    sponsorPeople,
+    socials,
   ] = await Promise.all([
     getHeroStats(),
     getSeasons(),
@@ -33,6 +43,9 @@ export default async function Page() {
     getMembers(),
     getCoaches(),
     getSponsors(),
+    getActiveCounts(),
+    getSponsorPeople(),
+    getSocials(),
   ]);
 
   return (
@@ -46,6 +59,9 @@ export default async function Page() {
         initialMembers={members}
         initialCoaches={coaches}
         initialSponsors={sponsors}
+        initialActiveCounts={activeCounts}
+        initialSponsorPeople={sponsorPeople}
+        initialSocials={socials}
       />
     </Suspense>
   );

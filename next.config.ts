@@ -153,6 +153,21 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      {
+        // Files that almost never change (the logo, icons, the video-tool files). Browsers and Vercel's CDN keep them for a day and
+        // keep serving the old copy for up to a week while a fresh one is fetched in the background.
+        source: '/:file(logo.png|logo-96.png|logo1.svg|favicon.ico)',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' }],
+      },
+      {
+        source: '/ffmpeg/:path*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' }],
+      },
+      {
+        // The registration page's own files aren't renamed when they change, so keep them only briefly.
+        source: '/member-reg/:file(app.js|styles.css|logo.png|logo-96.png|favicon.png)',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=300, stale-while-revalidate=86400' }],
+      },
     ];
   },
 };

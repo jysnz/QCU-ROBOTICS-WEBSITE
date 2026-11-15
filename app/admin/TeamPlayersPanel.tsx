@@ -11,6 +11,7 @@ import { Camera, Check, ChevronDown, Info, LayoutGrid, List, Loader2, Lock, Penc
 import Dropdown from "../components/Dropdown";
 import PhotoDropzone from "./PhotoDropzone";
 import { sb } from "./supabase";
+import { cached, peek, bustContent } from "./cache";
 
 type Player = { id: number; name: string; profile_image_url: string | null; is_active: boolean | null; is_graduated: boolean | null };
 type Team = { id: number; team_name: string; team_number: number; team_code: string | null; season_id: number | null };
@@ -653,7 +654,19 @@ export default function TeamPlayersPanel({ startNew = false }: { startNew?: bool
   });
   const changeLayout = (v: "grid" | "list") => { setLayout(v); try { localStorage.setItem("admin-people-view", v); } catch { /* private window */ } };
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (fresh = false) => {
+    if (fresh) bustContent();
+    const stale = peek<Data>("tp:all");
+    if (stale) setData(stale); // revisiting: show the last roster at once
+    try {
+      const d = await cached("tp:all", fetchAll, 60_000);
+      setError("");
+      setData(d);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't load.");
+    }
+
+    async function fetchAll(): Promise<Data> {
     let seasonRes = await sb.from("seasons").select("id, season_name, is_active").order("id", { ascending: false });
     let noActiveColumn = false;
     if (seasonRes.error && (seasonRes.error.code === "42703" || /is_active/.test(seasonRes.error.message))) {
@@ -670,13 +683,13 @@ export default function TeamPlayersPanel({ startNew = false }: { startNew?: bool
       sb.from("media_team").select("id, name, position, image_url, is_active").order("name").limit(2000),
     ]);
     const failed = [seasonRes, players, teams, assigns, memberRoles, roles].find((r) => r.error);
-    if (failed?.error) { setError(failed.error.message); return; }
-    setError("");
-    setData({
+    if (failed?.error) throw new Error(failed.error.message);
+    return {
       players: (players.data ?? []) as Player[], teams: (teams.data ?? []) as Team[], seasons: ((seasonRes.data ?? []) as { id: number; season_name: string | null; is_active?: boolean }[]).map((x, i) => ({ id: x.id, season_name: x.season_name, is_active: noActiveColumn ? i === 0 : x.is_active === true })),
       assigns: (assigns.data ?? []) as Assign[], memberRoles: (memberRoles.data ?? []) as MemberRole[], roles: (roles.data ?? []) as Role[],
       members: (regs.data ?? []) as Reg[], media: (mediaRes.data ?? []) as Media[],
-    });
+    };
+    }
   }, []);
 
   useEffect(() => {
@@ -931,7 +944,7 @@ export default function TeamPlayersPanel({ startNew = false }: { startNew?: bool
           open={dialog !== null}
           data={data}
           onClose={() => setDialog(null)}
-          onChanged={load}
+          onChanged={() => load(true)}
           onCreated={(id) => setDialog(id)}
         />
       )}

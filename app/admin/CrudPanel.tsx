@@ -17,6 +17,7 @@ import DateRangeField from "./DateRangeField";
 import SocialIcon from "./SocialIcon";
 import type { Field, Resource } from "./resources";
 import { adminFetch, sb } from "./supabase";
+import { cached, peek, bustContent } from "./cache";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Row = Record<string, any>;
@@ -344,9 +345,32 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
   const pk = res.pk ?? "id";
   const Icon = ICONS[res.icon ?? ""] ?? Tag;
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async (fresh = false) => {
+    const key = `crud:${res.table}`;
+    if (fresh) bustContent();
+    // revisiting a tab: show the last list at once; it is reused for a minute, and any edit clears it
+    const stale = peek<Snap>(key);
+    if (stale) apply(stale); else setLoading(true);
     setError("");
+    try {
+      apply(await cached(key, fetchSnap, 60_000));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't load.");
+    }
+    setLoading(false);
+
+    type Snap = { rows: Row[]; present: string[]; usage: Record<string, number>; links: Record<string, Row[]>; rels: (readonly [string, Map<string, string>, Set<string>, { of: Map<string, string>; order: string[] }])[] };
+    function apply(sn: Snap) {
+      setRows(sn.rows);
+      setPresent(new Set(sn.present));
+      if (res.usage) setUsage(sn.usage);
+      setLinks(sn.links);
+      setLabels(Object.fromEntries(sn.rels.map(([t, m]) => [t, m])));
+      setGraduated(Object.fromEntries(sn.rels.map(([t, , g]) => [t, g])));
+      setGrouping(Object.fromEntries(sn.rels.map(([t, , , g]) => [t, g])));
+      setLoading(false);
+    }
+    async function fetchSnap(): Promise<Snap> {
     const [main, ...rels] = await Promise.all([
       sb.from(res.table).select("*").order(res.orderBy, { ascending: res.ascending ?? true }).limit(1000),
       ...[...new Map(res.fields.filter((f) => f.relation).map((f) => [f.relation!.table, f.relation!])).values()].map(async (r) => {
@@ -364,29 +388,27 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
         return [r.table, new Map(rowsOut.map((x) => [String(x.id), String(x[r.labelKey] ?? x.id)])), new Set(r.notGraduated ? rowsOut.filter((x) => x.is_graduated === true).map((x) => String(x.id)) : []), grp] as const;
       }),
     ]);
-    if (main.error) setError(main.error.message);
-    else setRows((main.data ?? []).map((r: Row) => (pk === "id" ? r : { ...r, id: r[pk] })));
+    if (main.error) throw new Error(main.error.message);
+    const rowsOut = (main.data ?? []).map((r: Row) => (pk === "id" ? r : { ...r, id: r[pk] }));
     // an optional field (e.g. a photo column added by a SQL file) is only offered once the column exists
     const probes = await Promise.all(res.fields.filter((f) => f.optional).map(async (f) => {
       const { error: pe } = await sb.from(res.table).select(f.key).limit(1);
       return !pe || !(pe.code === "42703" || /column|does not exist/i.test(pe.message)) ? f.key : null;
     }));
-    setPresent(new Set(probes.filter((k): k is string => !!k)));
+    const presentKeys = probes.filter((k): k is string => !!k);
+    let usageOut: Record<string, number> = {};
     if (res.usage) {
       const { data: u } = await sb.from(res.usage.table).select(res.usage.key).limit(10000);
       const counts: Record<string, number> = {};
       for (const x of (u ?? []) as unknown as Row[]) counts[String(x[res.usage.key])] = (counts[String(x[res.usage.key])] ?? 0) + 1;
-      setUsage(counts);
+      usageOut = counts;
     }
     const lk = await Promise.all(res.fields.filter((f) => f.limitBy).map(async (f) => {
       const { data } = await sb.from(f.limitBy!.table).select(`${f.limitBy!.matchKey}, ${f.limitBy!.valueKey}`).limit(5000);
       return [f.key, (data ?? []) as unknown as Row[]] as const;
     }));
-    setLinks(Object.fromEntries(lk));
-    setLabels(Object.fromEntries(rels.map(([t, m]) => [t, m])));
-    setGraduated(Object.fromEntries(rels.map(([t, , g]) => [t, g])));
-    setGrouping(Object.fromEntries(rels.map(([t, , , g]) => [t, g])));
-    setLoading(false);
+    return { rows: rowsOut as Row[], present: presentKeys, usage: usageOut, links: Object.fromEntries(lk), rels };
+    }
   }, [res, pk]);
 
   useEffect(() => {
@@ -579,7 +601,7 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
     if (editingId === null) notify.created(`${cap(res.singular)} added`, { description: label || undefined });
     else notify.updated(`${cap(res.singular)} updated`, { description: label || undefined });
     setDraft(null);
-    load();
+    load(true);
   }
 
   async function toggle(row: Row, next: boolean) {
@@ -589,6 +611,7 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
     const { error: e } = await sb.from(res.table).update({ [k]: next }).eq(pk, row.id);
     setToggling(null);
     if (e) { setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, [k]: row[k] } : r))); notify.error(`Couldn't update: ${e.message}`); return; }
+    bustContent();
     notify.updated(`${title(row)} ${next ? "is now active" : "marked inactive"}`);
   }
 
@@ -602,7 +625,7 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
     // a match's video files live in storage too: remove them with the match
     if (res.id === "matches") adminFetch("/api/admin/match-video/cleanup", { method: "POST", body: JSON.stringify({ items: [{ video_url: toDelete.video_url ?? null, source_key: toDelete.source_key ?? null }] }) }).catch(() => {});
     setToDelete(null);
-    load();
+    load(true);
   }
 
   const ctx: Ctx = { res, fields, labels, display, title, onPlay: (r) => setPlayingId((cur) => (cur === r.id ? null : r.id)), onOpen: setRoleView, playingId, usage, onEdit: openEdit, onDelete: setToDelete, onToggle: toggle, toggling, hasToggle: true };

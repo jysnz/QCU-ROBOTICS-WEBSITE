@@ -6,6 +6,7 @@ import { ArrowRight, Loader2, UserPlus } from "lucide-react";
 import AuthScreen from "./AuthScreen";
 import Dashboard from "./Dashboard";
 import { adminFetch, sb } from "./supabase";
+import { clearAll } from "./cache";
 import { NotifyMe } from "./Notifications";
 import RequirePassword from "./RequirePassword";
 
@@ -77,7 +78,7 @@ export default function AdminApp() {
 
   useEffect(() => {
     sb.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data } = sb.auth.onAuthStateChange((_event, s) => setSession(s));
+    const { data } = sb.auth.onAuthStateChange((event, s) => { if (event === "SIGNED_OUT") clearAll(); setSession(s); });
     return () => data.subscription.unsubscribe();
   }, []);
 
@@ -129,7 +130,7 @@ export default function AdminApp() {
     return () => { cancelled = true; };
   }, [session, uid, sessionEmail, sessionName, recheck]);
 
-  const signOut = () => { sb.auth.signOut(); };
+  const signOut = () => { clearAll(); sb.auth.signOut(); };
 
   if (gate.kind === "loading") {
     return <Centered><Loader2 className="mx-auto h-6 w-6 animate-spin text-accent" aria-label="Loading" /></Centered>;

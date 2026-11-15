@@ -10,6 +10,7 @@ import Dropdown from "../components/Dropdown";
 import { notify } from "./notify";
 import PhotoDropzone from "./PhotoDropzone";
 import { sb } from "./supabase";
+import { cached, peek, bustContent } from "./cache";
 import { AssignHeadDialog, clearMediaHead, HeadBadge, HeadMenu, useMediaHead } from "./MediaHeadMenu";
 import { useAdminRole } from "./useAdminRole";
 
@@ -100,12 +101,23 @@ export default function PeoplePanel({ kind, startNew = false }: { kind: Kind; st
   const [toggling, setToggling] = useState<number | null>(null);
   const [bulkBusy, setBulkBusy] = useState(false);
 
-  const load = useCallback(async () => {
-    // Explicit columns: the database only lets the admin read some columns of the members table, so select("*") is refused.
-    const { data, error: e } = await sb.from(cfg.table).select(cfg.cols).order("name").limit(3000);
-    if (e) { setError(e.message); return; }
-    setError("");
-    setRows((data ?? []) as unknown as Person[]);
+  const load = useCallback(async (fresh = false) => {
+    const key = `people:${cfg.table}`;
+    if (fresh) bustContent();
+    const stale = peek<Person[]>(key);
+    if (stale) setRows(stale); // revisiting: show the last list at once
+    try {
+      // Explicit columns: the database only lets the admin read some columns of the members table, so select("*") is refused.
+      const list = await cached(key, async () => {
+        const { data, error: e } = await sb.from(cfg.table).select(cfg.cols).order("name").limit(3000);
+        if (e) throw new Error(e.message);
+        return (data ?? []) as unknown as Person[];
+      }, 60_000);
+      setError("");
+      setRows(list);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Couldn't load.");
+    }
   }, [cfg]);
 
   useEffect(() => {
@@ -153,6 +165,7 @@ export default function PeoplePanel({ kind, startNew = false }: { kind: Kind; st
     const { error: e } = await sb.from(cfg.table).update({ is_active: next }).eq("id", m.id);
     setToggling(null);
     if (e) { setRows((prev) => prev && prev.map((r) => (r.id === m.id ? { ...r, is_active: m.is_active } : r))); notify.error(`Couldn't update ${m.name}: ${e.message}`); return; }
+    bustContent();
     notify.updated(`${m.name} ${next ? "is now active" : "marked inactive"}`);
   }
 
@@ -165,7 +178,7 @@ export default function PeoplePanel({ kind, startNew = false }: { kind: Kind; st
     if (e) { notify.error(`Couldn't update: ${e.message}`); return; }
     notify.updated(`${ids.length} ${ids.length === 1 ? cfg.singular : cfg.plural} ${next ? "activated" : "marked inactive"}`);
     setSelected(new Set());
-    await load();
+    await load(true);
   }
 
   async function remove() {
@@ -179,7 +192,7 @@ export default function PeoplePanel({ kind, startNew = false }: { kind: Kind; st
     else notify.deleted(`${toDelete.length} ${cfg.plural} deleted`);
     setToDelete(null);
     setSelected(new Set());
-    await load();
+    await load(true);
   }
 
   const selecting = selected.size > 0;
@@ -403,7 +416,7 @@ export default function PeoplePanel({ kind, startNew = false }: { kind: Kind; st
 
       {kind === "media" && <AssignHeadDialog member={assigning} currentName={(rows ?? []).find((r) => r.id === head?.media_team_id)?.name ?? null} onClose={() => setAssigning(null)} onDone={reloadHead} />}
 
-      <PersonDialog kind={kind} person={edit} positions={positions.map(([p]) => p)} onClose={() => setEdit(null)} onSaved={load} />
+      <PersonDialog kind={kind} person={edit} positions={positions.map(([p]) => p)} onClose={() => setEdit(null)} onSaved={() => load(true)} />
 
       <Dialog.Root open={toDelete !== null} onOpenChange={(o) => { if (!o && !deleting) setToDelete(null); }}>
         <Dialog.Portal>

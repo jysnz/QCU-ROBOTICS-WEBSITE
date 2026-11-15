@@ -30,7 +30,10 @@ const getIconComponent = (index: number) => {
   return <Icon className="w-6 h-6" />;
 };
 
-export default function AchievementsPage() {
+export default function AchievementsPage({ initialCompetitions, initialSeasons }: {
+  initialCompetitions?: { id: number; title: string; season_id: number | null }[];
+  initialSeasons?: { id: number; season_name: string | null }[];
+}) {
   const searchParams = useSearchParams();
   const competitionIdParam = searchParams?.get('id') ?? null;
 
@@ -45,7 +48,7 @@ export default function AchievementsPage() {
   useEffect(() => {
     const fetchCompetitionsAndTeams = async () => {
       try {
-        let compData = getCachedData('achievements-competitions-v2');
+        let compData = initialCompetitions?.length ? initialCompetitions.map(({ id, title, season_id }) => ({ id, title, season_id })) : getCachedData('achievements-competitions-v2');
         if (!compData) {
           const { data, error: compError } = await supabase.from('competitions').select('id, title, season_id');
           if (compError) { console.error('[Achievements] ❌ Error:', compError.message); return; }
@@ -53,7 +56,7 @@ export default function AchievementsPage() {
           if (compData) setCachedData('achievements-competitions-v2', compData);
         }
 
-        let seasonData = getCachedData('achievements-seasons');
+        let seasonData = initialSeasons?.length ? initialSeasons.map(({ id, season_name }) => ({ id, season_name })) : getCachedData('achievements-seasons');
         if (!seasonData) {
           const { data, error: seasonError } = await supabase.from('seasons').select('id, season_name').order('id', { ascending: false });
           if (seasonError) console.error('[Achievements] ⚠️ Seasons error:', seasonError.message);
@@ -61,13 +64,6 @@ export default function AchievementsPage() {
         }
         if (seasonData) setSeasons(seasonData);
 
-        let teamData = getCachedData('achievements-teams');
-        if (!teamData) {
-          const { data, error: teamError } = await supabase.from('teams').select('id, team_code, team_name');
-          if (teamError) { console.error('[Achievements] ❌ Team Error:', teamError.message); return; }
-          teamData = data;
-          if (teamData) setCachedData('achievements-teams', teamData);
-        }
 
         if (compData && compData.length > 0) {
           setCompetitions(compData);

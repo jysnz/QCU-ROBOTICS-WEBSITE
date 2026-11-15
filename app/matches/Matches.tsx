@@ -353,7 +353,12 @@ const DownloadMp4Button = ({ url, matchName }: { url: string; matchName: string 
   );
 };
 
-const MatchesSection = () => {
+type SeededData = {
+  initialCompetitions?: { id: number; title: string; season_id: number | null }[];
+  initialSeasons?: { id: number; season_name: string | null }[];
+};
+
+const MatchesSection = ({ initialCompetitions, initialSeasons }: SeededData) => {
   const searchParams = useSearchParams();
   const competitionIdParam = searchParams?.get('id');
 
@@ -382,7 +387,7 @@ const MatchesSection = () => {
   useEffect(() => {
     const fetchCompetitionsAndTeams = async () => {
       try {
-        let compData = getCachedData('matches-competitions-v2');
+        let compData = initialCompetitions?.length ? initialCompetitions.map(({ id, title, season_id }) => ({ id, title, season_id })) : getCachedData('matches-competitions-v2');
         if (!compData) {
           const { data, error: compError } = await supabase.from('competitions').select('id, title, season_id');
           if (compError) { console.error('[Matches] ❌ Error:', compError.message); return; }
@@ -390,7 +395,7 @@ const MatchesSection = () => {
           if (compData) setCachedData('matches-competitions-v2', compData);
         }
 
-        let seasonData = getCachedData('matches-seasons');
+        let seasonData = initialSeasons?.length ? initialSeasons.map(({ id, season_name }) => ({ id, season_name })) : getCachedData('matches-seasons');
         if (!seasonData) {
           const { data, error: seasonError } = await supabase.from('seasons').select('id, season_name').order('id', { ascending: false });
           if (seasonError) console.error('[Matches] ⚠️ Seasons error:', seasonError.message);
@@ -398,13 +403,6 @@ const MatchesSection = () => {
         }
         if (seasonData) setSeasons(seasonData);
 
-        let teamData = getCachedData('matches-teams');
-        if (!teamData) {
-          const { data, error: teamError } = await supabase.from('teams').select('id, team_code, team_name');
-          if (teamError) { console.error('[Matches] ❌ Team Error:', teamError.message); return; }
-          teamData = data;
-          if (teamData) setCachedData('matches-teams', teamData);
-        }
 
         if (compData && compData.length > 0) {
           setCompetitions(compData);
@@ -612,10 +610,10 @@ const MatchesSection = () => {
   );
 };
 
-export default function MatchesPage() {
+export default function MatchesPage({ initialCompetitions, initialSeasons }: SeededData) {
   return (
     <div className="min-h-screen bg-slate-950 text-white">
-      <MatchesSection />
+      <MatchesSection initialCompetitions={initialCompetitions} initialSeasons={initialSeasons} />
     </div>
   );
 }

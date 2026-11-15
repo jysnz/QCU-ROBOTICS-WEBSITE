@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { cached } from "./cache";
 import { createPortal } from "react-dom";
 import Image from "next/image";
 import Link from "next/link";
@@ -87,22 +88,26 @@ function Overview({ name, go, review }: { name: string; go: (v: View, add?: bool
     let cancelled = false;
     (async () => {
       const ids = STAT_GROUPS.flatMap((g) => g.ids);
-      const entries = await Promise.all(
+      const entries = await cached("overview-stats", () => Promise.all(
         ids.map(async (id): Promise<readonly [string, Stat]> => {
           const r = RESOURCES.find((x) => x.id === id)!;
           const hasActive = r.fields.some((f) => f.key === "is_active");
           const titleIsText = r.fields.find((f) => f.key === r.titleKey)?.type === "text";
           const pk = r.pk ?? "id";
-          const cols = [pk, ...(hasActive ? ["is_active"] : []), ...(titleIsText ? [r.titleKey] : [])].join(", ");
-          const { data } = await sb.from(r.table).select(cols).order(pk, { ascending: false }).limit(1000);
-          const rows = (data ?? []) as unknown as Record<string, unknown>[];
+          // counts only (head requests): no rows travel just to be counted
+          const [total, act, last] = await Promise.all([
+            sb.from(r.table).select(pk, { count: "exact", head: true }),
+            hasActive ? sb.from(r.table).select(pk, { count: "exact", head: true }).eq("is_active", true) : Promise.resolve(null),
+            titleIsText ? sb.from(r.table).select(r.titleKey).order(pk, { ascending: false }).limit(1) : Promise.resolve(null),
+          ]);
+          const top = ((last?.data ?? []) as unknown as Record<string, unknown>[])[0];
           return [id, {
-            count: rows.length,
-            active: hasActive ? rows.filter((x) => x.is_active === true).length : undefined,
-            latest: titleIsText && rows[0] ? String(rows[0][r.titleKey] ?? "") : undefined,
+            count: total.count ?? 0,
+            active: hasActive ? act?.count ?? 0 : undefined,
+            latest: titleIsText && top ? String(top[r.titleKey] ?? "") : undefined,
           }] as const;
         }),
-      );
+      ), 30_000);
       if (!cancelled) { setStats(Object.fromEntries(entries)); setLoaded(true); }
     })();
     return () => { cancelled = true; };

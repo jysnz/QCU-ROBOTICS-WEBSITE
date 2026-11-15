@@ -21,7 +21,7 @@ import {
   Search,
 } from 'lucide-react';
 import Dropdown from './components/Dropdown';
-import type { HeroStats, Season, Competition, TeamMember, MediaMember, Member, Coach, SponsorCompany } from './lib/data';
+import type { HeroStats, Season, Competition, TeamMember, MediaMember, Member, Coach, SponsorCompany, ActiveCounts, SponsorPerson, Social } from './lib/data';
 import CountUp from './components/CountUp';
 
 // ─── Props passed from the server component ───────────────────────────────────
@@ -34,6 +34,9 @@ export type HomeClientProps = {
   initialMembers: Member[];
   initialCoaches: Coach[];
   initialSponsors: SponsorCompany[];
+  initialActiveCounts: ActiveCounts | null;
+  initialSponsorPeople: SponsorPerson[];
+  initialSocials: Social[];
 };
 
 // ─── Supabase Client ──────────────────────────────────────────────────────────
@@ -66,13 +69,11 @@ const getCachedData = (key: string) => {
   if (!cached) return null;
   const isExpired = Date.now() - cached.timestamp > CACHE_DURATION;
   if (isExpired) { dataCache.delete(key); return null; }
-  console.log(`[Cache] ✅ Using cached data for: ${key}`);
   return cached.data;
 };
 
 const setCachedData = (key: string, data: any) => {
   dataCache.set(key, { data, timestamp: Date.now() });
-  console.log(`[Cache] 📝 Cached data for: ${key}`);
 };
 
 const getSocialIcon = (platform: string) => {
@@ -698,12 +699,13 @@ const CompetitionsSection = ({ initialCompetitions, initialSeasons }: { initialC
 };
 
 // ─── About Section ────────────────────────────────────────────────────────────
-const AboutSection = () => {
-  const [activeTeamCount, setActiveTeamCount] = useState(0);
-  const [activeMemberCount, setActiveMemberCount] = useState(0);
+const AboutSection = ({ initialCounts }: { initialCounts?: ActiveCounts | null }) => {
+  const [activeTeamCount, setActiveTeamCount] = useState(initialCounts?.teams ?? 0);
+  const [activeMemberCount, setActiveMemberCount] = useState(initialCounts?.members ?? 0);
   const [currentAboutImage, setCurrentAboutImage] = useState(0);
 
   useEffect(() => {
+    if (initialCounts) return; // the server already counted these (cached, refreshed when an admin edits)
     const fetchAboutStats = async () => {
       try {
         const [teamsResult, activeTeamPlayersResult, activeMembersResult, activeMediaTeamResult] = await Promise.all([
@@ -918,13 +920,14 @@ const PortraitFallback = ({ name, label, accentText = 'text-slate-300' }: { name
   </div>
 );
 
-const SponsorSection = ({ initialSponsors }: { initialSponsors?: SponsorCompany[] }) => {
+const SponsorSection = ({ initialSponsors, initialSponsorPeople }: { initialSponsors?: SponsorCompany[]; initialSponsorPeople?: SponsorPerson[] }) => {
   const [sponsorCompanies, setSponsorCompanies] = useState<any[]>(initialSponsors ?? []);
-  const [sponsors, setSponsors] = useState<any[]>([]);
+  const [sponsors, setSponsors] = useState<any[]>(initialSponsorPeople ?? []);
   const [loading, setLoading] = useState(!initialSponsors?.length);
 
   useEffect(() => {
-    // The server only prefetches companies; sponsor people are always fetched here.
+    // The server sends the companies and their people (cached); only ask the database if it sent nothing.
+    if (initialSponsors?.length && initialSponsorPeople?.length) return;
     const fetchSponsors = async () => {
       try {
         const cachedCompanies = getCachedData('sponsor-companies');
@@ -1824,14 +1827,15 @@ const CoachesSection = ({ initialCoaches }: { initialCoaches?: Coach[] }) => {
 };
 
 // ─── Footer ───────────────────────────────────────────────────────────────────
-const Footer = () => {
+const Footer = ({ initialSocials }: { initialSocials?: Social[] }) => {
   const contactEmail = 'roboticsqcu@gmail.com';
   const contactSubject = 'Message for QCU Robotics Team';
   const contactBody = 'Hello QCU Robotics Team, I would like to inquire about...';
   const gmailComposeUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(contactEmail)}&su=${encodeURIComponent(contactSubject)}&body=${encodeURIComponent(contactBody)}`;
-  const [socials, setSocials] = useState<Array<{ platform: string; url: string | null }>>([]);
+  const [socials, setSocials] = useState<Array<{ platform: string; url: string | null }>>(initialSocials ?? []);
 
   useEffect(() => {
+    if (initialSocials?.length) return; // sent by the server (cached)
     let isMounted = true;
 
     const fetchSocials = async () => {
@@ -1954,6 +1958,9 @@ export default function App({
   initialMembers,
   initialCoaches,
   initialSponsors,
+  initialActiveCounts,
+  initialSponsorPeople,
+  initialSocials,
 }: HomeClientProps) {
   useEffect(() => {
     if (window.location.hash !== '#competitions') return;
@@ -1991,14 +1998,14 @@ export default function App({
       <main>
         <Hero initialStats={initialHeroStats} />
         <CompetitionsSection initialCompetitions={initialCompetitions} initialSeasons={initialSeasons} />
-        <AboutSection />
+        <AboutSection initialCounts={initialActiveCounts} />
         <TeamMembersSection initialTeamMembers={initialTeamMembers} initialSeasons={initialSeasons} />
         <MediaTeamSection initialMediaTeam={initialMediaTeam} />
         <MembersSection initialMembers={initialMembers} />
         <CoachesSection initialCoaches={initialCoaches} />
-        <SponsorSection initialSponsors={initialSponsors} />
+        <SponsorSection initialSponsors={initialSponsors} initialSponsorPeople={initialSponsorPeople} />
       </main>
-      <Footer />
+      <Footer initialSocials={initialSocials} />
     </div>
   );
 }

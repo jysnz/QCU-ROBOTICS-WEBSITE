@@ -7,6 +7,7 @@ import { CalendarClock, Cake, Check, CheckCircle2, ChevronDown, ChevronRight, Cl
 import type { LucideIcon } from "lucide-react";
 import { notify } from "./notify";
 import { adminFetch, sb } from "./supabase";
+import { cached } from "./cache";
 import Assigners from "./Assigners";
 import DateTimeField from "./DateTimeField";
 import { canAssignTasks, isHead, useAdminRole } from "./useAdminRole";
@@ -94,7 +95,7 @@ function usePeople() {
   const [mediaIds, setMediaIds] = useState<Set<string>>(new Set()); // accounts that belong to the Media team
   const [error, setError] = useState("");
   useEffect(() => {
-    adminFetch<{ people: Person[]; me: string; mediaIds?: string[] }>("/api/admin/people")
+    cached("overview-people", () => adminFetch<{ people: Person[]; me: string; mediaIds?: string[] }>("/api/admin/people"), 60_000)
       .then((b) => { setPeople(b.people); setMe(b.me); setMediaIds(new Set(b.mediaIds ?? [])); })
       .catch((e) => setError(e instanceof Error ? e.message : "Couldn't load teammates."));
   }, []);
