@@ -473,6 +473,9 @@ body.flying .topbar .logo{opacity:0;animation:show-failsafe 0s 7s forwards}
 .humancheck[data-state="success"] .hc-ok-ring{animation:hc-draw .55s .05s cubic-bezier(.4,0,.2,1) forwards}
 .humancheck[data-state="success"] .hc-ok-tick{animation:hc-draw .4s .4s cubic-bezier(.4,0,.2,1) forwards}
 .humancheck[data-state="success"] .hc-bar{opacity:0}
+/* Cloudflare draws its own "Success!" box inside the widget. Our card already says it, so once the check has passed the box is folded away (the token is already in hand). It also never grows past its card: the fixed-width box used to spill over the buttons. */
+.ts-box{max-width:100%;overflow:hidden}
+.humancheck[data-state="success"] .ts-box{height:0;min-height:0;margin:0;opacity:0;pointer-events:none}
 
 .humancheck[data-state="error"]{border-color:var(--danger)}
 .humancheck[data-state="error"] .hc-bot{color:var(--danger);animation:hc-shake .4s}

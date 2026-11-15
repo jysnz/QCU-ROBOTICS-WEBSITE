@@ -143,7 +143,8 @@ const nextConfig: NextConfig = {
               "base-uri 'self'",
               "frame-ancestors 'none'",
               "object-src 'none'",
-              "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
+              // the page itself is static, but a wrong address under /member-reg shows Next's React 404 page, and React in development needs eval
+              `script-src 'self' 'unsafe-inline'${isDevelopment ? " 'unsafe-eval'" : ''} https://challenges.cloudflare.com`,
               "frame-src https://challenges.cloudflare.com",
               "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
               "font-src 'self' data: https://fonts.gstatic.com",

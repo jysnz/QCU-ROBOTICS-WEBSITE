@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, KeyRound, Loader2, Mail } from "lucide-react";
+import { Check, KeyRound, Loader2, Mail, Send } from "lucide-react";
 import { passwordIssue, passwordOk } from "../lib/passwordRules";
 import { PasswordMeter, PasswordRules, SuccessMark } from "./authBits";
 import { notify } from "./notify";
@@ -101,12 +101,19 @@ export default function PasswordFlow({ email, has, onSaved, onFinish, title, sub
 
       <div key={step} className="step-in mt-5">
         {step === "intro" && (
-          <div className="text-center">
-            <span className="mx-auto grid h-14 w-14 place-items-center rounded-2xl border border-accent/30 bg-accent/10 text-accent"><KeyRound className="h-6 w-6" aria-hidden="true" /></span>
-            <p className="mx-auto mt-4 max-w-xs text-sm leading-relaxed text-slate-300">To keep your account safe, we&rsquo;ll email a 6-digit code to:</p>
-            <p className="mx-auto mt-3 flex max-w-full items-center justify-center gap-2 rounded-full border border-slate-700 bg-slate-950/70 px-4 py-2 text-sm font-medium text-white"><Mail className="h-4 w-4 shrink-0 text-accent" aria-hidden="true" /><span className="truncate">{email}</span></p>
-            <p className="mx-auto mt-3 max-w-xs text-xs leading-relaxed text-slate-500">Enter the code first, then you can choose your new password.</p>
-            <button type="button" onClick={requestCode} disabled={busy} className="btn btn-primary mt-5 w-full disabled:opacity-60">{busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Mail className="h-4 w-4" aria-hidden="true" />} Email me a code</button>
+          <div>
+            <div className="flex items-start gap-4">
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl border border-accent/30 bg-accent/10 text-accent"><KeyRound className="h-5 w-5" aria-hidden="true" /></span>
+              <div className="min-w-0 flex-1">
+                <p className="font-display text-base font-semibold text-white">Confirm it&rsquo;s you first</p>
+                <p className="mt-0.5 text-sm leading-relaxed text-slate-300">We&rsquo;ll email a 6-digit code to</p>
+                <p className="mt-2.5 inline-flex max-w-full items-center gap-2 rounded-lg border border-slate-700 bg-slate-950/70 px-3 py-1.5 text-sm font-medium text-white"><Mail className="h-4 w-4 shrink-0 text-accent" aria-hidden="true" /><span className="truncate">{email}</span></p>
+              </div>
+            </div>
+            <div className="mt-5 flex flex-col gap-3 border-t border-slate-800 pt-4 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+              <p className="text-sm leading-relaxed text-slate-400">Enter the code first, then choose your new password.</p>
+              <button type="button" onClick={requestCode} disabled={busy} className="btn btn-primary w-full shrink-0 disabled:opacity-60 sm:w-auto">{busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Send className="h-4 w-4" aria-hidden="true" />} Email me a code</button>
+            </div>
           </div>
         )}
 

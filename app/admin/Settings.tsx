@@ -219,10 +219,13 @@ function EmailCard({ me, onChanged }: { me: Me; onChanged: (email: string) => vo
   const [error, setError] = useState("");
   const [bad, setBad] = useState(0);
   const [doneEmail, setDoneEmail] = useState("");
+  // typing the address the account already has is refused on the spot (the server refuses it too)
+  const same = next.trim() !== "" && next.trim().toLowerCase() === me.account.email.trim().toLowerCase();
+  const shownError = error || (same ? "That's already your email. Enter a different one." : "");
 
   async function request(e?: React.FormEvent) {
     e?.preventDefault();
-    if (busy) return;
+    if (busy || same) return;
     setBusy(true); setError("");
     try {
       await adminFetch("/api/admin/account/email", { method: "POST", body: JSON.stringify({ action: "request", email: next.trim() }) });
@@ -254,14 +257,14 @@ function EmailCard({ me, onChanged }: { me: Me; onChanged: (email: string) => vo
       <div key={step} className="step-in mt-5">
         {step === "form" && (
           <form onSubmit={request} noValidate className="space-y-4">
-            <Field id="st-new-email" title="New email" error={error} hint="We'll send a 6-digit code to confirm it.">
+            <Field id="st-new-email" title="New email" error={shownError} hint="We'll send a 6-digit code to confirm it.">
               <div className="relative">
                 <AtSign className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
-                <input id="st-new-email" type="email" value={next} onChange={(e) => { setNext(e.target.value); setError(""); }} autoComplete="email" placeholder="new@email.com" className={`${input} pl-10 ${error ? "border-[#ef4444]!" : ""}`} />
+                <input id="st-new-email" type="email" value={next} onChange={(e) => { setNext(e.target.value); setError(""); }} autoComplete="email" placeholder="new@email.com" aria-invalid={!!shownError} className={`${input} pl-10 ${shownError ? "border-[#ef4444]!" : ""}`} />
               </div>
             </Field>
             <div className="flex justify-end">
-              <button type="submit" disabled={busy || !next.trim()} className="btn btn-primary disabled:opacity-50">{busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Mail className="h-4 w-4" aria-hidden="true" />} Send code</button>
+              <button type="submit" disabled={busy || !next.trim() || same} className="btn btn-primary disabled:opacity-50">{busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Mail className="h-4 w-4" aria-hidden="true" />} Send code</button>
             </div>
           </form>
         )}
