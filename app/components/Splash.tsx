@@ -18,7 +18,8 @@ export default function Splash() {
     let done = false;
     const timers: number[] = [];
 
-    const finish = () => { root.classList.remove("flying"); setGone(true); };
+    const started = performance.now();
+    const finish = () => { s.style.visibility = "hidden"; root.classList.remove("flying"); setGone(true); };
     // First .site-logo that is actually on screen (the admin sign-in has two, only one is visible per breakpoint).
     const findTarget = () =>
       Array.from(document.querySelectorAll<HTMLElement>(".site-logo")).find((el) => el.getBoundingClientRect().width > 0) ?? null;
@@ -27,6 +28,7 @@ export default function Splash() {
       wrap.style.animation = "none";
       const a = wrap.getBoundingClientRect();
       const b = target.getBoundingClientRect();
+      if (b.bottom < 0 || b.top > window.innerHeight || a.width === 0) { finish(); return; } // header not in view (page restored scrolled): don't fly to nowhere
       const dx = b.left + b.width / 2 - (a.left + a.width / 2);
       const dy = b.top + b.height / 2 - (a.top + a.height / 2);
       const k = b.width / a.width;
@@ -39,6 +41,7 @@ export default function Splash() {
     const leave = (fast: boolean) => {
       if (done) return;
       done = true;
+      if (getComputedStyle(s).visibility === "hidden") { finish(); return; } // the CSS safety net already hid it
       root.classList.remove("intro");
       s.classList.add("leaving");
       const wrap = s.querySelector<HTMLElement>(".splash-logo");
@@ -56,9 +59,9 @@ export default function Splash() {
     };
 
     timers.push(window.setTimeout(() => leave(false), reduce ? 700 : window.innerWidth < 640 ? 1900 : 2500)); // shorter on phones
-    const skip = () => leave(true);
+    const skip = () => { if (performance.now() - started > 900) leave(true); };
     s.addEventListener("click", skip);
-    window.addEventListener("keydown", skip, { once: true });
+    window.addEventListener("keydown", skip);
     return () => { timers.forEach(clearTimeout); window.removeEventListener("keydown", skip); };
   }, []);
 

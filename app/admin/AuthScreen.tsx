@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { AtSign, ChevronLeft, Eye, EyeOff, ImageIcon, Loader2, Lock, LogIn, ShieldCheck, Trophy, User, UserPlus, Users } from "lucide-react";
@@ -64,6 +64,37 @@ function Lanes() {
   );
 }
 
+/* Phones: the sign-in / create-account card always fits on one screen, with no scrolling. If the content is taller than the
+   space (small phone, keyboard open, the extra sign-up fields), it is scaled down just enough to fit. The page itself never scrolls here. */
+function useFitOneScreen() {
+  const box = useRef<HTMLDivElement>(null);
+  const host = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const root = document.documentElement;
+    const prev = [root.style.overflow, document.body.style.overflow];
+    root.style.overflow = "hidden"; document.body.style.overflow = "hidden";
+    return () => { root.style.overflow = prev[0]; document.body.style.overflow = prev[1]; };
+  }, []);
+  useLayoutEffect(() => {
+    const el = box.current, main = host.current;
+    if (!el || !main) return;
+    const fit = () => {
+      if (window.matchMedia("(min-width: 1024px)").matches) { el.style.zoom = ""; return; }
+      el.style.zoom = "1";
+      const cs = getComputedStyle(main);
+      const avail = main.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+      const need = el.offsetHeight;
+      el.style.zoom = need > avail && need > 0 ? String(Math.max(0.55, avail / need)) : "1";
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el); ro.observe(main);
+    window.addEventListener("resize", fit);
+    return () => { ro.disconnect(); window.removeEventListener("resize", fit); };
+  }, []);
+  return { box, host };
+}
+
 const lbl = "mb-1.5 block text-[10px] font-semibold uppercase tracking-[.14em] text-[#94a3b8]";
 const inputCls =
   "h-11 w-full rounded-xl border border-[#334155] bg-[#020617]/60 pl-10 pr-3 text-sm text-[#f8fafc] outline-none transition-colors placeholder:text-[#475569] hover:border-[#475569] focus-visible:border-[#22c55e]";
@@ -86,6 +117,7 @@ export default function AuthScreen({ start }: { start?: { email: string; name: s
   });
   const [notice, setNotice] = useState(start ? "That Google account isn't set up yet. Create your account below and an admin will approve it." : "");
 
+  const { box, host } = useFitOneScreen();
   const isLogin = mode === "login";
   const switchMode = (m: "login" | "register" | "forgot") => { setMode(m); setError(""); setNotice(""); };
 
@@ -179,8 +211,8 @@ export default function AuthScreen({ start }: { start?: { email: string; name: s
         </section>
 
         {/* Form */}
-        <main className="relative mx-auto flex h-dvh w-full max-w-[480px] flex-col justify-center overflow-hidden px-4 py-3 lg:max-w-none lg:px-12">
-          <div className="mx-auto w-full max-w-[440px]">
+        <main ref={host} className="relative mx-auto flex h-dvh w-full max-w-[480px] flex-col justify-center overflow-hidden px-4 py-3 lg:max-w-none lg:px-12">
+          <div ref={box} className="mx-auto w-full max-w-[440px]">
             <Link href="/" className="mb-2 inline-flex items-center gap-1 text-xs text-[#94a3b8] transition-colors hover:text-white" style={rise(0)}>
               <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Back to site
             </Link>
