@@ -37,6 +37,8 @@ const SelectBox = ({ children }: { children: React.ReactNode }) => (
 );
 const fieldLabel = "mb-2 block font-mono text-[.7rem] font-medium uppercase tracking-[.16em] text-slate-400";
 const switchRoot = "relative inline-flex shrink-0 cursor-pointer items-center rounded-full border border-slate-600 bg-slate-800 outline-none transition-colors duration-200 focus-visible:shadow-[0_0_0_3px_rgba(200,245,96,.25)] data-[checked]:border-accent data-[checked]:bg-accent disabled:opacity-60";
+/** "status" -> "statuses", "category" -> "categories", "season" -> "seasons" */
+const plural = (w: string) => (/(s|x|z|ch|sh)$/.test(w) ? `${w}es` : /[^aeiou]y$/.test(w) ? `${w.slice(0, -1)}ies` : `${w}s`);
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 function badgeTone(v: string) {
@@ -688,7 +690,7 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
               : (f.options ?? []).map((o) => ({ label: o, value: o }));
             return (
               <Dropdown key={f.key} hideLabel className="w-full lg:w-52" label={f.label}
-                items={[{ label: `All ${f.label.toLowerCase()}s`, value: "all" }, ...items]}
+                items={[{ label: `All ${plural(f.label.toLowerCase())}`, value: "all" }, ...items]}
                 value={filters[f.key] ?? "all"}
                 onValueChange={(v) => { setFilters((p) => ({ ...p, [f.key]: v })); setShown(PAGE); }} />
             );
@@ -698,7 +700,7 @@ export default function CrudPanel({ resource: res, startNew = false }: { resourc
 
       {res.chipKey && chips.length > 0 && (
         <div className="-mx-1 mb-4 flex gap-2 overflow-x-auto px-1 pb-1" role="group" aria-label={`Filter by ${fields.find((f) => f.key === res.chipKey)?.label.toLowerCase()}`} style={{ animation: "rise .5s var(--ease) both", animationDelay: "120ms" }}>
-          {[{ id: "all", label: `All ${fields.find((f) => f.key === res.chipKey)?.label.toLowerCase()}s`, n: rows.length, w: 0, l: 0, t: 0 }, ...chips].map((c) => {
+          {[{ id: "all", label: `All ${plural(fields.find((f) => f.key === res.chipKey)?.label.toLowerCase() ?? "")}`, n: rows.length, w: 0, l: 0, t: 0 }, ...chips].map((c) => {
             const on = (filters[res.chipKey!] ?? "all") === c.id;
             return (
               <button key={c.id} type="button" aria-pressed={on} onClick={() => { setFilters((p) => ({ ...p, [res.chipKey!]: c.id })); setShown(PAGE); }}

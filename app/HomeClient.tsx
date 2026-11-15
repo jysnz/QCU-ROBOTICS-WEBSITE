@@ -588,6 +588,8 @@ const CompetitionsSection = ({ initialCompetitions, initialSeasons }: { initialC
     });
   }, [selectedSeason, competitions, filteredCompetitions.length, sortedCompetitions.length, seasonNameById]);
 
+  const compText = useDesc('competition_description', 'QCU Robotics competes at the highest level, showcasing innovation and engineering excellence across multiple prestigious competitions worldwide.');
+
   if (loading) {
     return (
       <section className="py-16 md:py-24 relative z-10">
@@ -601,8 +603,6 @@ const CompetitionsSection = ({ initialCompetitions, initialSeasons }: { initialC
       </section>
     );
   }
-
-  const compText = useDesc('competition_description', 'QCU Robotics competes at the highest level, showcasing innovation and engineering excellence across multiple prestigious competitions worldwide.');
 
   return (
     <section id="competitions" data-reveal className="py-16 md:py-24 relative z-10">

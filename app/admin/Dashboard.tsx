@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cached } from "./cache";
 import { createPortal } from "react-dom";
 import Image from "next/image";
@@ -274,6 +274,22 @@ export default function Dashboard({ name, email, onSignOut, onAccountChanged }: 
   }, []);
 
   const [menuOpen, setMenuOpen] = useState(false);
+  const menuClose = useRef<HTMLButtonElement>(null); // focus starts on the menu's own close button, so focusing doesn't move the list
+  const menuNav = useRef<HTMLElement>(null);
+  // every time the menu opens, the button of the page you are on is centred in the list
+  const centreCurrent = () => {
+    const nav = menuNav.current;
+    const cur = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!nav || !cur) return;
+    const n = nav.getBoundingClientRect(), c = cur.getBoundingClientRect();
+    nav.scrollTop += (c.top - n.top) - (n.height - c.height) / 2; // relative positions, so the slide-in animation doesn't matter
+  };
+  useEffect(() => {
+    if (!menuOpen) return;
+    const id = requestAnimationFrame(centreCurrent);
+    const late = window.setTimeout(centreCurrent, 120); // after the slide-in has started
+    return () => { cancelAnimationFrame(id); clearTimeout(late); };
+  }, [menuOpen]);
   const go = (v: View, add = false) => {
     setMenuOpen(false);
     const target = MERGED[v] ?? v; // merged pages open their new home
@@ -337,13 +353,13 @@ export default function Dashboard({ name, email, onSignOut, onAccountChanged }: 
       <Dialog.Root open={menuOpen} onOpenChange={setMenuOpen}>
         <Dialog.Portal>
           <Dialog.Backdrop className="fixed inset-0 z-40 bg-black/70 transition-opacity duration-200 data-[starting-style]:opacity-0 data-[ending-style]:opacity-0 lg:hidden" />
-          <Dialog.Popup className="fixed inset-y-0 left-0 z-50 flex w-[min(20rem,88vw)] flex-col border-r border-slate-700 bg-slate-950 outline-none transition-transform duration-300 ease-out-quint data-[starting-style]:-translate-x-full data-[ending-style]:-translate-x-full lg:hidden">
+          <Dialog.Popup initialFocus={menuClose} className="fixed inset-y-0 left-0 z-50 flex w-[min(20rem,88vw)] flex-col border-r border-slate-700 bg-slate-950 outline-none transition-transform duration-300 ease-out-quint data-[starting-style]:-translate-x-full data-[ending-style]:-translate-x-full lg:hidden">
             <div className="flex items-center justify-between gap-3 px-5 py-4">
               <Dialog.Title className="font-display text-base font-semibold text-white">Menu</Dialog.Title>
-              <Dialog.Close aria-label="Close menu" className="grid h-10 w-10 place-items-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white"><X className="h-4 w-4" aria-hidden="true" /></Dialog.Close>
+              <Dialog.Close ref={menuClose} aria-label="Close menu" className="grid h-10 w-10 place-items-center rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white"><X className="h-4 w-4" aria-hidden="true" /></Dialog.Close>
             </div>
             <Dialog.Description className="sr-only">Choose a section of the admin</Dialog.Description>
-            <nav aria-label="Admin sections" className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">{navList()}</nav>
+            <nav ref={(el) => { menuNav.current = el; if (el) centreCurrent(); }} aria-label="Admin sections" className="min-h-0 flex-1 overflow-y-auto px-3 pb-4">{navList()}</nav>
             <div className="border-t border-slate-700 p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
               <p className="truncate text-sm font-medium text-white">{name}</p>
               <p className="mb-3 truncate text-xs text-slate-500">{email}</p>

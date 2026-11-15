@@ -2,8 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
-import Link from "next/link";
-import { AtSign, ChevronLeft, Eye, EyeOff, ImageIcon, Loader2, Lock, LogIn, ShieldCheck, Trophy, User, UserPlus, Users } from "lucide-react";
+import { AtSign, Eye, EyeOff, ImageIcon, Loader2, Lock, LogIn, ShieldCheck, Trophy, User, UserPlus, Users } from "lucide-react";
 import Turnstile from "./Turnstile";
 import ForgotFlow from "./ForgotFlow";
 import { PasswordRules } from "./authBits";
@@ -213,11 +212,7 @@ export default function AuthScreen({ start }: { start?: { email: string; name: s
         {/* Form */}
         <main ref={host} className="relative mx-auto flex h-dvh w-full max-w-[480px] flex-col justify-center overflow-hidden px-4 py-3 lg:max-w-none lg:px-12">
           <div ref={box} className="mx-auto w-full max-w-[440px]">
-            <Link href="/" className="mb-2 inline-flex items-center gap-1 text-xs text-[#94a3b8] transition-colors hover:text-white" style={rise(0)}>
-              <ChevronLeft className="h-4 w-4" aria-hidden="true" /> Back to site
-            </Link>
-
-            <div className="[@media(max-height:700px)]:hidden lg:hidden" style={rise(1)}>
+            <div className="lg:hidden" style={rise(1)}>
               <Image src="/logo-96.png" alt="QCU Robotics" width={56} height={56} className="site-logo mx-auto" priority />
             </div>
             <div key={mode} className="animate-fadeIn text-center lg:text-left">

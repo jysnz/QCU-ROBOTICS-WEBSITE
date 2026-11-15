@@ -164,7 +164,7 @@ async function handle(req: NextRequest, ip: string): Promise<NextResponse> {
     about: str(b.about, 240),
   };
   const bd = /^\d{4}-\d{2}-\d{2}$/.test(m.birthday) ? new Date(m.birthday + "T00:00:00") : null;
-  if (!bd || isNaN(bd.getTime()) || bd > new Date() || m.birthday < "1950-01-01")
+  if (!bd || isNaN(bd.getTime()) || bd > new Date() || m.birthday < "1950-01-01" || bd.getFullYear() !== +m.birthday.slice(0, 4) || bd.getMonth() + 1 !== +m.birthday.slice(5, 7) || bd.getDate() !== +m.birthday.slice(8, 10)) // the last three reject dates like 2005-02-31, which JS would roll over to March
     return json({ error: "Please enter a valid birthday." }, 400);
   if (!GENDERS.includes(m.gender)) return json({ error: "Please select your gender." }, 400);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(m.email)) return json({ error: "Please enter a valid email address." }, 400);

@@ -41,18 +41,22 @@ export default function Splash() {
     const leave = (fast: boolean) => {
       if (done) return;
       done = true;
+      timers.push(window.setTimeout(finish, 4500)); // hard cap, whatever goes wrong
       if (getComputedStyle(s).visibility === "hidden") { finish(); return; } // the CSS safety net already hid it
-      root.classList.remove("intro");
-      s.classList.add("leaving");
       const wrap = s.querySelector<HTMLElement>(".splash-logo");
-      if (reduce || !wrap) { timers.push(window.setTimeout(finish, 350)); return; }
-      // The target may still be loading (e.g. the admin checks your session first): wait briefly for it.
+      // The page stays hidden behind the splash until the header logo (the landing spot) exists, so the big logo is never left
+      // sitting on top of a page that is already showing. The admin checks your session first, so wait briefly for it.
+      const begin = (target: HTMLElement | null) => {
+        root.classList.remove("intro"); // now the page fades in
+        s.classList.add("leaving");
+        if (reduce || !wrap || !target) { timers.push(window.setTimeout(finish, 350)); return; }
+        fly(wrap, target, fast);
+      };
       let waited = 0;
       const tryFly = () => {
-        const target = findTarget();
-        if (target) { fly(wrap, target, fast); return; }
+        const target = reduce ? null : findTarget();
+        if (target || reduce || !wrap || waited >= 1500) { begin(target); return; }
         waited += 50;
-        if (waited >= 1500) { timers.push(window.setTimeout(finish, 350)); return; }
         timers.push(window.setTimeout(tryFly, 50));
       };
       tryFly();
@@ -62,7 +66,11 @@ export default function Splash() {
     const skip = () => { if (performance.now() - started > 900) leave(true); };
     s.addEventListener("click", skip);
     window.addEventListener("keydown", skip);
-    return () => { timers.forEach(clearTimeout); window.removeEventListener("keydown", skip); };
+    // coming back to the tab or restoring the page from the back/forward cache: never show a splash that has already run
+    const resume = () => { if (done) finish(); };
+    document.addEventListener("visibilitychange", resume);
+    window.addEventListener("pageshow", resume);
+    return () => { timers.forEach(clearTimeout); window.removeEventListener("keydown", skip); document.removeEventListener("visibilitychange", resume); window.removeEventListener("pageshow", resume); };
   }, []);
 
   if (gone) return null;

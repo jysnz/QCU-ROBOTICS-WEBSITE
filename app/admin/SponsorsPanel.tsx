@@ -256,12 +256,14 @@ function CompanyDialog({ value, onClose, onSaved }: { value: Company | "new" | n
   const editing = value !== null && value !== "new" ? value : null;
   const [name, setName] = useState("");
   const [logo, setLogo] = useState("");
+  const [personName, setPersonName] = useState(""); // new company only: the person who represents it (optional)
+  const [personPhoto, setPersonPhoto] = useState("");
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
 
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect */
-    setName(editing?.company_name ?? ""); setLogo(editing?.image_url ?? ""); setErr("");
+    setName(editing?.company_name ?? ""); setLogo(editing?.image_url ?? ""); setPersonName(""); setPersonPhoto(""); setErr("");
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -270,10 +272,22 @@ function CompanyDialog({ value, onClose, onSaved }: { value: Company | "new" | n
     if (!name.trim()) { setErr("Company name is required."); return; }
     setSaving(true); setErr("");
     const payload = { company_name: name.trim(), image_url: logo || null };
-    const { error } = editing ? await sb.from("sponsor_company").update(payload).eq("id", editing.id) : await sb.from("sponsor_company").insert(payload);
+    let error: { message: string } | null;
+    let personError: string | null = null;
+    const person = personName.trim();
+    if (editing) {
+      error = (await sb.from("sponsor_company").update(payload).eq("id", editing.id)).error;
+    } else {
+      const made = await sb.from("sponsor_company").insert(payload).select("id").single();
+      error = made.error;
+      // the person is added in the same go, under the company that was just created
+      if (!error && person && made.data) personError = (await sb.from("sponsors").insert({ name: person, image_url: personPhoto || null, company_id: made.data.id })).error?.message ?? null;
+    }
     setSaving(false);
     if (error) { setErr(error.message); notify.error(`Couldn't save: ${error.message}`); return; }
-    if (editing) notify.updated("Sponsor company updated", { description: payload.company_name }); else notify.created("Sponsor company added", { description: payload.company_name });
+    if (editing) notify.updated("Sponsor company updated", { description: payload.company_name });
+    else if (personError) { notify.created("Sponsor company added", { description: payload.company_name }); notify.error(`The company was saved, but the person wasn't: ${personError}`, { description: "Add them from the company's card." }); }
+    else notify.created("Sponsor company added", { description: `${payload.company_name}${person ? ` · ${person}` : ""}` });
     await onSaved();
     onClose();
   }
@@ -284,13 +298,26 @@ function CompanyDialog({ value, onClose, onSaved }: { value: Company | "new" | n
         <Dialog.Backdrop className={backdrop} />
         <Dialog.Viewport className={viewport}>
           <Dialog.Popup className={popup}>
-            <DialogHead icon={Building2} title={editing ? editing.company_name || "Edit company" : "Add sponsor company"} text={editing ? "Update the company's name or logo." : "Add the company, then add the people who represent it."} />
+            <DialogHead icon={Building2} title={editing ? editing.company_name || "Edit company" : "Add sponsor company"} text={editing ? "Update the company's name or logo." : "Add the company and, if you like, the person who represents it."} />
             <form onSubmit={(e) => { e.preventDefault(); save(); }} className="space-y-5 px-6 pb-6" noValidate>
               <div>
                 <label className={lbl} htmlFor="sc-name">Company name <span className="text-accent">*</span></label>
                 <input id="sc-name" className={`${input} ${err && !name.trim() ? "!border-[#f87171]" : ""}`} value={name} maxLength={100} onChange={(e) => { setName(e.target.value); if (err) setErr(""); }} placeholder="e.g. Acme Robotics" autoComplete="off" autoFocus={!editing} />
               </div>
               <div><span className={lbl}>Logo</span><PhotoDropzone value={logo} onChange={setLogo} name={name} folder={FOLDER} bucket={BUCKET} /></div>
+              {!editing && (
+                <div className="space-y-4 rounded-2xl border border-slate-700 bg-slate-900/50 p-4">
+                  <div>
+                    <p className="font-display text-sm font-semibold text-white">Sponsor person <span className="font-normal text-slate-500">(optional)</span></p>
+                    <p className="mt-0.5 text-xs text-slate-400">Someone who represents this company. You can add more people later.</p>
+                  </div>
+                  <div>
+                    <label className={lbl} htmlFor="sc-person">Full name</label>
+                    <input id="sc-person" className={input} value={personName} maxLength={80} onChange={(e) => setPersonName(e.target.value)} placeholder="e.g. Maria Santos" autoComplete="off" />
+                  </div>
+                  <div><span className={lbl}>Photo</span><PhotoDropzone value={personPhoto} onChange={setPersonPhoto} name={personName} folder={FOLDER} bucket={BUCKET} /></div>
+                </div>
+              )}
               {err && <p role="alert" className="animate-fadeIn text-sm text-[#f87171]">{err}</p>}
               <div className="flex justify-end gap-3 border-t border-slate-700 pt-5">
                 <Dialog.Close className="btn btn-ghost btn-sm" disabled={saving}>Cancel</Dialog.Close>
