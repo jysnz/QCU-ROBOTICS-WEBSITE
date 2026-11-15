@@ -373,11 +373,11 @@ const Hero = ({ initialStats }: { initialStats?: HeroStats }) => {
             {heroText}
           </p>
           <div className="rise flex flex-wrap items-center gap-x-5 gap-y-3" style={{ ['--i' as string]: 5 } as React.CSSProperties}>
-            <a href={JOIN_TEAM_FORM_URL} target="_blank" rel="noopener noreferrer" className="btn btn-primary group min-h-[52px] px-7 text-[1rem]">
+            <a href={JOIN_TEAM_FORM_URL} target="_blank" rel="noopener noreferrer" className="btn btn-primary group min-h-[46px] px-6 text-[1rem] md:min-h-[52px] md:px-7">
               Join the team
               <ChevronRight className="h-5 w-5 transition-transform duration-200 group-hover:translate-x-0.5" />
             </a>
-            <button type="button" onClick={() => scrollToSection('competitions')} className="btn btn-ghost min-h-[52px] bg-slate-950/40 px-6">
+            <button type="button" onClick={() => scrollToSection('competitions')} className="btn btn-ghost min-h-[46px] bg-slate-950/40 px-5 md:min-h-[52px] md:px-6">
               Explore competitions
             </button>
           </div>
@@ -590,7 +590,7 @@ const CompetitionsSection = ({ initialCompetitions, initialSeasons }: { initialC
 
   if (loading) {
     return (
-      <section className="py-24 relative z-10">
+      <section className="py-16 md:py-24 relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(3)].map((_, i) => (
@@ -605,7 +605,7 @@ const CompetitionsSection = ({ initialCompetitions, initialSeasons }: { initialC
   const compText = useDesc('competition_description', 'QCU Robotics competes at the highest level, showcasing innovation and engineering excellence across multiple prestigious competitions worldwide.');
 
   return (
-    <section id="competitions" data-reveal className="py-24 relative z-10">
+    <section id="competitions" data-reveal className="py-16 md:py-24 relative z-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
 
         {/* Header: heading on the left, season filter on the right */}
@@ -767,7 +767,7 @@ const AboutSection = ({ initialCounts }: { initialCounts?: ActiveCounts | null }
   const aboutParas = useDesc('about_description', 'QCU Robotics is a premier competitive robotics organization dedicated to fostering innovation, teamwork, and technical excellence. Our organization brings together talented engineers, programmers, and designers who share a passion for robotics.\n\nBuilt on a foundation of collaboration and continuous improvement, QCU Robotics has established itself as a powerhouse in the competitive robotics community.').split(/\n\s*\n/).map((t) => t.trim()).filter(Boolean);
 
   return (
-    <section id="about-us" data-reveal className="py-24 relative z-10">
+    <section id="about-us" data-reveal className="py-16 md:py-24 relative z-10">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <div className="rounded-2xl overflow-hidden border border-slate-700/50">
@@ -986,7 +986,7 @@ const SponsorSection = ({ initialSponsors, initialSponsorPeople }: { initialSpon
   const sponsorsText = useDesc('sponsors_description', 'Companies and the people behind them who support QCU Robotics.');
 
   return (
-    <section id="sponsors" data-reveal className="py-24 relative z-10 bg-slate-950/50 scroll-mt-28 md:scroll-mt-32 overflow-x-hidden">
+    <section id="sponsors" data-reveal className="py-16 md:py-24 relative z-10 bg-slate-950/50 scroll-mt-28 md:scroll-mt-32 overflow-x-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="text-center max-w-3xl mx-auto mb-16">
           <p className="kicker mb-4">Sponsors</p>
@@ -1927,7 +1927,7 @@ const Footer = ({ initialSocials }: { initialSocials?: Social[] }) => {
           </div>
 
           {/* Contact CTA */}
-          <div className="rounded-2xl border border-slate-700/40 bg-slate-900 p-8">
+          <div className="rounded-2xl border border-slate-700/40 bg-slate-900 p-5 md:p-8">
             <p className="kicker mb-3">Get in touch</p>
             <h4 className="text-2xl font-bold text-white mb-4">Message the QCU Robotics Team</h4>
             <p className="text-slate-400 text-sm leading-relaxed mb-6 max-w-md">

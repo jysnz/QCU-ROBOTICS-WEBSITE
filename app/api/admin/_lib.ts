@@ -105,12 +105,7 @@ export async function requireAdmin(req: NextRequest): Promise<
   const { data, error } = await service.auth.getUser(token);
   if (error || !data.user) return { ok: false, res: json({ error: "Please sign in again." }, 401) };
   const email = data.user.email ?? "";
-  // registered? and approved? are independent: ask both at once
-  const [registered, { data: acct }] = await Promise.all([
-    isRegistered(data.user.id, email),
-    service.from("user_accounts").select("is_approved").eq("id", data.user.id).maybeSingle(),
-  ]);
-  if (!registered) return { ok: false, res: json({ error: "Register first at /member-reg with this email.", code: "not-registered" }, 403) };
+  const { data: acct } = await service.from("user_accounts").select("is_approved").eq("id", data.user.id).maybeSingle();
   if (!acct?.is_approved) return { ok: false, res: json({ error: "Your account hasn't been approved yet." }, 403) };
 
   if (verified.size > 300) for (const [k, v] of verified) if (v.exp <= Date.now()) verified.delete(k);

@@ -55,6 +55,8 @@
 }
 
 html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+/* Phones: a slightly smaller root size scales every rem-based size (text, padding, buttons, cards) down together, so the UI is not oversized on small screens. */
+@media (max-width: 639px) { html { font-size: 14px; } }
 body {
   background: var(--bg);
   color: var(--fg);
@@ -89,6 +91,7 @@ h1, h2, h3, h4 { font-family: var(--font-display), var(--font-body), sans-serif;
 .btn-ghost { background: transparent; color: var(--fg); border-color: #33384a; }
 .btn-ghost:hover { border-color: #4a516a; background: rgba(255, 255, 255, .03); }
 .btn-sm { min-height: 40px; padding: 0 18px; font-size: .88rem; border-radius: 10px; }
+@media (max-width: 639px) { .btn { min-height: 44px; padding: 0 20px; } .btn-sm { min-height: 38px; padding: 0 14px; } }
 
 /* ---------- intro splash (same sequence as /member-reg) ---------- */
 .splash { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; overflow: hidden; cursor: pointer;
@@ -96,8 +99,8 @@ h1, h2, h3, h4 { font-family: var(--font-display), var(--font-body), sans-serif;
 .splash-bg { position: absolute; inset: 0; transition: opacity .65s var(--ease);
   background: radial-gradient(560px 440px at 50% 46%, rgba(139, 124, 255, .24), transparent 70%), radial-gradient(460px 340px at 50% 62%, rgba(216, 181, 58, .09), transparent 70%), #0a0b0f; }
 .splash-in { position: relative; display: flex; flex-direction: column; align-items: center; gap: 30px; }
-.splash-logo { position: relative; width: min(46vmin, 320px); aspect-ratio: 1; animation: splash-in .95s cubic-bezier(.2, .7, .2, 1) backwards; }
-.splash-logo img { width: 100%; height: 100%; display: block; filter: drop-shadow(0 20px 50px rgba(0, 0, 0, .65)); }
+.splash-logo { position: relative; width: min(46vmin, 320px); aspect-ratio: 1; will-change: transform, opacity; animation: splash-in .95s cubic-bezier(.2, .7, .2, 1) backwards; }
+.splash-logo img { width: 100%; height: 100%; display: block; }
 .splash-logo::before { content: ""; position: absolute; inset: -18%; z-index: -1; border-radius: 50%;
   background: radial-gradient(closest-side, rgba(216, 181, 58, .22), rgba(139, 124, 255, .12) 60%, transparent); animation: splash-glow 2.4s ease-in-out infinite; }
 .splash-logo::after { content: ""; position: absolute; inset: 0; pointer-events: none;
@@ -116,15 +119,20 @@ h1, h2, h3, h4 { font-family: var(--font-display), var(--font-body), sans-serif;
 .splash.leaving .splash-traces, .splash.leaving .splash-cap { opacity: 0; transition: opacity .25s var(--ease); }
 .splash.leaving .splash-cap { animation: none; }
 .splash.leaving .splash-logo::before, .splash.leaving .splash-logo::after { opacity: 0; transition: opacity .2s; }
-.splash.leaving .splash-logo img { filter: none; transition: filter .3s; }
 
 /* page reveal + header logo hand-off (failsafes un-hide everything if JS never runs) */
 #site { transition: opacity .6s .15s var(--ease); }
 html.intro #site { opacity: 0; animation: show-failsafe 0s 7s forwards; }
 html.flying .site-logo { opacity: 0; animation: show-failsafe 0s 7s forwards; }
 
-@keyframes splash-in { from { opacity: 0; transform: scale(.78) translateY(14px); filter: blur(12px) } to { opacity: 1; transform: none; filter: blur(0) } }
+@keyframes splash-in { from { opacity: 0; transform: scale(.78) translateY(14px) } to { opacity: 1; transform: none } }
 @keyframes splash-glow { 0%, 100% { opacity: .7; transform: scale(.96) } 50% { opacity: 1; transform: scale(1.04) } }
+/* phones: skip the masked shine sweep (repaints every frame) and keep the glow still; smaller backdrop gradients */
+@media (max-width: 639px) {
+  .splash-logo::after { display: none; }
+  .splash-logo::before { animation: none; }
+  .splash-bg { background: radial-gradient(320px 260px at 50% 46%, rgba(139, 124, 255, .22), transparent 70%), #0a0b0f; }
+}
 @keyframes splash-shine { from { background-position: 170% 0 } to { background-position: -70% 0 } }
 @keyframes splash-cap { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
 @keyframes splash-draw { to { stroke-dashoffset: 0 } }

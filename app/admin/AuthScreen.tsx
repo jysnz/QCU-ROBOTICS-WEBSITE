@@ -68,10 +68,10 @@ const lbl = "mb-1.5 block text-[10px] font-semibold uppercase tracking-[.14em] t
 const inputCls =
   "h-11 w-full rounded-xl border border-[#334155] bg-[#020617]/60 pl-10 pr-3 text-sm text-[#f8fafc] outline-none transition-colors placeholder:text-[#475569] hover:border-[#475569] focus-visible:border-[#22c55e]";
 
-export default function AuthScreen() {
-  const [mode, setMode] = useState<"login" | "register" | "forgot">("login");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+export default function AuthScreen({ start }: { start?: { email: string; name: string } | null }) {
+  const [mode, setMode] = useState<"login" | "register" | "forgot">(start ? "register" : "login");
+  const [name, setName] = useState(start?.name ?? "");
+  const [email, setEmail] = useState(start?.email ?? "");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [token, setToken] = useState("");
@@ -84,7 +84,7 @@ export default function AuthScreen() {
     const q = new URLSearchParams(window.location.search);
     return q.get("error_code") === "bad_oauth_state" ? "" : q.get("error_description") ?? ""; // an expired sign-in has its own pop-up
   });
-  const [notice, setNotice] = useState("");
+  const [notice, setNotice] = useState(start ? "That Google account isn't set up yet. Create your account below and an admin will approve it." : "");
 
   const isLogin = mode === "login";
   const switchMode = (m: "login" | "register" | "forgot") => { setMode(m); setError(""); setNotice(""); };

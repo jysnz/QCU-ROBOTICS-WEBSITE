@@ -254,7 +254,7 @@ function EmailCard({ me, onChanged }: { me: Me; onChanged: (email: string) => vo
       <div key={step} className="step-in mt-5">
         {step === "form" && (
           <form onSubmit={request} noValidate className="space-y-4">
-            <Field id="st-new-email" title="New email" error={error} hint="It must be an email that registered at /member-reg.">
+            <Field id="st-new-email" title="New email" error={error} hint="We'll send a 6-digit code to confirm it.">
               <div className="relative">
                 <AtSign className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
                 <input id="st-new-email" type="email" value={next} onChange={(e) => { setNext(e.target.value); setError(""); }} autoComplete="email" placeholder="new@email.com" className={`${input} pl-10 ${error ? "border-[#ef4444]!" : ""}`} />

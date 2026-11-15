@@ -1,6 +1,6 @@
 import { type NextRequest } from "next/server";
 import { mailConfigured, noticeEmail, sendMail } from "../../../_mail";
-import { isRegistered, json, makeLimiter, requireAdmin, service } from "../../_lib";
+import { json, makeLimiter, requireAdmin, service } from "../../_lib";
 import { checkCode, issueCode, recentCount, redeemTicket } from "../../_otp";
 
 export const runtime = "nodejs";
@@ -27,7 +27,6 @@ export async function POST(req: NextRequest) {
     if (!mailConfigured()) return json({ error: "Email isn't set up yet, so a code can't be sent. Please contact an admin." }, 503);
     const { data: taken } = await service!.from("user_accounts").select("id").ilike("email", next.replace(/[\\%_]/g, (c) => "\\" + c)).neq("id", admin.userId).limit(1);
     if (taken?.length) return json({ error: "Another account already uses that email.", field: "email" }, 400);
-    if (!(await isRegistered(admin.userId, next))) return json({ error: "That email isn't registered yet. Register it at /member-reg first, then change your email.", field: "email" }, 400);
     if ((await recentCount("email_change", next, 10)) >= 3) return json({ error: "A code was already sent a few times. Please wait 10 minutes." }, 429);
     const sent = await issueCode({ purpose: "email_change", email: next, userId: admin.userId, payload: { from: admin.email } });
     return sent ? json({ ok: true, message: "We sent a 6-digit code to the new email." }) : json({ error: "We couldn't send the email. Please try again." }, 502);

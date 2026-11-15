@@ -55,7 +55,7 @@ export default function Splash() {
       tryFly();
     };
 
-    timers.push(window.setTimeout(() => leave(false), reduce ? 700 : 2500));
+    timers.push(window.setTimeout(() => leave(false), reduce ? 700 : window.innerWidth < 640 ? 1900 : 2500)); // shorter on phones
     const skip = () => leave(true);
     s.addEventListener("click", skip);
     window.addEventListener("keydown", skip, { once: true });
