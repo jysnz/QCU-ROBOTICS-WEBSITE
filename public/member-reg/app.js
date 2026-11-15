@@ -443,6 +443,7 @@
   slotsEl.addEventListener("drop", (e) => addFiles(e.dataTransfer.files));
 
   /* ---------- validation ---------- */
+  const takenIds = new Set(); // student IDs the server already refused, so the page keeps its error until a different ID is typed
   const setErr = (id, msg) => {
     const e = $("#" + id + "-err"); if (!e) return;
     e.textContent = msg || "";
@@ -467,6 +468,7 @@
     if (step === 2) {
       if (!val("studentId")) { setErr("studentId", "Please enter your student ID."); ok = false; first ||= $("#studentId"); }
       else if (!ID_RE.test(val("studentId"))) { setErr("studentId", "Use 4 to 20 letters, numbers or dashes."); ok = false; first ||= $("#studentId"); }
+      else if (takenIds.has(val("studentId").toLowerCase())) { setErr("studentId", "This student ID is already registered. Check it, or use a different one."); ok = false; first ||= $("#studentId"); }
       else setErr("studentId", "");
       need("program", "Please select your program.");
       if (!yearVal()) { setErr("year", "Pick your year level."); ok = false; first ||= $('input[name="year"]'); } else setErr("year", "");
@@ -508,7 +510,11 @@
   $("#backBtn").addEventListener("click", () => (state.step === 1 ? show("welcome") : go(state.step - 1)));
   $("#flow").addEventListener("submit", (e) => {
     e.preventDefault();
-    if (!validate(state.step)) return;
+    if (!validate(state.step)) {
+      const btn = $("#nextBtn");
+      btn.classList.remove("shake"); void btn.offsetWidth; btn.classList.add("shake"); // small shake: "not yet"
+      return;
+    }
     if (state.step < TOTAL) go(state.step + 1); else submitWithCheck();
   });
   $$("#flow input, #flow textarea, #flow select").forEach((i) => i.addEventListener("input", () => {
@@ -643,6 +649,7 @@
     } catch (_) { /* the registration itself is already saved */ }
   }
 
+  const r409 = (e) => e.status === 409;
   let sending = false;
   async function finish() {
     if (sending) return; // Enter pressed or the check finishing while a submit is already running would send it twice
@@ -663,7 +670,7 @@
       const r = await fetch("/api/members", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
       if (r.status === 413) throw new Error("Your photos are too large to upload. Please choose smaller photos.");
       const j = await r.json().catch(() => ({}));
-      if (!r.ok) { const err = new Error(j.error || "Something went wrong."); err.field = j.field; err.code = j.code; throw err; }
+      if (!r.ok) { const err = new Error(j.error || "Something went wrong."); err.field = j.field; err.code = j.code; err.status = r.status; throw err; }
       ok = true;
       // The 800 px copies above are what the site uses. If full-resolution storage is set up, send the originals there too.
       if (j.upload && j.upload.ticket) await uploadOriginals(j.upload.ticket, btn);
@@ -671,7 +678,10 @@
       $("#stageCap").textContent = "Your member card";
       show("done");
     } catch (e) {
-      if (e.field === "studentId") { go(2); setErr("studentId", e.message); $("#studentId").focus(); }
+      if (e.field === "studentId") {
+        if (r409(e)) takenIds.add(data.studentId.toLowerCase()); // can't continue past page 2 with this ID again
+        go(2); setErr("studentId", e.message); $("#studentId").focus();
+      }
       else setErr("interests", e.message === "Failed to fetch" ? "Can't reach the server. Check your connection and try again." : e.message);
     } finally {
       sending = false;

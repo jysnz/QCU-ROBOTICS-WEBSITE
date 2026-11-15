@@ -23,6 +23,7 @@ import Tasks from "./Tasks";
 import { canAssignTasks, useAdminRole, usePendingPrompts } from "./useAdminRole";
 import { useReviewCounts } from "./useReviewCounts";
 import { BellButton, NotificationPanel, useNotifications } from "./Notifications";
+import PushPrompt from "./PushPrompt";
 import { RESOURCES } from "./resources";
 import { adminFetch, sb } from "./supabase";
 
@@ -356,6 +357,7 @@ export default function Dashboard({ name, email, onSignOut }: { name: string; em
         </Dialog.Portal>
       </Dialog.Root>
       <NotificationPanel api={notifs} onNavigate={(id) => go(id)} />
+      <PushPrompt />
       <CommandPalette items={paletteItems} open={paletteOpen} onOpenChange={setPaletteOpen} />
     <div className="min-h-screen lg:grid lg:grid-cols-[16rem_1fr]">
       <aside className="sticky top-0 z-30 border-b border-slate-700 bg-slate-950/90 backdrop-blur lg:sticky lg:top-0 lg:flex lg:h-screen lg:flex-col lg:border-b-0 lg:border-r">

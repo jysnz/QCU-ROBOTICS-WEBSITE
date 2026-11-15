@@ -65,12 +65,17 @@ export async function notifyUsers(userIds: string[], n: Notice): Promise<void> {
   }
 }
 
-async function push(userIds: string[], n: Notice) {
+export type PushResult = { configured: boolean; devices: number; sent: number; failed: number; errors: string[] };
+
+async function push(userIds: string[], n: Notice): Promise<PushResult> {
+  const out: PushResult = { configured: false, devices: 0, sent: 0, failed: 0, errors: [] };
   const app = firebaseApp();
-  if (!app || !db) return;
+  if (!app || !db) { console.warn("Push skipped: FIREBASE_SERVICE_ACCOUNT is missing or invalid"); return out; }
+  out.configured = true;
   const { data: tokenRows } = await db.from("push_tokens").select("token").in("user_id", userIds);
   const tokens = [...new Set((tokenRows ?? []).map((r: { token: string }) => r.token))];
-  if (!tokens.length) return;
+  out.devices = tokens.length;
+  if (!tokens.length) { console.info(`Push: none of the ${userIds.length} people have a device with notifications on`); return out; }
 
   const messaging = getMessaging(app);
   const dead: string[] = [];
@@ -83,9 +88,23 @@ async function push(userIds: string[], n: Notice) {
       webpush: { headers: { Urgency: "high", TTL: "86400" } },
     });
     res.responses.forEach((r, j) => {
-      const code = r.error?.code ?? "";
-      if (!r.success && (code === "messaging/registration-token-not-registered" || code === "messaging/invalid-registration-token" || code === "messaging/invalid-argument")) dead.push(chunk[j]);
+      if (r.success) { out.sent++; return; }
+      out.failed++;
+      const code = r.error?.code ?? "unknown";
+      if (code === "messaging/registration-token-not-registered" || code === "messaging/invalid-registration-token" || code === "messaging/invalid-argument") dead.push(chunk[j]);
+      else { out.errors.push(`${code}: ${r.error?.message ?? ""}`.slice(0, 300)); console.error("Push failed:", code, r.error?.message); }
     });
   }
   if (dead.length) await db.from("push_tokens").delete().in("token", dead); // devices that uninstalled / cleared the site
+  console.info(`Push "${n.type}": ${out.sent} sent, ${out.failed} failed, ${out.devices} devices`);
+  return out;
+}
+
+/** Sends a one-off test push to one person's devices (no saved notification, no dedupe) and reports exactly what happened. */
+export async function sendTestPush(userId: string): Promise<PushResult> {
+  try {
+    return await push([userId], { type: "test", title: "Test notification", body: "Notifications are working on this device.", link: "/admin" });
+  } catch (e) {
+    return { configured: true, devices: 0, sent: 0, failed: 1, errors: [(e as Error).message.slice(0, 300)] };
+  }
 }

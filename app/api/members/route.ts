@@ -205,9 +205,14 @@ async function handle(req: NextRequest, ip: string): Promise<NextResponse> {
   };
 
   try {
-    const { data: dup, error: dupErr } = await sb.schema("website").from("members").select("id").ilike("student_id", m.studentId).limit(1);
+    // A student ID is taken only by a registration that is still alive: one in the 30-day rejected archive doesn't count,
+    // so someone who was rejected can register again with their own ID.
+    const { data: dup, error: dupErr } = await sb.schema("website").from("members").select("id, registration_status")
+      .ilike("student_id", m.studentId.replace(/[\\%_]/g, (c) => "\\" + c))
+      .or("registration_status.is.null,registration_status.neq.rejected")
+      .limit(1);
     if (dupErr) throw new Error("database: " + dupErr.message);
-    if (dup && dup.length) return duplicate();
+    if (dup && dup.length) { console.warn("Registration refused: student ID already used by member", dup[0].id, dup[0].registration_status ?? "legacy"); return duplicate(); }
 
     const jobs = imgs.map((img, i) => ({ path: `${folder}/${i + 1}.${img.ext}`, img }));
     if (thumb && !useR2) jobs.push({ path: `${folder}/thumb.jpg`, img: thumb });
@@ -250,7 +255,7 @@ async function handle(req: NextRequest, ip: string): Promise<NextResponse> {
     }).select("id").single();
     if (error) {
       await cleanup();
-      if (error.code === "23505") return duplicate();
+      if (error.code === "23505" && /student_id/i.test(error.message)) return duplicate(); // only the student-ID rule means "already registered"
       throw new Error("database: " + error.message);
     }
     // Tell every admin there is a new registration to review (never blocks or fails the sign-up).

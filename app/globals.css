@@ -306,3 +306,19 @@ body { overflow-x: clip; }
   .nf-spin, .nf-spin-rev, .nf-float, .nf-glow, .nf-scan, .nf-blink { animation: none; }
   .nf-pop { animation-duration: .01s; }
 }
+
+/* ---------- admin: "turn on notifications" pop-up (app/admin/PushPrompt.tsx) ---------- */
+@keyframes pp-ring { 0%, 100% { transform: rotate(0); } 10% { transform: rotate(16deg); } 20% { transform: rotate(-14deg); } 30% { transform: rotate(10deg); } 40% { transform: rotate(-8deg); } 50% { transform: rotate(4deg); } 60% { transform: rotate(0); } }
+@keyframes pp-ripple { 0% { transform: scale(.7); opacity: .55; } 100% { transform: scale(1.9); opacity: 0; } }
+@keyframes pp-in { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
+@keyframes pp-check { from { stroke-dashoffset: 30; } to { stroke-dashoffset: 0; } }
+@keyframes pp-burst { 0% { transform: scale(.4); opacity: 0; } 40% { opacity: 1; } 100% { transform: scale(1.6); opacity: 0; } }
+.pp-bell { transform-origin: 50% 12%; animation: pp-ring 2.8s ease-in-out .5s infinite; }
+.pp-ripple { animation: pp-ripple 2.4s cubic-bezier(.2, .6, .3, 1) infinite; }
+.pp-in { animation: pp-in .5s var(--ease) both; }
+.pp-check { stroke-dasharray: 30; animation: pp-check .5s .15s ease-out both; }
+.pp-burst { animation: pp-burst .9s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .pp-bell, .pp-ripple, .pp-burst { animation: none; }
+  .pp-in, .pp-check { animation-duration: .01s; }
+}

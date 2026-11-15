@@ -5,7 +5,7 @@ import { Dialog } from "@base-ui/react/dialog";
 import { Bell, BellOff, BellRing, Cake, CheckCheck, CheckCircle2, ClipboardList, Clock, Loader2, ShieldCheck, Trash2, UserPlus, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { notify } from "./notify";
-import { sb } from "./supabase";
+import { adminFetch, sb } from "./supabase";
 import { disablePush, enablePush, getPushState, type PushState } from "./push";
 
 /* The notification panel of the admin area: a bell with an unread count, and a side panel listing everything sent to you.
@@ -117,7 +117,23 @@ export function BellButton({ api, className = "" }: { api: NotificationsApi; cla
 function PushControl() {
   const [state, setState] = useState<PushState | null>(null);
   const [busy, setBusy] = useState(false);
+  const [testing, setTesting] = useState(false);
   useEffect(() => { getPushState().then(setState); }, []);
+
+  /** Sends a real push to your own devices and shows what the server saw, so a problem is visible instead of guessed. */
+  async function sendTest() {
+    setTesting(true);
+    try {
+      const r = await adminFetch<{ configured: boolean; devices: number; sent: number; failed: number; errors: string[] }>("/api/admin/push-test", { method: "POST" });
+      if (!r.configured) notify.error("The server can't send push yet", { description: "FIREBASE_SERVICE_ACCOUNT is missing or invalid on the server." });
+      else if (r.devices === 0) notify.error("No device is saved for you", { description: "Turn notifications off and on again on this device." });
+      else if (r.sent > 0) notify.created("Test sent", { description: `Delivered to Firebase for ${r.sent} ${r.sent === 1 ? "device" : "devices"}. If nothing appears, check this computer's notification settings.` });
+      else notify.error("Firebase refused the test", { description: r.errors[0] || "Unknown error." });
+    } catch {
+      notify.error("Couldn't send the test.");
+    }
+    setTesting(false);
+  }
 
   async function toggle() {
     setBusy(true);
@@ -147,6 +163,11 @@ function PushControl() {
         {state === "on" ? <BellRing className="h-4 w-4" aria-hidden="true" /> : <BellOff className="h-4 w-4" aria-hidden="true" />}
       </span>
       <p className="min-w-0 flex-1 text-xs leading-relaxed text-slate-400">{copy[state]}</p>
+      {state === "on" && (
+        <button type="button" onClick={sendTest} disabled={testing || busy} className="btn btn-ghost btn-sm shrink-0 disabled:opacity-60">
+          {testing && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}Test
+        </button>
+      )}
       {can && (
         <button type="button" onClick={toggle} disabled={busy} className={`btn btn-sm shrink-0 disabled:opacity-60 ${state === "on" ? "btn-ghost" : "btn-primary"}`}>
           {busy && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}{state === "on" ? "Turn off" : "Turn on"}

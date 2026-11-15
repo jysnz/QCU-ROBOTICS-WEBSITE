@@ -512,3 +512,7 @@ body.flying .topbar .logo{opacity:0;animation:show-failsafe 0s 7s forwards}
 /* short screens: the last step drops its sub-heading so the check + buttons stay in view */
 @media (max-height:740px){ .step[data-step="4"] .step-sub{display:none} }
 @media (max-width:979px) and (max-height:800px){ .step[data-step="4"] .step-sub{display:none} }
+
+/* the Continue button shakes when the page still has an error */
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-7px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(3px)}}
+.shake{animation:shake .4s ease both}
