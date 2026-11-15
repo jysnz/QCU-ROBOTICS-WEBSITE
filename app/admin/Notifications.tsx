@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Dialog } from "@base-ui/react/dialog";
-import { Bell, BellOff, BellRing, Cake, CheckCheck, CheckCircle2, ClipboardList, Clock, Loader2, ShieldCheck, Trash2, UserPlus, X } from "lucide-react";
+import { Bell, BellOff, BellRing, Cake, CheckCheck, ChevronDown, CheckCircle2, ClipboardList, Clock, Loader2, ShieldCheck, Trash2, UserPlus, X } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { notify } from "./notify";
 import { adminFetch, sb } from "./supabase";
@@ -85,6 +85,11 @@ export function useNotifications() {
     setItems((prev) => prev.filter((n) => n.id !== id));
     await table().delete().eq("id", id);
   }
+  async function removeMany(ids: string[]) {
+    if (!ids.length) return;
+    setItems((prev) => prev.filter((n) => !ids.includes(n.id)));
+    await table().delete().in("id", ids);
+  }
   async function clearRead() {
     const ids = items.filter((n) => n.read_at).map((n) => n.id);
     if (!ids.length) return;
@@ -92,7 +97,7 @@ export function useNotifications() {
     await table().delete().in("id", ids);
   }
 
-  return { items, unread, loaded, open, setOpen, markRead, remove, clearRead, reload: load };
+  return { items, unread, loaded, open, setOpen, markRead, remove, removeMany, clearRead, reload: load };
 }
 export type NotificationsApi = ReturnType<typeof useNotifications>;
 
@@ -207,7 +212,23 @@ export function NotifyMe() {
 /** The side panel. `onNavigate` receives the section id of a "/admin#section" link. */
 export function NotificationPanel({ api, onNavigate }: { api: NotificationsApi; onNavigate: (id: string) => void }) {
   const [tab, setTab] = useState<"all" | "unread">("all");
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
   const shown = useMemo(() => (tab === "unread" ? api.items.filter((n) => !n.read_at) : api.items), [api.items, tab]);
+  // "The same" = same type and same heading (e.g. several "New registration to review"). Different headings, like each task or birthday, stay separate.
+  const groups = useMemo(() => {
+    const m = new Map<string, Note[]>();
+    for (const n of shown) { const k = `${n.type}\u0000${n.title}`; const g = m.get(k); if (g) g.push(n); else m.set(k, [n]); }
+    return [...m.entries()].map(([key, items]) => ({ key, items, latest: items[0], unread: items.filter((x) => !x.read_at).length })); // items are newest first
+  }, [shown]);
+  const toggleGroup = (k: string) => setOpenGroups((o) => { const n = new Set(o); if (!n.delete(k)) n.add(k); return n; });
+
+  function openGroup(g: { items: Note[]; latest: Note }) {
+    api.markRead(g.items.filter((x) => !x.read_at).map((x) => x.id));
+    api.setOpen(false);
+    const hash = g.latest.link?.split("#")[1];
+    if (hash) onNavigate(hash);
+    else if (g.latest.link && g.latest.link !== "/admin") window.location.assign(g.latest.link);
+  }
 
   function openNote(n: Note) {
     api.markRead([n.id]);
@@ -256,22 +277,53 @@ export function NotificationPanel({ api, onNavigate }: { api: NotificationsApi; 
                 </div>
               ) : (
                 <ul className="space-y-1">
-                  {shown.map((n) => {
-                    const k = KIND[n.type] ?? { icon: Bell, tone: "bg-slate-800 text-slate-300" };
+                  {groups.map((g) => {
+                    const k = KIND[g.latest.type] ?? { icon: Bell, tone: "bg-slate-800 text-slate-300" };
                     const Icon = k.icon;
-                    const unread = !n.read_at;
+                    const many = g.items.length > 1;
+                    const expanded = many && openGroups.has(g.key);
+                    const unread = g.unread > 0;
                     return (
-                      <li key={n.id} className="group relative">
-                        <button type="button" onClick={() => openNote(n)} className={`flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition-colors ${unread ? "bg-accent/[.05] hover:bg-accent/[.09]" : "hover:bg-slate-900"}`}>
+                      <li key={g.key} className="group relative">
+                        <button type="button" onClick={() => openGroup(g)} className={`flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition-colors ${unread ? "bg-accent/[.05] hover:bg-accent/[.09]" : "hover:bg-slate-900"}`}>
                           <span className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-full ${k.tone}`}><Icon className="h-4 w-4" aria-hidden="true" /></span>
-                          <span className="min-w-0 flex-1 pr-6">
-                            <span className={`block text-sm ${unread ? "font-semibold text-white" : "font-medium text-slate-300"}`}>{n.title}</span>
-                            {n.body && <span className="mt-0.5 block text-sm leading-snug text-slate-400">{n.body}</span>}
-                            <span className="mt-1 block font-mono text-[.68rem] text-slate-500" title={new Date(n.created_at).toLocaleString()}>{ago(n.created_at)}</span>
+                          <span className="min-w-0 flex-1 pr-14">
+                            <span className={`flex items-center gap-2 text-sm ${unread ? "font-semibold text-white" : "font-medium text-slate-300"}`}>
+                              <span className="min-w-0 truncate">{g.latest.title}</span>
+                              {many && <span className="shrink-0 rounded-full border border-slate-600 px-1.5 py-0.5 font-mono text-[.62rem] leading-none text-slate-300" title={`${g.items.length} notifications`}>×{g.items.length}</span>}
+                            </span>
+                            {g.latest.body && <span className="mt-0.5 block text-sm leading-snug text-slate-400">{g.latest.body}{many && <span className="text-slate-500"> · and {g.items.length - 1} more</span>}</span>}
+                            <span className="mt-1 block font-mono text-[.68rem] text-slate-500" title={new Date(g.latest.created_at).toLocaleString()}>{ago(g.latest.created_at)}{many && unread && ` · ${g.unread} unread`}</span>
                           </span>
                           {unread && <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-accent" aria-label="Unread" />}
                         </button>
-                        <button type="button" onClick={() => api.remove(n.id)} aria-label="Delete notification" className="absolute right-2 top-2 grid h-7 w-7 place-items-center rounded-md text-slate-500 opacity-0 transition-[opacity,background-color,color] hover:bg-slate-800 hover:text-[#f87171] focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"><X className="h-3.5 w-3.5" aria-hidden="true" /></button>
+                        <span className="absolute right-2 top-2 flex items-center gap-0.5">
+                          {many && (
+                            <button type="button" onClick={() => toggleGroup(g.key)} aria-expanded={expanded} aria-label={expanded ? "Hide the grouped notifications" : `Show all ${g.items.length}`} className="grid h-7 w-7 place-items-center rounded-md text-slate-400 transition-colors hover:bg-slate-800 hover:text-white">
+                              <ChevronDown className={`h-4 w-4 transition-transform duration-300 ease-out-quint ${expanded ? "rotate-180" : ""}`} aria-hidden="true" />
+                            </button>
+                          )}
+                          <button type="button" onClick={() => api.removeMany(g.items.map((x) => x.id))} aria-label={many ? `Delete all ${g.items.length}` : "Delete notification"} className="grid h-7 w-7 place-items-center rounded-md text-slate-500 opacity-0 transition-[opacity,background-color,color] hover:bg-slate-800 hover:text-[#f87171] focus-visible:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"><X className="h-3.5 w-3.5" aria-hidden="true" /></button>
+                        </span>
+
+                        {many && (
+                          <div className={`grid transition-[grid-template-rows] duration-300 ease-out-quint ${expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`} inert={!expanded}>
+                            <ul className="min-h-0 overflow-hidden">
+                              {g.items.map((n) => (
+                                <li key={n.id} className="group/item relative ml-9 border-l border-slate-800 pl-3">
+                                  <button type="button" onClick={() => openNote(n)} className="flex w-full items-start gap-2 rounded-lg px-2 py-2 text-left transition-colors hover:bg-slate-900">
+                                    <span className="min-w-0 flex-1 pr-6">
+                                      <span className={`block text-[.82rem] leading-snug ${n.read_at ? "text-slate-400" : "font-medium text-slate-200"}`}>{n.body || n.title}</span>
+                                      <span className="mt-0.5 block font-mono text-[.66rem] text-slate-500" title={new Date(n.created_at).toLocaleString()}>{ago(n.created_at)}</span>
+                                    </span>
+                                    {!n.read_at && <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-accent" aria-label="Unread" />}
+                                  </button>
+                                  <button type="button" onClick={() => api.remove(n.id)} aria-label="Delete this one" className="absolute right-1 top-1.5 grid h-6 w-6 place-items-center rounded-md text-slate-500 opacity-0 transition-[opacity,background-color,color] hover:bg-slate-800 hover:text-[#f87171] focus-visible:opacity-100 group-hover/item:opacity-100 [@media(hover:none)]:opacity-100"><X className="h-3 w-3" aria-hidden="true" /></button>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </li>
                     );
                   })}

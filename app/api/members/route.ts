@@ -4,6 +4,7 @@ import crypto from "node:crypto";
 import { makeTicket, r2Enabled } from "../_r2";
 import { deleteKeys, mediaReady, putBytes } from "../_media";
 import { approvedAccountIds, notifyUsers } from "../_notify";
+import { findTaken, normalizePhone, TAKEN_MESSAGE, type Taken } from "./_dupes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -156,6 +157,7 @@ async function handle(req: NextRequest, ip: string): Promise<NextResponse> {
     gender: str(b.gender, 20),
     email: str(b.email, 120).toLowerCase(),
     studentId: str(b.studentId, 20),
+    phone: str(b.phone, 24),
     hobbies: list(b.hobbies),
     likes: list(b.likes),
     about: str(b.about, 240),
@@ -166,6 +168,9 @@ async function handle(req: NextRequest, ip: string): Promise<NextResponse> {
   if (!GENDERS.includes(m.gender)) return json({ error: "Please select your gender." }, 400);
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(m.email)) return json({ error: "Please enter a valid email address." }, 400);
   if (!/^[A-Za-z0-9][A-Za-z0-9-]{3,19}$/.test(m.studentId)) return json({ error: "Please enter a valid student ID.", field: "studentId" }, 400);
+  // Philippine mobile number: 09XXXXXXXXX, 639XXXXXXXXX or +639XXXXXXXXX (spaces, dashes and brackets are ignored). Saved as 09XXXXXXXXX.
+  const phone = normalizePhone(m.phone);
+  if (!phone) return json({ error: "Please enter a valid mobile number, like 0917 123 4567.", field: "phone" }, 400);
   if (!m.firstName || !m.lastName || !PROGRAMS.includes(m.program) || !m.section || !YEARS.includes(m.year))
     return json({ error: "Please complete all required fields." }, 400);
   if (!m.hobbies.length || !m.likes.length) return json({ error: "Choose at least one hobby and one like." }, 400);
@@ -192,7 +197,10 @@ async function handle(req: NextRequest, ip: string): Promise<NextResponse> {
   if (human.unavailable) return json({ error: "We couldn't run the human check. Please try again.", code: "captcha" }, 503);
   if (!human.ok) return json({ error: "The human check didn't pass. Please try again.", code: "captcha" }, 400);
 
-  const duplicate = () => json({ error: "This student ID is already registered.", field: "studentId" }, 409);
+  const duplicate = (t: Taken) => {
+    const fields = (["email", "phone", "studentId"] as const).filter((f) => t[f]);
+    return json({ error: TAKEN_MESSAGE[fields[0]], field: fields[0], fields, messages: Object.fromEntries(fields.map((f) => [f, TAKEN_MESSAGE[f]])) }, 409);
+  };
   const id = crypto.randomUUID();
   const folder = `registrations/${id}`;
   const paths: string[] = [];
@@ -205,14 +213,9 @@ async function handle(req: NextRequest, ip: string): Promise<NextResponse> {
   };
 
   try {
-    // A student ID is taken only by a registration that is still alive: one in the 30-day rejected archive doesn't count,
-    // so someone who was rejected can register again with their own ID.
-    const { data: dup, error: dupErr } = await sb.schema("website").from("members").select("id, registration_status")
-      .ilike("student_id", m.studentId.replace(/[\\%_]/g, (c) => "\\" + c))
-      .or("registration_status.is.null,registration_status.neq.rejected")
-      .limit(1);
-    if (dupErr) throw new Error("database: " + dupErr.message);
-    if (dup && dup.length) { console.warn("Registration refused: student ID already used by member", dup[0].id, dup[0].registration_status ?? "legacy"); return duplicate(); }
+    // Email, mobile number and student ID can each belong to only one live registration (one in the 30-day rejected archive doesn't count).
+    const taken = await findTaken({ email: m.email, phone, studentId: m.studentId });
+    if (taken.email || taken.phone || taken.studentId) { console.warn("Registration refused: already used ->", Object.entries(taken).filter(([, v]) => v).map(([k]) => k).join(", ")); return duplicate(taken); }
 
     const jobs = imgs.map((img, i) => ({ path: `${folder}/${i + 1}.${img.ext}`, img }));
     if (thumb && !useR2) jobs.push({ path: `${folder}/thumb.jpg`, img: thumb });
@@ -240,6 +243,7 @@ async function handle(req: NextRequest, ip: string): Promise<NextResponse> {
       birthday: m.birthday,
       email: m.email,
       student_id: m.studentId,
+      phone,
       program: m.program,
       year_level: m.year,
       section: m.section,
@@ -255,7 +259,10 @@ async function handle(req: NextRequest, ip: string): Promise<NextResponse> {
     }).select("id").single();
     if (error) {
       await cleanup();
-      if (error.code === "23505" && /student_id/i.test(error.message)) return duplicate(); // only the student-ID rule means "already registered"
+      if (error.code === "23505") { // two people sent the same value at the same moment: the database rule decides
+        const t: Taken = { email: /members_email_unique/i.test(error.message), phone: /members_phone_unique/i.test(error.message), studentId: /members_student_id_unique|student_id/i.test(error.message) };
+        if (t.email || t.phone || t.studentId) return duplicate(t);
+      }
       throw new Error("database: " + error.message);
     }
     // Tell every admin there is a new registration to review (never blocks or fails the sign-up).

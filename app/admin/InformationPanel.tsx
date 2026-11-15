@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Dialog } from "@base-ui/react/dialog";
 import NumberFlow from "@number-flow/react";
-import { BookUser, ChevronLeft, ChevronRight, Download, ImageOff, Images, LayoutGrid, List, Loader2, Search, X } from "lucide-react";
+import { BookUser, ChevronLeft, ChevronRight, Copy, Download, ImageOff, Images, LayoutGrid, List, Loader2, Search, X } from "lucide-react";
 import Dropdown from "../components/Dropdown";
 import { notify } from "./notify";
 import { adminFetch } from "./supabase";
@@ -16,6 +16,7 @@ type Person = {
   gender: string | null;
   birthday: string | null;
   email: string | null;
+  phone: string | null;
   student_id: string | null;
   program: string | null;
   year_level: string | null;
@@ -53,6 +54,19 @@ async function savePhoto(url: string, base: string) {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(obj), 10_000);
+}
+/** Copies text to the clipboard (with a fallback for browsers that block the clipboard API) and says so. */
+async function copyText(text: string) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const t = document.createElement("textarea");
+    t.value = text; t.setAttribute("readonly", ""); t.style.position = "fixed"; t.style.opacity = "0";
+    document.body.appendChild(t); t.select();
+    try { document.execCommand("copy"); } catch { notify.error("Couldn't copy the number."); document.body.removeChild(t); return; }
+    document.body.removeChild(t);
+  }
+  notify.info("Copied", { description: text });
 }
 const fileBase = (name: string) => name.trim().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "").toLowerCase() || "photo";
 const initials = (n: string) => { const p = n.trim().split(/\s+/); return ((p[0]?.[0] ?? "") + (p.length > 1 ? p[p.length - 1][0] : "")).toUpperCase() || "?"; };
@@ -349,6 +363,7 @@ function PersonDialog({ person, onClose }: { person: Person | null; onClose: () 
                     ["Gender", person?.gender, false],
                     ["Birthday", person?.birthday ? `${new Date(person.birthday).toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" })}${age(person.birthday) !== null ? ` (${age(person.birthday)})` : ""}` : null, false],
                     ["Email", person?.email, true],
+                    ["Mobile number", person?.phone, false],
                     ["Student ID", person?.student_id, false],
                     ["Year level", person?.year_level, false],
                     ["Program", person?.program, true],
@@ -357,7 +372,17 @@ function PersonDialog({ person, onClose }: { person: Person | null; onClose: () 
                   ] as [string, string | null | undefined, boolean][]).map(([k, v, wide]) => (
                     <div key={k} className={wide ? "col-span-2" : ""}>
                       <dt className="font-mono text-[.64rem] uppercase tracking-[.14em] text-slate-500">{k}</dt>
-                      <dd className={`mt-0.5 break-words ${v ? "text-slate-200" : "text-slate-600"}`}>{v || "Not provided"}</dd>
+                      {k === "Mobile number" && v ? (
+                        // tap the number to copy it
+                        <dd className="mt-0.5">
+                          <button type="button" onClick={() => copyText(v)} title="Tap to copy" aria-label={`Copy ${v}`} className="group -mx-1.5 inline-flex items-center gap-2 rounded-lg px-1.5 py-0.5 text-left text-slate-200 transition-colors hover:bg-slate-800 hover:text-white">
+                            <span className="tabular-nums">{v}</span>
+                            <Copy className="h-3.5 w-3.5 text-slate-500 transition-colors group-hover:text-accent" aria-hidden="true" />
+                          </button>
+                        </dd>
+                      ) : (
+                        <dd className={`mt-0.5 break-words ${v ? "text-slate-200" : "text-slate-600"}`}>{v || "Not provided"}</dd>
+                      )}
                     </div>
                   ))}
                 </dl>

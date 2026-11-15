@@ -22,6 +22,7 @@
   const val = (id) => $("#" + id).value.trim();
   const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
   const ID_RE = /^[A-Za-z0-9][A-Za-z0-9-]{3,19}$/;
+  const PHONE_RE = /^(?:\+?63|0)9\d{9}$/; // Philippine mobile: 09XXXXXXXXX or +639XXXXXXXXX
   const genderVal = () => ($('input[name="gender"]:checked') || {}).value || "";
   const yearVal = () => ($('input[name="year"]:checked') || {}).value || "";
 
@@ -443,7 +444,12 @@
   slotsEl.addEventListener("drop", (e) => addFiles(e.dataTransfer.files));
 
   /* ---------- validation ---------- */
-  const takenIds = new Set(); // student IDs the server already refused, so the page keeps its error until a different ID is typed
+  /* Values the server already said are registered. The page keeps its error, and won't continue, until a different value is typed. */
+  const taken = { email: new Set(), phone: new Set(), studentId: new Set() };
+  const TAKEN_MSG = { email: "This email is already registered.", phone: "This mobile number is already registered.", studentId: "This student ID is already registered." };
+  const normPhone = (v) => { const m = /^(?:\+?63|0)(9\d{9})$/.exec(v.replace(/[\s\-().]/g, "")); return m ? "0" + m[1] : v; };
+  const keyOf = { email: () => val("email").toLowerCase(), phone: () => normPhone(val("phone")), studentId: () => val("studentId").toLowerCase() };
+  const takenText = (f) => TAKEN_MSG[f] + " Use a different one.";
   const setErr = (id, msg) => {
     const e = $("#" + id + "-err"); if (!e) return;
     e.textContent = msg || "";
@@ -463,12 +469,17 @@
       else setErr("birthday", "");
       if (!val("email")) { setErr("email", "Please enter your email."); ok = false; first ||= $("#email"); }
       else if (!EMAIL_RE.test(val("email"))) { setErr("email", "Enter a valid email address."); ok = false; first ||= $("#email"); }
+      else if (taken.email.has(keyOf.email())) { setErr("email", takenText("email")); ok = false; first ||= $("#email"); }
       else setErr("email", "");
+      if (!val("phone")) { setErr("phone", "Please enter your mobile number."); ok = false; first ||= $("#phone"); }
+      else if (!PHONE_RE.test(val("phone").replace(/[\s\-().]/g, ""))) { setErr("phone", "Enter a valid mobile number, like 0917 123 4567."); ok = false; first ||= $("#phone"); }
+      else if (taken.phone.has(keyOf.phone())) { setErr("phone", takenText("phone")); ok = false; first ||= $("#phone"); }
+      else setErr("phone", "");
     }
     if (step === 2) {
       if (!val("studentId")) { setErr("studentId", "Please enter your student ID."); ok = false; first ||= $("#studentId"); }
       else if (!ID_RE.test(val("studentId"))) { setErr("studentId", "Use 4 to 20 letters, numbers or dashes."); ok = false; first ||= $("#studentId"); }
-      else if (takenIds.has(val("studentId").toLowerCase())) { setErr("studentId", "This student ID is already registered. Check it, or use a different one."); ok = false; first ||= $("#studentId"); }
+      else if (taken.studentId.has(keyOf.studentId())) { setErr("studentId", takenText("studentId")); ok = false; first ||= $("#studentId"); }
       else setErr("studentId", "");
       need("program", "Please select your program.");
       if (!yearVal()) { setErr("year", "Pick your year level."); ok = false; first ||= $('input[name="year"]'); } else setErr("year", "");
@@ -508,13 +519,41 @@
     show("flow"); go(1);
   });
   $("#backBtn").addEventListener("click", () => (state.step === 1 ? show("welcome") : go(state.step - 1)));
-  $("#flow").addEventListener("submit", (e) => {
-    e.preventDefault();
-    if (!validate(state.step)) {
-      const btn = $("#nextBtn");
-      btn.classList.remove("shake"); void btn.offsetWidth; btn.classList.add("shake"); // small shake: "not yet"
-      return;
+  const shakeNext = () => { const b = $("#nextBtn"); b.classList.remove("shake"); void b.offsetWidth; b.classList.add("shake"); }; // small shake: "not yet"
+
+  /* Asks the server whether the email / mobile number (page 1) or student ID (page 2) is already registered, so the person
+     finds out now and not after filling in all five pages. If the check can't run, the final submit still checks again. */
+  let checking = false;
+  async function alreadyRegistered(step) {
+    if (checking) return true;
+    checking = true;
+    const btn = $("#nextBtn"), label = btn.textContent;
+    btn.disabled = true; btn.textContent = "Checking...";
+    try {
+      const body = step === 1 ? { email: val("email").toLowerCase(), phone: val("phone") } : { studentId: val("studentId") };
+      const r = await fetch("/api/members/check", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) return false;
+      const t = (await r.json()).taken || {};
+      let first = null;
+      for (const f of ["email", "phone", "studentId"]) {
+        if (!t[f]) continue;
+        taken[f].add(keyOf[f]());
+        setErr(f, takenText(f));
+        first ||= $("#" + f);
+      }
+      if (first) { first.focus(); shakeNext(); return true; }
+      return false;
+    } catch (_) {
+      return false;
+    } finally {
+      checking = false; btn.disabled = false; btn.textContent = label;
     }
+  }
+
+  $("#flow").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!validate(state.step)) { shakeNext(); return; }
+    if ((state.step === 1 || state.step === 2) && (await alreadyRegistered(state.step))) return;
     if (state.step < TOTAL) go(state.step + 1); else submitWithCheck();
   });
   $$("#flow input, #flow textarea, #flow select").forEach((i) => i.addEventListener("input", () => {
@@ -649,7 +688,6 @@
     } catch (_) { /* the registration itself is already saved */ }
   }
 
-  const r409 = (e) => e.status === 409;
   let sending = false;
   async function finish() {
     if (sending) return; // Enter pressed or the check finishing while a submit is already running would send it twice
@@ -658,7 +696,7 @@
     btn.disabled = true; btn.textContent = "Submitting...";
     const data = {
       firstName: val("firstName"), lastName: val("lastName"),
-      gender: genderVal(), birthday: val("birthday"), email: val("email").toLowerCase(),
+      gender: genderVal(), birthday: val("birthday"), email: val("email").toLowerCase(), phone: val("phone"),
       studentId: val("studentId"), program: val("program"), year: yearVal(), section: val("section"),
       roles: rolesList(),
       photos: state.photos, thumb: await makeThumb(state.photos[0]),
@@ -670,7 +708,7 @@
       const r = await fetch("/api/members", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) });
       if (r.status === 413) throw new Error("Your photos are too large to upload. Please choose smaller photos.");
       const j = await r.json().catch(() => ({}));
-      if (!r.ok) { const err = new Error(j.error || "Something went wrong."); err.field = j.field; err.code = j.code; err.status = r.status; throw err; }
+      if (!r.ok) { const err = new Error(j.error || "Something went wrong."); err.field = j.field; err.code = j.code; err.status = r.status; err.fields = j.fields; throw err; }
       ok = true;
       // The 800 px copies above are what the site uses. If full-resolution storage is set up, send the originals there too.
       if (j.upload && j.upload.ticket) await uploadOriginals(j.upload.ticket, btn);
@@ -678,10 +716,15 @@
       $("#stageCap").textContent = "Your member card";
       show("done");
     } catch (e) {
-      if (e.field === "studentId") {
-        if (r409(e)) takenIds.add(data.studentId.toLowerCase()); // can't continue past page 2 with this ID again
-        go(2); setErr("studentId", e.message); $("#studentId").focus();
+      const bad = e.status === 409 && Array.isArray(e.fields) ? e.fields.filter((f) => taken[f]) : [];
+      if (bad.length) {
+        bad.forEach((f) => taken[f].add(keyOf[f]())); // can't continue past these pages with the same values again
+        go(bad.includes("email") || bad.includes("phone") ? 1 : 2);
+        bad.forEach((f) => setErr(f, takenText(f)));
+        $("#" + (bad.includes("email") ? "email" : bad.includes("phone") ? "phone" : "studentId")).focus();
       }
+      else if (e.field === "studentId") { go(2); setErr("studentId", e.message); $("#studentId").focus(); }
+      else if (e.field === "phone") { go(1); setErr("phone", e.message); $("#phone").focus(); }
       else setErr("interests", e.message === "Failed to fetch" ? "Can't reach the server. Check your connection and try again." : e.message);
     } finally {
       sending = false;

@@ -16,7 +16,8 @@ self.addEventListener("push", (event) => {
       body: d.body || "",
       icon: "/logo-96.png",
       badge: "/logo-96.png",
-      tag: d.type ? `${d.type}:${title}` : undefined,
+      tag: d.type ? `${d.type}:${title}` : undefined, // same heading = one pop-up on the device, not a pile
+      renotify: !!d.type,                              // ...but it still alerts again for the newer one
       data: { link: d.link || "/admin" },
     });
   })());

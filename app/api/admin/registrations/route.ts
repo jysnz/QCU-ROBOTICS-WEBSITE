@@ -11,7 +11,7 @@ export const dynamic = "force-dynamic";
    is the only way to see or decide them. Approve = visible on the site; reject = moved to the archive for 30 days, then deleted with its photos. */
 const BUCKET = "member-pictures";
 const COLUMNS =
-  "id, name, first_name, last_name, gender, birthday, email, student_id, program, year_level, section, hobbies, likes, about, photo_paths, registration_status, role, roles, is_accepted, submitted_at, photo_store, rejected_at";
+  "id, name, first_name, last_name, gender, birthday, email, phone, student_id, program, year_level, section, hobbies, likes, about, photo_paths, registration_status, role, roles, is_accepted, submitted_at, photo_store, rejected_at";
 const ARCHIVE_DAYS = 30;
 
 export async function GET(req: NextRequest) {
