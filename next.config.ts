@@ -121,7 +121,7 @@ const nextConfig: NextConfig = {
               "media-src 'self' https: blob:",
               "worker-src 'self' blob:",
               "font-src 'self' data:",
-              "connect-src 'self' https:",
+              "connect-src 'self' https: wss://*.supabase.co",
               "form-action 'self'",
             ].join('; '),
           },

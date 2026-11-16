@@ -291,8 +291,7 @@ html.intro .hold, html.intro .hold * { animation-play-state: paused !important; 
 @media (max-width: 767px) {
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
   select,
-  textarea { font-size: 16px; }
-  /* the typed text stays 16px (that is what stops the iOS zoom), but the hint text can be smaller so it is not oversized */
+  textarea { font-size: 14px; }
   input::placeholder, textarea::placeholder { font-size: .875rem; }
   .btn-sm { min-height: 44px; }
 }

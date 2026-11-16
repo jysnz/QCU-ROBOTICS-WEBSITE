@@ -94,7 +94,7 @@ function OverviewCard({ me, goTo }: { me: Me; goTo: (t: Tab) => void }) {
       <div className={`${card} flex flex-col items-center gap-5 text-center sm:flex-row sm:text-left`}>
         <Avatar account={me.account} size={84} />
         <div className="min-w-0 flex-1">
-          <p className="truncate font-display text-2xl font-semibold text-white">{me.account.full_name || "No name set"}</p>
+          <p className="truncate font-display text-lg sm:text-2xl font-semibold text-white">{me.account.full_name || "No name set"}</p>
           <p className="truncate text-sm text-slate-400">{me.account.email}</p>
           <div className="mt-3 flex justify-center sm:justify-start"><Chips me={me} /></div>
         </div>
@@ -107,10 +107,10 @@ function OverviewCard({ me, goTo }: { me: Me; goTo: (t: Tab) => void }) {
               <circle cx="40" cy="40" r="34" fill="none" strokeWidth="6" className="stroke-slate-800" />
               <circle cx="40" cy="40" r="34" fill="none" strokeWidth="6" strokeLinecap="round" className={pct === 100 ? "stroke-accent" : "stroke-[#fbbf24]"} strokeDasharray={C} strokeDashoffset={drawn ? C * (1 - pct / 100) : C} style={{ transition: "stroke-dashoffset 1s var(--ease), stroke .3s" }} />
             </svg>
-            <span className="font-display text-lg font-bold tabular-nums text-white">{pct}%</span>
+            <span className="font-display text-base sm:text-lg font-bold tabular-nums text-white">{pct}%</span>
           </span>
           <div className="min-w-0">
-            <h2 className="font-display text-lg font-semibold text-white">{pct === 100 ? "Your account is all set" : "Finish setting up your account"}</h2>
+            <h2 className="font-display text-base sm:text-lg font-semibold text-white">{pct === 100 ? "Your account is all set" : "Finish setting up your account"}</h2>
             <p className="mt-0.5 text-sm text-slate-400">{done} of {items.length} done. {pct === 100 ? "Nice work." : "A few quick steps keep you secure and in the loop."}</p>
           </div>
         </div>
@@ -164,7 +164,7 @@ function ProfileCard({ me, onSaved, goEmail }: { me: Me; onSaved: (name: string)
       <div className="flex items-center gap-4">
         <Avatar account={me.account} size={64} />
         <div className="min-w-0">
-          <h2 className="font-display text-lg font-semibold text-white">Your information</h2>
+          <h2 className="font-display text-base sm:text-lg font-semibold text-white">Your information</h2>
           <p className="text-sm text-slate-400">{me.account.avatar_url ? "Your picture comes from your Google account." : "This is how you appear to other admins."}</p>
         </div>
       </div>
@@ -251,7 +251,7 @@ function EmailCard({ me, onChanged }: { me: Me; onChanged: (email: string) => vo
 
   return (
     <div className={card}>
-      <h2 className="font-display text-lg font-semibold text-white">Email address</h2>
+      <h2 className="font-display text-base sm:text-lg font-semibold text-white">Email address</h2>
       <p className="mt-0.5 text-sm text-slate-400">Your current email is <span className="text-white">{me.account.email}</span>.</p>
 
       <div key={step} className="step-in mt-5">
@@ -281,7 +281,7 @@ function EmailCard({ me, onChanged }: { me: Me; onChanged: (email: string) => vo
         {step === "done" && (
           <div className="py-3 text-center">
             <SuccessMark />
-            <p className="mt-4 font-display text-lg font-semibold text-white">Email updated</p>
+            <p className="mt-4 font-display text-base sm:text-lg font-semibold text-white">Email updated</p>
             <p className="mt-1 text-sm text-slate-400">Sign in with <span className="text-white">{doneEmail}</span> from now on. We also let your old address know.</p>
             <button type="button" onClick={() => { setStep("form"); setNext(""); }} className="btn btn-ghost mt-5">Done</button>
           </div>
@@ -339,7 +339,7 @@ function NotificationsCard() {
             {on ? <BellRing className="h-6 w-6" style={{ animation: "pp-ring 2.8s ease-in-out .5s infinite", transformOrigin: "50% 12%" }} aria-hidden="true" /> : <BellOff className="h-6 w-6" aria-hidden="true" />}
           </span>
           <div className="min-w-0 flex-1">
-            <h2 className="font-display text-lg font-semibold text-white">Push notifications</h2>
+            <h2 className="font-display text-base sm:text-lg font-semibold text-white">Push notifications</h2>
             <p className="mt-0.5 text-sm leading-relaxed text-slate-400">{on ? "On for this device. You'll be alerted even when the site is closed." : "Get alerted on this device, even when the site is closed."}</p>
           </div>
           <Switch.Root checked={on} disabled={state === null || blocked || busy} onCheckedChange={toggle} aria-label="Push notifications on this device" className="relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full border border-slate-600 bg-slate-800 outline-none transition-colors duration-200 focus-visible:shadow-[0_0_0_3px_rgba(200,245,96,.25)] data-[checked]:border-accent data-[checked]:bg-accent disabled:cursor-not-allowed disabled:opacity-50">
@@ -393,7 +393,7 @@ function SessionsCard({ onSignOut }: { onSignOut: () => void }) {
           <Dialog.Viewport className="fixed inset-0 z-50 grid place-items-center overflow-clip p-4">
             <Dialog.Popup className="w-full max-w-sm rounded-2xl border border-slate-600 bg-slate-900 p-6 text-center outline-none transition-[opacity,transform] duration-200 ease-out-quint data-[starting-style]:scale-[.96] data-[starting-style]:opacity-0 data-[ending-style]:scale-[.97] data-[ending-style]:opacity-0">
               <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[#ef4444]/10 text-[#f87171]"><Smartphone className="h-5 w-5" aria-hidden="true" /></span>
-              <Dialog.Title className="mt-4 font-display text-xl font-semibold text-white">Sign out of all devices?</Dialog.Title>
+              <Dialog.Title className="mt-4 font-display text-lg sm:text-xl font-semibold text-white">Sign out of all devices?</Dialog.Title>
               <Dialog.Description className="mt-2 text-sm text-slate-400">Everywhere you&rsquo;re signed in will be signed out, including this one. You&rsquo;ll sign in again to continue.</Dialog.Description>
               <div className="mt-6 flex justify-center gap-3">
                 <Dialog.Close disabled={busy} className="btn btn-ghost">Cancel</Dialog.Close>
@@ -443,7 +443,7 @@ function LegalCard({ kind }: { kind: "privacy" | "terms" }) {
       <div className={`${card} sm:p-8`}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h2 className="font-display text-2xl font-semibold text-white">{isPrivacy ? "Privacy Policy" : "Terms & Conditions"}</h2>
+            <h2 className="font-display text-xl sm:text-2xl font-semibold text-white">{isPrivacy ? "Privacy Policy" : "Terms & Conditions"}</h2>
             <p className="mt-1 text-xs text-slate-500">Last updated {LEGAL_UPDATED}</p>
           </div>
           <a href={isPrivacy ? "/privacy" : "/terms"} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm"><ExternalLink className="h-4 w-4" aria-hidden="true" /> Open public page</a>
@@ -486,7 +486,7 @@ function SignOutButton({ onSignOut, className = "" }: { onSignOut: () => void; c
           <Dialog.Viewport className="fixed inset-0 z-50 grid place-items-center overflow-clip p-4">
             <Dialog.Popup className="w-full max-w-sm rounded-2xl border border-slate-600 bg-slate-900 p-6 text-center outline-none transition-[opacity,transform] duration-200 ease-out-quint data-[starting-style]:scale-[.96] data-[starting-style]:opacity-0 data-[ending-style]:scale-[.97] data-[ending-style]:opacity-0">
               <span className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[#ef4444]/10 text-[#f87171]"><LogOut className="h-5 w-5" aria-hidden="true" /></span>
-              <Dialog.Title className="mt-4 font-display text-xl font-semibold text-white">Sign out?</Dialog.Title>
+              <Dialog.Title className="mt-4 font-display text-lg sm:text-xl font-semibold text-white">Sign out?</Dialog.Title>
               <Dialog.Description className="mt-2 text-sm text-slate-400">You&rsquo;ll need to sign in again to use the admin area.</Dialog.Description>
               <div className="mt-6 flex justify-center gap-3">
                 <Dialog.Close className="btn btn-ghost">Stay signed in</Dialog.Close>
@@ -537,13 +537,13 @@ export default function Settings({ onSignOut, onAccountChanged }: { onSignOut: (
     <section aria-labelledby="panel-title">
       <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 id="panel-title" className="flex items-center gap-3 font-display text-3xl font-bold tracking-[-0.03em] text-white"><UserCog className="h-7 w-7 text-accent" aria-hidden="true" /> Settings</h1>
+          <h1 id="panel-title" className="flex items-center gap-3 font-display text-2xl sm:text-3xl font-bold tracking-[-0.03em] text-white"><UserCog className="h-6 w-6 sm:h-7 sm:w-7 text-accent" aria-hidden="true" /> Settings</h1>
           <p className="mt-2 max-w-xl text-slate-400">Manage your profile, how you sign in, and read how your information is used.</p>
         </div>
         {me && <span className="tab-in inline-flex max-w-full items-center gap-2 truncate rounded-full border border-slate-700 bg-slate-900 px-3.5 py-1.5 text-xs text-slate-300"><span className="h-1.5 w-1.5 shrink-0 rounded-full bg-accent" aria-hidden="true" /><span className="truncate">Signed in as {me.account.email}</span></span>}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-8">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[16rem_minmax(0,1fr)] lg:gap-8">
         <nav aria-label="Settings sections" className="lg:sticky lg:top-8 lg:self-start">
           {/* phones: a scrolling row of pills */}
           <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] lg:mx-0 lg:hidden">
