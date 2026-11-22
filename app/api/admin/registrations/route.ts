@@ -2,7 +2,7 @@ import { type NextRequest } from "next/server";
 import { deleteOriginals, folderOf, r2Enabled } from "../../_r2";
 import { copyKey, deleteKeys, mediaReady, publicUrl, signMany } from "../../_media";
 import { json, requireAdmin, service } from "../_lib";
-import { approvedAccountIds, notifyUsers } from "../../_notify";
+import { notifyUsers } from "../../_notify";
 import { normalizePhone } from "../../members/_dupes";
 import { GENDERS, PROGRAMS, YEARS } from "../../../lib/registrationOptions";
 
@@ -157,8 +157,7 @@ export async function PATCH(req: NextRequest) {
     const { error } = await members.update(update).eq("id", id);
     if (error) return json({ error: "Couldn't approve that registration." }, 500);
     await syncMediaTeam().catch((e) => console.error("Media team sync failed:", (e as Error).message));
-    const { data: who } = await members.select("name").eq("id", id).maybeSingle();
-    await tellOtherAdmins(admin.userId, "registration_approved", "Registration approved", `${who?.name ?? "A registration"} was approved and now appears on the site.`, `reg-approved:${id}:${Date.now()}`);
+    await tellRegistrant(id, "registration_approved", "Your registration was approved", "Welcome to QCU Robotics! You now appear on the website.", `reg-approved:${id}`);
     return json({ ok: true });
   }
 
@@ -172,14 +171,18 @@ export async function PATCH(req: NextRequest) {
   const { data: rej, error } = await members.update({ registration_status: "rejected", is_accepted: false, rejected_at: new Date().toISOString() }).eq("id", id).eq("registration_status", "pending").select("name").maybeSingle();
   if (error) return json({ error: "Couldn't reject that registration." }, 500);
   await service!.from("notifications").delete().eq("dedupe_key", `reg:${id}`); // the "new registration" notice no longer has anything to review
-  await tellOtherAdmins(admin.userId, "registration_rejected", "Registration rejected", `${rej?.name ?? "A registration"} was rejected and moved to the archive.`, `reg-rejected:${id}:${Date.now()}`);
+  await tellRegistrant(id, "registration_rejected", "Your registration wasn't approved", "An admin reviewed your QCU Robotics registration and couldn't approve it.", `reg-rejected:${id}:${Date.now()}`);
   return json({ ok: true });
 }
 
-/* Saves an in-app notification (and pushes it) for every approved admin except the one who made the decision. */
-async function tellOtherAdmins(me: string, type: string, title: string, body: string, dedupe: string) {
-  const others = (await approvedAccountIds()).filter((x) => x !== me);
-  await notifyUsers(others, { type, title, body, link: "/admin#registrations", dedupe });
+/* Tells the person who registered (not the other admins) how their registration was decided. They get an in-app notification
+   (and a push if they turned it on) when they have an account here with the same email as the one they registered with. */
+async function tellRegistrant(memberId: number, type: string, title: string, body: string, dedupe: string) {
+  const { data: m } = await service!.schema("website").from("members").select("email").eq("id", memberId).maybeSingle();
+  const email = m?.email?.trim();
+  if (!email) return;
+  const { data: accts } = await service!.from("user_accounts").select("id").ilike("email", email.replace(/[\\%_]/g, (c) => "\\" + c)).limit(5);
+  await notifyUsers((accts ?? []).map((a: { id: string }) => a.id), { type, title, body, link: "/admin", dedupe });
 }
 
 /* The Media team page (and the Media team section of the site) lists website.media_team, which has nothing to do with the registration
