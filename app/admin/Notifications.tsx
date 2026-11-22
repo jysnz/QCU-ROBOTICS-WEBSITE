@@ -23,6 +23,9 @@ const KIND: Record<string, { icon: LucideIcon; tone: string }> = {
   task_late: { icon: Clock, tone: "bg-[#ef4444]/15 text-[#f87171]" },
   birthday: { icon: Cake, tone: "bg-pink-400/15 text-pink-300" },
   registration: { icon: UserPlus, tone: "bg-sky-400/15 text-sky-300" },
+  registration_approved: { icon: UserPlus, tone: "bg-accent/15 text-accent" },
+  registration_rejected: { icon: UserPlus, tone: "bg-[#ef4444]/15 text-[#f87171]" },
+  account_rejected: { icon: ShieldCheck, tone: "bg-[#ef4444]/15 text-[#f87171]" },
   access_request: { icon: ShieldCheck, tone: "bg-violet-400/15 text-violet-300" },
   account_approved: { icon: ShieldCheck, tone: "bg-accent/15 text-accent" },
 };

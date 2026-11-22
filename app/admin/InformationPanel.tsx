@@ -113,7 +113,7 @@ export default function InformationPanel() {
   const load = useCallback(async () => {
     try {
       const body = await adminFetch<{ registrations: Person[] }>("/api/admin/registrations");
-      setPeople(body.registrations);
+      setPeople(body.registrations.filter((p) => p.registration_status !== "rejected")); // rejected people live only in the Registrations archive
     } catch (e) {
       setError(e instanceof Error ? e.message : "Couldn't load the information.");
     }
