@@ -2,6 +2,7 @@ import { type NextRequest } from "next/server";
 import { deleteOriginals, folderOf, r2Enabled } from "../../_r2";
 import { copyKey, deleteKeys, mediaReady, publicUrl, signMany } from "../../_media";
 import { json, requireAdmin, service } from "../_lib";
+import { approvedAccountIds, notifyUsers } from "../../_notify";
 import { normalizePhone } from "../../members/_dupes";
 import { GENDERS, PROGRAMS, YEARS } from "../../../lib/registrationOptions";
 
@@ -74,54 +75,54 @@ export async function PATCH(req: NextRequest) {
 
   const members = service!.schema("website").from("members");
 
-  // Correct what a person entered on the registration form. Only the super admin and the media head may do this.
-  if (b.action === "edit") {
-    const { data: me } = await service!.schema("website").from("admin_roles").select("role").eq("user_id", admin.userId).maybeSingle();
-    if (!me || !["super_admin", "media_head"].includes(me.role)) return json({ error: "Only the super admin or the media head can edit a registration." }, 403);
-    const f = (b.fields && typeof b.fields === "object" ? b.fields : {}) as Record<string, unknown>;
-    const text = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
-    const { data: cur } = await members.select("name, gender, program, year_level, registration_status").eq("id", id).maybeSingle();
-    if (!cur || !["pending", "approved"].includes(cur.registration_status ?? "")) return json({ error: "That registration can't be edited any more." }, 404);
-
-    const first = text(f.first_name, 40), last = text(f.last_name, 40);
-    const gender = text(f.gender, 20), program = text(f.program, 80), year = text(f.year_level, 20), section = text(f.section, 20);
-    const birthday = text(f.birthday, 10), email = text(f.email, 120).toLowerCase(), studentId = text(f.student_id, 20), about = text(f.about, 240);
-    const phone = normalizePhone(text(f.phone, 24));
-    if (!first || !last) return json({ error: "Enter the first and last name.", field: "first_name" }, 400);
-    // a value the person originally chose stays acceptable even if the list changed since; anything new must be on the list
-    if (!GENDERS.includes(gender) && gender !== cur.gender) return json({ error: "Choose a gender from the list.", field: "gender" }, 400);
-    if (!PROGRAMS.includes(program) && program !== cur.program) return json({ error: "Choose a program from the list.", field: "program" }, 400);
-    if (!YEARS.includes(year) && year !== cur.year_level) return json({ error: "Choose a year level from the list.", field: "year_level" }, 400);
-    if (!section) return json({ error: "Enter the section.", field: "section" }, 400);
-    const bd = /^\d{4}-\d{2}-\d{2}$/.test(birthday) ? new Date(birthday + "T00:00:00") : null;
-    if (!bd || isNaN(bd.getTime()) || bd > new Date() || birthday < "1950-01-01" || bd.getFullYear() !== +birthday.slice(0, 4) || bd.getMonth() + 1 !== +birthday.slice(5, 7) || bd.getDate() !== +birthday.slice(8, 10)) return json({ error: "Enter a valid birthday.", field: "birthday" }, 400);
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return json({ error: "Enter a valid email address.", field: "email" }, 400);
-    if (!/^[A-Za-z0-9][A-Za-z0-9-]{3,19}$/.test(studentId)) return json({ error: "Enter a valid student ID.", field: "student_id" }, 400);
-    if (!phone) return json({ error: "Enter a valid mobile number, like 0917 123 4567.", field: "phone" }, 400);
-
-    // email, mobile number and student ID can each belong to only one live registration (this one doesn't count against itself)
-    const alive = "registration_status.is.null,registration_status.neq.rejected";
-    const lit = (v: string) => v.replace(/[\%_]/g, (c) => "\\" + c);
-    const [e, p, sid] = await Promise.all([
-      members.select("id").ilike("email", lit(email)).neq("id", id).or(alive).limit(1),
-      members.select("id").eq("phone", phone).neq("id", id).or(alive).limit(1),
-      members.select("id").ilike("student_id", lit(studentId)).neq("id", id).or(alive).limit(1),
-    ]);
-    if (e.data?.length) return json({ error: "That email is already registered to someone else.", field: "email" }, 409);
-    if (p.data?.length) return json({ error: "That mobile number is already registered to someone else.", field: "phone" }, 409);
-    if (sid.data?.length) return json({ error: "That student ID is already registered to someone else.", field: "student_id" }, 409);
-
-    const name = `${first} ${last}`;
-    const patch = { name, first_name: first, last_name: last, gender, birthday, email, phone, student_id: studentId, program, year_level: year, section, about };
-    const { error } = await members.update(patch).eq("id", id);
-    if (error) return json({ error: error.code === "23505" ? "Those details clash with another registration." : "Couldn't save the changes." }, error.code === "23505" ? 409 : 500);
-    // the Media team entry was matched by name: keep it pointing at the same person
-    if (cur.registration_status === "approved" && cur.name && cur.name.trim().toLowerCase() !== name.toLowerCase()) {
-      await service!.schema("website").from("media_team").update({ name }).ilike("name", lit(cur.name.trim())).then(() => null, () => null);
-    }
-    return json({ ok: true, fields: patch });
-  }
-
+  // Correct what a person entered on the registration form. Only the super admin and the media head may do this.
+  if (b.action === "edit") {
+    const { data: me } = await service!.schema("website").from("admin_roles").select("role").eq("user_id", admin.userId).maybeSingle();
+    if (!me || !["super_admin", "media_head"].includes(me.role)) return json({ error: "Only the super admin or the media head can edit a registration." }, 403);
+    const f = (b.fields && typeof b.fields === "object" ? b.fields : {}) as Record<string, unknown>;
+    const text = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
+    const { data: cur } = await members.select("name, gender, program, year_level, registration_status").eq("id", id).maybeSingle();
+    if (!cur || !["pending", "approved"].includes(cur.registration_status ?? "")) return json({ error: "That registration can't be edited any more." }, 404);
+
+    const first = text(f.first_name, 40), last = text(f.last_name, 40);
+    const gender = text(f.gender, 20), program = text(f.program, 80), year = text(f.year_level, 20), section = text(f.section, 20);
+    const birthday = text(f.birthday, 10), email = text(f.email, 120).toLowerCase(), studentId = text(f.student_id, 20), about = text(f.about, 240);
+    const phone = normalizePhone(text(f.phone, 24));
+    if (!first || !last) return json({ error: "Enter the first and last name.", field: "first_name" }, 400);
+    // a value the person originally chose stays acceptable even if the list changed since; anything new must be on the list
+    if (!GENDERS.includes(gender) && gender !== cur.gender) return json({ error: "Choose a gender from the list.", field: "gender" }, 400);
+    if (!PROGRAMS.includes(program) && program !== cur.program) return json({ error: "Choose a program from the list.", field: "program" }, 400);
+    if (!YEARS.includes(year) && year !== cur.year_level) return json({ error: "Choose a year level from the list.", field: "year_level" }, 400);
+    if (!section) return json({ error: "Enter the section.", field: "section" }, 400);
+    const bd = /^\d{4}-\d{2}-\d{2}$/.test(birthday) ? new Date(birthday + "T00:00:00") : null;
+    if (!bd || isNaN(bd.getTime()) || bd > new Date() || birthday < "1950-01-01" || bd.getFullYear() !== +birthday.slice(0, 4) || bd.getMonth() + 1 !== +birthday.slice(5, 7) || bd.getDate() !== +birthday.slice(8, 10)) return json({ error: "Enter a valid birthday.", field: "birthday" }, 400);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return json({ error: "Enter a valid email address.", field: "email" }, 400);
+    if (!/^[A-Za-z0-9][A-Za-z0-9-]{3,19}$/.test(studentId)) return json({ error: "Enter a valid student ID.", field: "student_id" }, 400);
+    if (!phone) return json({ error: "Enter a valid mobile number, like 0917 123 4567.", field: "phone" }, 400);
+
+    // email, mobile number and student ID can each belong to only one live registration (this one doesn't count against itself)
+    const alive = "registration_status.is.null,registration_status.neq.rejected";
+    const lit = (v: string) => v.replace(/[\%_]/g, (c) => "\\" + c);
+    const [e, p, sid] = await Promise.all([
+      members.select("id").ilike("email", lit(email)).neq("id", id).or(alive).limit(1),
+      members.select("id").eq("phone", phone).neq("id", id).or(alive).limit(1),
+      members.select("id").ilike("student_id", lit(studentId)).neq("id", id).or(alive).limit(1),
+    ]);
+    if (e.data?.length) return json({ error: "That email is already registered to someone else.", field: "email" }, 409);
+    if (p.data?.length) return json({ error: "That mobile number is already registered to someone else.", field: "phone" }, 409);
+    if (sid.data?.length) return json({ error: "That student ID is already registered to someone else.", field: "student_id" }, 409);
+
+    const name = `${first} ${last}`;
+    const patch = { name, first_name: first, last_name: last, gender, birthday, email, phone, student_id: studentId, program, year_level: year, section, about };
+    const { error } = await members.update(patch).eq("id", id);
+    if (error) return json({ error: error.code === "23505" ? "Those details clash with another registration." : "Couldn't save the changes." }, error.code === "23505" ? 409 : 500);
+    // the Media team entry was matched by name: keep it pointing at the same person
+    if (cur.registration_status === "approved" && cur.name && cur.name.trim().toLowerCase() !== name.toLowerCase()) {
+      await service!.schema("website").from("media_team").update({ name }).ilike("name", lit(cur.name.trim())).then(() => null, () => null);
+    }
+    return json({ ok: true, fields: patch });
+  }
+
   // Change what a person is registered as (Member, Media team, Player: one or more). `role` stays the main one, same priority as the sign-up form.
   if (b.action === "roles") {
     const picked = Array.isArray(b.roles) ? b.roles.filter((x): x is string => typeof x === "string") : [];
@@ -156,6 +157,8 @@ export async function PATCH(req: NextRequest) {
     const { error } = await members.update(update).eq("id", id);
     if (error) return json({ error: "Couldn't approve that registration." }, 500);
     await syncMediaTeam().catch((e) => console.error("Media team sync failed:", (e as Error).message));
+    const { data: who } = await members.select("name").eq("id", id).maybeSingle();
+    await tellOtherAdmins(admin.userId, "registration_approved", "Registration approved", `${who?.name ?? "A registration"} was approved and now appears on the site.`, `reg-approved:${id}:${Date.now()}`);
     return json({ ok: true });
   }
 
@@ -166,9 +169,17 @@ export async function PATCH(req: NextRequest) {
   }
 
   // Reject = move to the archive. Photos stay until the 30 days are up (purgeExpired).
-  const { error } = await members.update({ registration_status: "rejected", is_accepted: false, rejected_at: new Date().toISOString() }).eq("id", id).eq("registration_status", "pending");
+  const { data: rej, error } = await members.update({ registration_status: "rejected", is_accepted: false, rejected_at: new Date().toISOString() }).eq("id", id).eq("registration_status", "pending").select("name").maybeSingle();
   if (error) return json({ error: "Couldn't reject that registration." }, 500);
+  await service!.from("notifications").delete().eq("dedupe_key", `reg:${id}`); // the "new registration" notice no longer has anything to review
+  await tellOtherAdmins(admin.userId, "registration_rejected", "Registration rejected", `${rej?.name ?? "A registration"} was rejected and moved to the archive.`, `reg-rejected:${id}:${Date.now()}`);
   return json({ ok: true });
+}
+
+/* Saves an in-app notification (and pushes it) for every approved admin except the one who made the decision. */
+async function tellOtherAdmins(me: string, type: string, title: string, body: string, dedupe: string) {
+  const others = (await approvedAccountIds()).filter((x) => x !== me);
+  await notifyUsers(others, { type, title, body, link: "/admin#registrations", dedupe });
 }
 
 /* The Media team page (and the Media team section of the site) lists website.media_team, which has nothing to do with the registration

@@ -23,9 +23,15 @@ const KIND: Record<string, { icon: LucideIcon; tone: string }> = {
   task_late: { icon: Clock, tone: "bg-[#ef4444]/15 text-[#f87171]" },
   birthday: { icon: Cake, tone: "bg-pink-400/15 text-pink-300" },
   registration: { icon: UserPlus, tone: "bg-sky-400/15 text-sky-300" },
+  registration_approved: { icon: UserPlus, tone: "bg-accent/15 text-accent" },
+  registration_rejected: { icon: UserPlus, tone: "bg-[#ef4444]/15 text-[#f87171]" },
+  account_rejected: { icon: ShieldCheck, tone: "bg-[#ef4444]/15 text-[#f87171]" },
   access_request: { icon: ShieldCheck, tone: "bg-violet-400/15 text-violet-300" },
   account_approved: { icon: ShieldCheck, tone: "bg-accent/15 text-accent" },
 };
+
+/* Task notices carry a different title each time, so these are grouped by type alone: five new tasks = one row. */
+const GROUP_BY_TYPE = new Set(["task_assigned", "task_done", "task_due", "task_late"]);
 
 const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
 function ago(iso: string) {
@@ -196,7 +202,7 @@ export function NotificationPanel({ api, onNavigate }: { api: NotificationsApi; 
   // "The same" = same type and same heading (e.g. several "New registration to review"). Different headings, like each task or birthday, stay separate.
   const groups = useMemo(() => {
     const m = new Map<string, Note[]>();
-    for (const n of shown) { const k = `${n.type}\u0000${n.title}`; const g = m.get(k); if (g) g.push(n); else m.set(k, [n]); }
+    for (const n of shown) { const k = GROUP_BY_TYPE.has(n.type) ? n.type : `${n.type}\u0000${n.title}`; const g = m.get(k); if (g) g.push(n); else m.set(k, [n]); }
     return [...m.entries()].map(([key, items]) => ({ key, items, latest: items[0], unread: items.filter((x) => !x.read_at).length })); // items are newest first
   }, [shown]);
   const toggleGroup = (k: string) => setOpenGroups((o) => { const n = new Set(o); if (!n.delete(k)) n.add(k); return n; });

@@ -12,13 +12,19 @@ self.addEventListener("push", (event) => {
     // when the admin page is open and in front, the bell already shows it live: no second pop-up
     const open = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
     if (open.some((c) => c.visibilityState === "visible" && c.focused)) return;
-    await self.registration.showNotification(title, {
-      body: d.body || "",
+    // Similar notifications share one slot on the device (tag = type) and collapse into a single summary,
+    // e.g. "3 new tasks", instead of a stack of separate pop-ups.
+    const tag = d.type || "general";
+    const prev = (await self.registration.getNotifications({ tag })).reduce((n, x) => Math.max(n, (x.data && x.data.count) || 1), 0);
+    const count = prev + 1;
+    const WORDS = { task_assigned: "new tasks", task_done: "tasks finished", task_due: "tasks due soon", task_late: "overdue tasks", registration: "registrations to review", birthday: "birthdays" };
+    await self.registration.showNotification(count > 1 ? `${count} ${WORDS[d.type] || "new notifications"}` : title, {
+      body: count > 1 ? `Latest: ${d.body ? `${title}. ${d.body}` : title}` : d.body || "",
       icon: "/logo-96.png",
       badge: "/logo-96.png",
-      tag: d.type ? `${d.type}:${title}` : undefined, // same heading = one pop-up on the device, not a pile
-      renotify: !!d.type,                              // ...but it still alerts again for the newer one
-      data: { link: d.link || "/admin" },
+      tag,
+      renotify: false, // a newer one updates the summary quietly rather than buzzing the phone again
+      data: { link: d.link || "/admin", count },
     });
   })());
 });

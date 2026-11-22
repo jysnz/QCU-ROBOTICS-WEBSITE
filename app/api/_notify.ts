@@ -87,8 +87,14 @@ export async function notifyUsers(userIds: string[], n: Notice): Promise<void> {
 
     const rows = ids.map((user_id) => ({ user_id, type: n.type, title: n.title.slice(0, 200), body: n.body?.slice(0, 500) ?? null, link: n.link ?? null, dedupe_key: n.dedupe ?? null }));
     // ignoreDuplicates: people who already got this exact event are skipped, and only the newly saved rows come back
-    const { data: saved, error } = await db.from("notifications").upsert(rows, { onConflict: "user_id,dedupe_key", ignoreDuplicates: true }).select("user_id");
-    if (error) { console.error("Saving notifications failed:", error.message); return; }
+    let { data: saved, error } = await db.from("notifications").upsert(rows, { onConflict: "user_id,dedupe_key", ignoreDuplicates: true }).select("user_id");
+    if (error) {
+      // e.g. the unique (user_id, dedupe_key) rule is missing in this database: still save the notification instead of losing it
+      console.error("Saving notifications failed, retrying with a plain insert:", error.message);
+      const retry = await db.from("notifications").insert(rows).select("user_id");
+      saved = retry.data; error = retry.error;
+      if (error) { console.error("Saving notifications failed:", error.message); reportError("notifications", error); return; }
+    }
     const fresh = [...new Set((saved ?? []).map((r: { user_id: string }) => r.user_id))];
     if (fresh.length) await push(fresh, n);
   } catch (e) {

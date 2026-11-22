@@ -24,7 +24,7 @@ const fmtDay = (iso: string) => new Date(iso).toLocaleDateString(undefined, { mo
 const overdue = (t: { due_at: string | null }) => !!t.due_at && new Date(t.due_at).getTime() < Date.now();
 /** Tells the server to notify the people just assigned to a task. Best effort: a failed notification never blocks the task. */
 const tellAssigned = (taskId: string, userIds: string[]) => {
-  adminFetch("/api/admin/notify", { method: "POST", body: JSON.stringify({ event: "task-assigned", taskId, userIds }) }).catch(() => {});
+  adminFetch("/api/admin/notify", { method: "POST", body: JSON.stringify({ event: "task-assigned", taskId, userIds }) }).catch((e) => console.error("Task notification failed:", e));
 };
 
 /** True when a "YYYY-MM-DDTHH:mm" local time is still ahead of now. */
@@ -1321,7 +1321,7 @@ function TodoView() {
     if (!me || leaving.has(t.id)) return;
     const { error } = await sb.from("task_assignees").update({ status: done ? "done" : "assigned", done_at: done ? new Date().toISOString() : null }).eq("task_id", t.id).eq("user_id", me);
     if (error) { notify.error("That didn't save."); return; }
-    if (done) adminFetch("/api/admin/notify", { method: "POST", body: JSON.stringify({ event: "task-done", taskId: t.id }) }).catch(() => {}); // tell whoever assigned it
+    if (done) adminFetch("/api/admin/notify", { method: "POST", body: JSON.stringify({ event: "task-done", taskId: t.id }) }).catch((e) => console.error("Task notification failed:", e)); // tell whoever assigned it
     if (done) notify.updated(t.title, { description: "Marked as done.", action: { label: "Undo", onClick: () => setDone({ ...t, status: "done" }, false) } });
     setLeaving((s) => new Set(s).add(t.id));
     setTimeout(() => {
